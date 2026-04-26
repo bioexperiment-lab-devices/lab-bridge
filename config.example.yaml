@@ -1,0 +1,38 @@
+# config.example.yaml — copy to config.yaml and fill in.
+# config.yaml is gitignored; never commit secrets.
+
+vps:
+  host: 0.0.0.0                       # public IPv4 of the VPS
+  ssh_user: khamit                    # must already exist with passwordless sudo
+  ssh_port: 22
+  remote_root: /srv/lab_devices_server # where rendered configs land on the VPS
+  notebooks_path: /srv/jupyterlab/work # bind-mounted into the jupyter container
+
+caddy:
+  acme_email: you@example.com         # for Let's Encrypt registration
+
+jupyter:
+  # Pinned for reproducibility. Bump explicitly when you want to upgrade.
+  image: quay.io/jupyter/scipy-notebook:2026-04-20
+
+chisel:
+  image: jpillora/chisel:1.10.1
+  listen_port: 8080                   # PUBLIC: lab-device chisel clients dial in
+
+# JupyterLab basic-auth users. Manage via `task secrets:add-user`.
+caddy_users: []
+# Example shape (do not commit real hashes):
+# caddy_users:
+#   - name: alice
+#     password_hash: "$2y$14$..."
+
+# Lab devices that connect inbound via chisel. Manage via `task secrets:add-client`.
+# Each `reverse_port` is reachable inside the docker network as `chisel:<port>`,
+# never published to the host. Each device's chisel credential is restricted to
+# only its own port.
+chisel_clients: []
+# Example shape:
+# chisel_clients:
+#   - name: microscope-1
+#     reverse_port: 9001
+#     password: "32-char-random"
