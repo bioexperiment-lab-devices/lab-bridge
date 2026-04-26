@@ -33,8 +33,12 @@ tasks:
   "secrets:add-client":
     desc: Add a chisel client (lab device); generates a random password
     cmd: bash scripts/secrets.sh add-client {{.CLI_ARGS}}
-  "secrets:show-client":       { desc: "(stub)", cmd: "echo not implemented; exit 1" }
-  "secrets:rm-client":         { desc: "(stub)", cmd: "echo not implemented; exit 1" }
+  "secrets:show-client":
+    desc: Re-print chisel client invocation for an existing device
+    cmd: bash scripts/secrets.sh show-client {{.CLI_ARGS}}
+  "secrets:rm-client":
+    desc: Remove a chisel client
+    cmd: bash scripts/secrets.sh rm-client {{.CLI_ARGS}}
 
   # --- Operations (filled in by later tasks) ---
   logs:    { desc: "(stub)", cmd: "echo not implemented; exit 1" }

@@ -84,3 +84,30 @@ teardown() { teardown_tmpdir; }
     [ "$status" -ne 0 ]
     [[ "$output" == *"9001"* ]]
 }
+
+@test "secrets show-client: re-prints invocation for existing client" {
+    pwd="$(yq e ".chisel_clients[] | select(.name == \"microscope-1\") | .password" "$LDS_CONFIG")"
+    run bash "$ROOT/scripts/secrets.sh" show-client microscope-1
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"microscope-1:$pwd"* ]]
+    [[ "$output" == *"R:0.0.0.0:9001:localhost:80"* ]]
+}
+
+@test "secrets show-client: refuses unknown client" {
+    run bash "$ROOT/scripts/secrets.sh" show-client ghost
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"ghost"* ]]
+}
+
+@test "secrets rm-client: removes existing client" {
+    run bash "$ROOT/scripts/secrets.sh" rm-client microscope-1
+    [ "$status" -eq 0 ]
+    count="$(yq e '.chisel_clients | map(select(.name == "microscope-1")) | length' "$LDS_CONFIG")"
+    [[ "$count" == "0" ]]
+}
+
+@test "secrets rm-client: refuses unknown client" {
+    run bash "$ROOT/scripts/secrets.sh" rm-client ghost
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"ghost"* ]]
+}

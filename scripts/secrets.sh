@@ -105,6 +105,39 @@ Run on the device:
 EOF
 }
 
+cmd_show_client() {
+    local name="${1:?usage: secrets.sh show-client <name>}"
+    ensure_config
+
+    local pw port host listen
+    pw="$(yq e ".chisel_clients[] | select(.name == \"$name\") | .password" "$CONFIG")"
+    port="$(yq e ".chisel_clients[] | select(.name == \"$name\") | .reverse_port" "$CONFIG")"
+    [[ -n "$pw" && "$pw" != "null" ]] || die "client $name not found"
+
+    host="$(yq e '.vps.host' "$CONFIG")"
+    listen="$(yq e '.chisel.listen_port' "$CONFIG")"
+
+    cat <<EOF
+Run on the device:
+  chisel client https://$host:$listen \\
+    $name:$pw \\
+    R:0.0.0.0:$port:localhost:80
+
+EOF
+}
+
+cmd_rm_client() {
+    local name="${1:?usage: secrets.sh rm-client <name>}"
+    ensure_config
+
+    local existing
+    existing="$(yq e ".chisel_clients[] | select(.name == \"$name\") | .name" "$CONFIG")"
+    [[ -n "$existing" ]] || die "client $name not found"
+
+    yq -i "del(.chisel_clients[] | select(.name == \"$name\"))" "$CONFIG"
+    log "removed client $name"
+}
+
 main() {
     local sub="${1:-}"; shift || true
     case "$sub" in
@@ -112,6 +145,8 @@ main() {
         set-user-password)   cmd_set_user_password "$@" ;;
         rm-user)             cmd_rm_user "$@" ;;
         add-client)          cmd_add_client "$@" ;;
+        show-client)         cmd_show_client "$@" ;;
+        rm-client)           cmd_rm_client "$@" ;;
         *) die "unknown subcommand: $sub" ;;
     esac
 }
