@@ -13,7 +13,11 @@ tasks:
     cmds:
       - bash scripts/doctor.sh
 
-  # --- Lifecycle (filled in by later tasks) ---
+  test:
+    desc: Run all bats tests (requires bats-core; integration tests need Docker)
+    cmd: bats tests/
+
+  # --- Lifecycle ---
   provision:
     desc: First-time VPS setup (Docker, ufw, dirs). Idempotent.
     cmd: bash scripts/provision.sh
@@ -24,7 +28,7 @@ tasks:
   down:     { desc: "docker compose down",                           cmd: "bash scripts/ops.sh down" }
   destroy:  { desc: "docker compose down -v (DANGEROUS)",            cmd: "bash scripts/ops.sh destroy" }
 
-  # --- Secrets (filled in by later tasks) ---
+  # --- Secrets ---
   "secrets:add-user":
     desc: Add a JupyterLab user (prompts for password)
     cmd: bash scripts/secrets.sh add-user {{.CLI_ARGS}}
@@ -44,7 +48,7 @@ tasks:
     desc: Remove a chisel client
     cmd: bash scripts/secrets.sh rm-client {{.CLI_ARGS}}
 
-  # --- Operations (filled in by later tasks) ---
+  # --- Operations ---
   logs:     { desc: "Show recent logs (optionally for a single service)", cmd: "bash scripts/ops.sh logs {{.CLI_ARGS}}" }
   ps:       { desc: "docker compose ps on the VPS",                  cmd: "bash scripts/ops.sh ps" }
   ssh:      { desc: "Open an interactive SSH session to the VPS",    cmd: "bash scripts/ops.sh ssh" }

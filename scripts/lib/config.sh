@@ -52,7 +52,7 @@ validate_config() {
         if [[ -z "$name" || "$name" == "null" ]]; then
             errors+=("caddy_users[$i].name is empty")
         fi
-        if ! [[ "$hash" =~ ^\$2[aby]\$[0-9]{2}\$.{50}$ ]]; then
+        if ! [[ "$hash" =~ ^\$2[aby]\$[0-9]{2}\$.{53}$ ]]; then
             errors+=("caddy_users[$i].password_hash is not a valid bcrypt hash")
         fi
     done
