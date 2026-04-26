@@ -30,7 +30,9 @@ tasks:
   "secrets:rm-user":
     desc: Remove a user
     cmd: bash scripts/secrets.sh rm-user {{.CLI_ARGS}}
-  "secrets:add-client":        { desc: "(stub)", cmd: "echo not implemented; exit 1" }
+  "secrets:add-client":
+    desc: Add a chisel client (lab device); generates a random password
+    cmd: bash scripts/secrets.sh add-client {{.CLI_ARGS}}
   "secrets:show-client":       { desc: "(stub)", cmd: "echo not implemented; exit 1" }
   "secrets:rm-client":         { desc: "(stub)", cmd: "echo not implemented; exit 1" }
 

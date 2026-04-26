@@ -59,3 +59,28 @@ teardown() { teardown_tmpdir; }
     [ "$status" -ne 0 ]
     [[ "$output" == *"ghost"* ]]
 }
+
+@test "secrets add-client: appends entry with random password and prints client invocation" {
+    run bash "$ROOT/scripts/secrets.sh" add-client thermometer-7 9007
+    [ "$status" -eq 0 ]
+    name="$(yq e '.chisel_clients[] | select(.name == "thermometer-7") | .name' "$LDS_CONFIG")"
+    port="$(yq e '.chisel_clients[] | select(.name == "thermometer-7") | .reverse_port' "$LDS_CONFIG")"
+    pwd="$(yq e '.chisel_clients[] | select(.name == "thermometer-7") | .password' "$LDS_CONFIG")"
+    [[ "$name" == "thermometer-7" ]]
+    [[ "$port" == "9007" ]]
+    [[ "${#pwd}" -eq 32 ]]
+    [[ "$output" == *"thermometer-7:$pwd"* ]]
+    [[ "$output" == *"R:0.0.0.0:9007:localhost:80"* ]]
+}
+
+@test "secrets add-client: refuses duplicate name" {
+    run bash "$ROOT/scripts/secrets.sh" add-client microscope-1 9099
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"microscope-1"* ]]
+}
+
+@test "secrets add-client: refuses port already in use" {
+    run bash "$ROOT/scripts/secrets.sh" add-client newdevice 9001
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"9001"* ]]
+}

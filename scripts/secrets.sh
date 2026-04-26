@@ -72,12 +72,46 @@ cmd_rm_user() {
     log "removed user $name"
 }
 
+cmd_add_client() {
+    local name="${1:?usage: secrets.sh add-client <name> <reverse_port>}"
+    local port="${2:?usage: secrets.sh add-client <name> <reverse_port>}"
+    ensure_config
+
+    [[ "$port" =~ ^[0-9]+$ ]] || die "reverse_port must be numeric, got: $port"
+
+    local existing_name existing_port
+    existing_name="$(yq e ".chisel_clients[] | select(.name == \"$name\") | .name" "$CONFIG")"
+    [[ -z "$existing_name" ]] || die "client $name already exists"
+    existing_port="$(yq e ".chisel_clients[] | select(.reverse_port == $port) | .name" "$CONFIG")"
+    [[ -z "$existing_port" ]] || die "reverse_port $port already in use by $existing_port"
+
+    # Need vps.host for the printout; load via validate-only path.
+    local host
+    host="$(yq e '.vps.host' "$CONFIG")"
+    [[ -n "$host" && "$host" != "null" ]] || die "vps.host missing in $CONFIG"
+
+    local pw
+    pw="$(gen_password)"
+    yq -i ".chisel_clients += [{\"name\": \"$name\", \"reverse_port\": $port, \"password\": \"$pw\"}]" "$CONFIG"
+
+    log "added client $name (port $port)"
+    cat <<EOF
+
+Run on the device:
+  chisel client https://$host:$(yq e '.chisel.listen_port' "$CONFIG") \\
+    $name:$pw \\
+    R:0.0.0.0:$port:localhost:80
+
+EOF
+}
+
 main() {
     local sub="${1:-}"; shift || true
     case "$sub" in
         add-user)            cmd_add_user "$@" ;;
         set-user-password)   cmd_set_user_password "$@" ;;
         rm-user)             cmd_rm_user "$@" ;;
+        add-client)          cmd_add_client "$@" ;;
         *) die "unknown subcommand: $sub" ;;
     esac
 }
