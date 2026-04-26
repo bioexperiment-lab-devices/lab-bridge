@@ -21,7 +21,9 @@ tasks:
   destroy:   { desc: "(stub) docker compose down -v",        cmd: "echo not implemented; exit 1" }
 
   # --- Secrets (filled in by later tasks) ---
-  "secrets:add-user":          { desc: "(stub)", cmd: "echo not implemented; exit 1" }
+  "secrets:add-user":
+    desc: Add a JupyterLab user (prompts for password)
+    cmd: bash scripts/secrets.sh add-user {{.CLI_ARGS}}
   "secrets:set-user-password": { desc: "(stub)", cmd: "echo not implemented; exit 1" }
   "secrets:rm-user":           { desc: "(stub)", cmd: "echo not implemented; exit 1" }
   "secrets:add-client":        { desc: "(stub)", cmd: "echo not implemented; exit 1" }
