@@ -1,0 +1,10 @@
+# Operator-private secrets and runtime state
+config.yaml
+backups/
+.task/
+
+# Editor cruft
+.DS_Store
+*.swp
+.idea/
+.vscode/
