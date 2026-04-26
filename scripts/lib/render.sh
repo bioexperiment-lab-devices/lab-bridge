@@ -45,3 +45,15 @@ render_caddyfile() {
         }
     ' "$tmpl" > "$out"
 }
+
+# render_chisel_users <output_path>
+# Builds the chisel users.json from .chisel_clients in CONFIG_PATH.
+render_chisel_users() {
+    local out="${1:?}"
+    yq -o=json e '
+        .chisel_clients
+        | map({(.name + ":" + .password): ["R:0.0.0.0:" + (.reverse_port | tostring)]})
+        | (. // [{}])
+        | .[] as $item ireduce ({}; . * $item)
+    ' "${CONFIG_PATH:?}" > "$out"
+}
