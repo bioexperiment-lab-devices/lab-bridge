@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=lib/config.sh
+source "$SCRIPT_DIR/lib/config.sh"
+# shellcheck source=lib/render.sh
+source "$SCRIPT_DIR/lib/render.sh"
+
+CONFIG="${LDS_CONFIG:-$SCRIPT_DIR/../config.yaml}"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+_STAGE=""
+
+main() {
+    [[ -f "$CONFIG" ]] || die "config not found: $CONFIG (cp config.example.yaml config.yaml)"
+    load_config "$CONFIG"
+
+    # 1. Render to a staging dir.
+    _STAGE="$(mktemp -d)"
+    trap 'rm -rf "$_STAGE"' EXIT
+    local stage="$_STAGE"
+
+    log "rendering templates..."
+    mkdir -p "$stage/chisel"
+    render_compose     "$REPO_ROOT/compose/docker-compose.yml.tmpl" "$stage/docker-compose.yml"
+    render_caddyfile   "$REPO_ROOT/compose/Caddyfile.tmpl"           "$stage/Caddyfile"
+    render_chisel_users "$stage/chisel/users.json"
+
+    # 2. Build SSH/rsync.
+    local ssh_base rsync_e target
+    ssh_base="ssh -p $VPS_SSH_PORT"
+    [[ -n "${LDS_SSH_KEY:-}" ]] && ssh_base="$ssh_base -i $LDS_SSH_KEY"
+    [[ -n "${LDS_SSH_OPTS:-}" ]] && ssh_base="$ssh_base $LDS_SSH_OPTS"
+    rsync_e="$ssh_base"
+    target="$VPS_SSH_USER@$VPS_HOST"
+
+    # 3. Rsync. --delete with --exclude=caddy_data/ keeps issued certs.
+    log "rsyncing to $target:$VPS_REMOTE_ROOT/ ..."
+    rsync -az --delete --exclude='caddy_data/' \
+        -e "$rsync_e" \
+        "$stage/" "$target:$VPS_REMOTE_ROOT/"
+
+    # 4. docker compose up.
+    log "bringing up the stack..."
+    $ssh_base "$target" "cd $VPS_REMOTE_ROOT && docker compose pull && docker compose up -d --remove-orphans"
+
+    # 5. Health check (skippable for tests).
+    if [[ "${LDS_SKIP_HEALTHCHECK:-}" != "1" ]]; then
+        log "waiting for HTTPS to respond with 401..."
+        local i status
+        for ((i=0; i<60; i++)); do
+            status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/" || true)"
+            if [[ "$status" == "401" ]]; then
+                log "deployed at https://$VPS_HOST/"
+                return 0
+            fi
+            sleep 1
+        done
+        warn "health check timed out (last status: $status). Check: task logs -- caddy"
+        return 1
+    fi
+    log "deployed (healthcheck skipped)"
+}
+
+main "$@"

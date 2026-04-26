@@ -43,6 +43,23 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 docker --version
 
+# Start dockerd if not running (handles non-systemd containers like the fake-VPS).
+if ! sudo docker info >/dev/null 2>&1; then
+    log "starting dockerd..."
+    # Use vfs storage driver in nested container environments where overlayfs
+    # is not available (e.g. Docker-in-Docker on macOS Docker Desktop).
+    sudo dockerd --host=unix:///var/run/docker.sock \
+        --storage-driver=vfs \
+        --log-level=error &>/tmp/dockerd.log &
+    # Wait up to 30 s for the socket to appear.
+    for _i in $(seq 1 30); do
+        sudo docker info >/dev/null 2>&1 && break
+        sleep 1
+    done
+    sudo docker info >/dev/null 2>&1 || { cat /tmp/dockerd.log >&2; exit 1; }
+    log "dockerd started (vfs storage driver)"
+fi
+
 # 2. ufw
 if ! command -v ufw >/dev/null 2>&1; then
     log "installing ufw..."

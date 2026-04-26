@@ -17,7 +17,9 @@ tasks:
   provision:
     desc: First-time VPS setup (Docker, ufw, dirs). Idempotent.
     cmd: bash scripts/provision.sh
-  deploy:    { desc: "(stub) Render configs and deploy",    cmd: "echo not implemented; exit 1" }
+  deploy:
+    desc: Render configs and bring up the stack on the VPS
+    cmd: bash scripts/deploy.sh
   restart:   { desc: "(stub) docker compose restart",        cmd: "echo not implemented; exit 1" }
   down:      { desc: "(stub) docker compose down",           cmd: "echo not implemented; exit 1" }
   destroy:   { desc: "(stub) docker compose down -v",        cmd: "echo not implemented; exit 1" }

@@ -2,7 +2,7 @@ FROM ubuntu:24.04
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        openssh-server sudo ca-certificates curl iproute2 && \
+        openssh-server sudo ca-certificates curl iproute2 rsync && \
     rm -rf /var/lib/apt/lists/*
 
 # Ubuntu 24.04's base image ships with a default `ubuntu` user at UID 1000.
