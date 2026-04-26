@@ -1,0 +1,45 @@
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy_data:/data
+      - ./caddy_config:/config
+    networks: [labnet]
+    depends_on: [jupyter]
+
+  jupyter:
+    image: __JUPYTER_IMAGE__
+    restart: unless-stopped
+    command:
+      - start-notebook.sh
+      - --ServerApp.token=
+      - --ServerApp.password=
+      - --ServerApp.allow_origin=*
+      - --ServerApp.base_url=/
+    volumes:
+      - __NOTEBOOKS_PATH__:/home/jovyan/work
+    networks: [labnet]
+    # No `ports:` — only Caddy reaches it as jupyter:8888 on labnet.
+
+  chisel:
+    image: __CHISEL_IMAGE__
+    restart: unless-stopped
+    command:
+      - server
+      - --port=__CHISEL_LISTEN_PORT__
+      - --authfile=/etc/chisel/users.json
+      - --reverse
+    ports:
+      - "__CHISEL_LISTEN_PORT__:__CHISEL_LISTEN_PORT__"
+    volumes:
+      - ./chisel/users.json:/etc/chisel/users.json:ro
+    networks: [labnet]
+
+networks:
+  labnet:
+    driver: bridge
