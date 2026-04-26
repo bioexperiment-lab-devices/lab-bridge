@@ -20,9 +20,9 @@ tasks:
   deploy:
     desc: Render configs and bring up the stack on the VPS
     cmd: bash scripts/deploy.sh
-  restart:   { desc: "(stub) docker compose restart",        cmd: "echo not implemented; exit 1" }
-  down:      { desc: "(stub) docker compose down",           cmd: "echo not implemented; exit 1" }
-  destroy:   { desc: "(stub) docker compose down -v",        cmd: "echo not implemented; exit 1" }
+  restart:  { desc: "docker compose restart",                        cmd: "bash scripts/ops.sh restart" }
+  down:     { desc: "docker compose down",                           cmd: "bash scripts/ops.sh down" }
+  destroy:  { desc: "docker compose down -v (DANGEROUS)",            cmd: "bash scripts/ops.sh destroy" }
 
   # --- Secrets (filled in by later tasks) ---
   "secrets:add-user":
@@ -45,7 +45,7 @@ tasks:
     cmd: bash scripts/secrets.sh rm-client {{.CLI_ARGS}}
 
   # --- Operations (filled in by later tasks) ---
-  logs:    { desc: "(stub)", cmd: "echo not implemented; exit 1" }
-  ps:      { desc: "(stub)", cmd: "echo not implemented; exit 1" }
-  ssh:     { desc: "(stub)", cmd: "echo not implemented; exit 1" }
-  backup:  { desc: "(stub)", cmd: "echo not implemented; exit 1" }
+  logs:     { desc: "Show recent logs (optionally for a single service)", cmd: "bash scripts/ops.sh logs {{.CLI_ARGS}}" }
+  ps:       { desc: "docker compose ps on the VPS",                  cmd: "bash scripts/ops.sh ps" }
+  ssh:      { desc: "Open an interactive SSH session to the VPS",    cmd: "bash scripts/ops.sh ssh" }
+  backup:   { desc: "rsync notebooks to ./backups/notebooks-<ts>/",  cmd: "bash scripts/ops.sh backup" }
