@@ -14,7 +14,9 @@ tasks:
       - bash scripts/doctor.sh
 
   # --- Lifecycle (filled in by later tasks) ---
-  provision: { desc: "(stub) Provision a fresh VPS",        cmd: "echo not implemented; exit 1" }
+  provision:
+    desc: First-time VPS setup (Docker, ufw, dirs). Idempotent.
+    cmd: bash scripts/provision.sh
   deploy:    { desc: "(stub) Render configs and deploy",    cmd: "echo not implemented; exit 1" }
   restart:   { desc: "(stub) docker compose restart",        cmd: "echo not implemented; exit 1" }
   down:      { desc: "(stub) docker compose down",           cmd: "echo not implemented; exit 1" }

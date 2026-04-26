@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=lib/config.sh
+source "$SCRIPT_DIR/lib/config.sh"
+
+CONFIG="${LDS_CONFIG:-$SCRIPT_DIR/../config.yaml}"
+
+main() {
+    load_config "$CONFIG"
+
+    # Build SSH command (allow tests to inject key + opts).
+    local ssh_base
+    ssh_base="ssh -p $VPS_SSH_PORT"
+    [[ -n "${LDS_SSH_KEY:-}" ]] && ssh_base="$ssh_base -i $LDS_SSH_KEY"
+    [[ -n "${LDS_SSH_OPTS:-}" ]] && ssh_base="$ssh_base $LDS_SSH_OPTS"
+    local target="$VPS_SSH_USER@$VPS_HOST"
+
+    # 1. Reachability.
+    log "checking SSH reachability..."
+    $ssh_base -o BatchMode=yes -o ConnectTimeout=10 "$target" true \
+        || die "cannot SSH to $target — check vps.host / vps.ssh_user / vps.ssh_port"
+
+    # 2. Run remote provisioning script via stdin.
+    log "running remote provisioning..."
+    local remote_chisel_port="$CHISEL_LISTEN_PORT"
+    local remote_root="$VPS_REMOTE_ROOT"
+    local notebooks="$VPS_NOTEBOOKS_PATH"
+
+    $ssh_base "$target" \
+        "REMOTE_ROOT='$remote_root' NOTEBOOKS_PATH='$notebooks' CHISEL_PORT='$remote_chisel_port' bash -s" <<'REMOTE'
+set -euo pipefail
+
+log()  { printf '[remote] %s\n' "$*" >&2; }
+
+# 1. Docker
+if ! command -v docker >/dev/null 2>&1; then
+    log "installing Docker..."
+    curl -fsSL https://get.docker.com | sudo sh
+    sudo usermod -aG docker "$USER"
+fi
+docker --version
+
+# 2. ufw
+if ! command -v ufw >/dev/null 2>&1; then
+    log "installing ufw..."
+    sudo apt-get update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ufw
+fi
+sudo ufw --force reset >/dev/null
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow 22/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw allow "${CHISEL_PORT:?}"/tcp
+sudo ufw --force enable
+
+# 3. Directories. JupyterLab containers run as UID 1000 (jovyan).
+sudo mkdir -p "$REMOTE_ROOT" "$REMOTE_ROOT/chisel" "$REMOTE_ROOT/caddy_data" "$NOTEBOOKS_PATH"
+sudo chown -R "$USER:$USER" "$REMOTE_ROOT"
+sudo chown -R "$USER:$USER" "$NOTEBOOKS_PATH"
+sudo chmod 775 "$NOTEBOOKS_PATH"
+log "ok"
+REMOTE
+
+    log "provisioned. next: task deploy"
+}
+
+main "$@"
