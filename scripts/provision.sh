@@ -61,7 +61,7 @@ sudo ufw --force enable
 # 3. Directories. JupyterLab containers run as UID 1000 (jovyan).
 sudo mkdir -p "$REMOTE_ROOT" "$REMOTE_ROOT/chisel" "$REMOTE_ROOT/caddy_data" "$NOTEBOOKS_PATH"
 sudo chown -R "$USER:$USER" "$REMOTE_ROOT"
-sudo chown -R "$USER:$USER" "$NOTEBOOKS_PATH"
+sudo chown -R 1000:100 "$NOTEBOOKS_PATH"
 sudo chmod 775 "$NOTEBOOKS_PATH"
 log "ok"
 REMOTE
