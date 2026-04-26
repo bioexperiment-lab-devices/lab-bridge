@@ -13,7 +13,7 @@ chisel:
   listen_port: 8080
 caddy_users:
   - name: alice
-    password_hash: "$2y$14$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWX"
+    password_hash: "$2y$14$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0"
 chisel_clients:
   - name: microscope-1
     reverse_port: 9001
