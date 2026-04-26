@@ -24,8 +24,12 @@ tasks:
   "secrets:add-user":
     desc: Add a JupyterLab user (prompts for password)
     cmd: bash scripts/secrets.sh add-user {{.CLI_ARGS}}
-  "secrets:set-user-password": { desc: "(stub)", cmd: "echo not implemented; exit 1" }
-  "secrets:rm-user":           { desc: "(stub)", cmd: "echo not implemented; exit 1" }
+  "secrets:set-user-password":
+    desc: Rotate password for an existing user
+    cmd: bash scripts/secrets.sh set-user-password {{.CLI_ARGS}}
+  "secrets:rm-user":
+    desc: Remove a user
+    cmd: bash scripts/secrets.sh rm-user {{.CLI_ARGS}}
   "secrets:add-client":        { desc: "(stub)", cmd: "echo not implemented; exit 1" }
   "secrets:show-client":       { desc: "(stub)", cmd: "echo not implemented; exit 1" }
   "secrets:rm-client":         { desc: "(stub)", cmd: "echo not implemented; exit 1" }

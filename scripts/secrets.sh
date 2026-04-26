@@ -45,10 +45,39 @@ cmd_add_user() {
     log "added user $name"
 }
 
+cmd_set_user_password() {
+    local name="${1:?usage: secrets.sh set-user-password <name>}"
+    ensure_config
+
+    local existing
+    existing="$(yq e ".caddy_users[] | select(.name == \"$name\") | .name" "$CONFIG")"
+    [[ -n "$existing" ]] || die "user $name not found"
+
+    local pw hash
+    pw="$(prompt_password "New password for $name")"
+    hash="$(bcrypt_hash "$pw")"
+    yq -i "(.caddy_users[] | select(.name == \"$name\") | .password_hash) = \"$hash\"" "$CONFIG"
+    log "rotated password for $name"
+}
+
+cmd_rm_user() {
+    local name="${1:?usage: secrets.sh rm-user <name>}"
+    ensure_config
+
+    local existing
+    existing="$(yq e ".caddy_users[] | select(.name == \"$name\") | .name" "$CONFIG")"
+    [[ -n "$existing" ]] || die "user $name not found"
+
+    yq -i "del(.caddy_users[] | select(.name == \"$name\"))" "$CONFIG"
+    log "removed user $name"
+}
+
 main() {
     local sub="${1:-}"; shift || true
     case "$sub" in
-        add-user) cmd_add_user "$@" ;;
+        add-user)            cmd_add_user "$@" ;;
+        set-user-password)   cmd_set_user_password "$@" ;;
+        rm-user)             cmd_rm_user "$@" ;;
         *) die "unknown subcommand: $sub" ;;
     esac
 }
