@@ -8,3 +8,6 @@ backups/
 *.swp
 .idea/
 .vscode/
+
+tests/fake_vps/id_test
+tests/fake_vps/id_test.pub
