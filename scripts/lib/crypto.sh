@@ -9,10 +9,14 @@ gen_password() {
     echo
 }
 
-# bcrypt_hash <plaintext> — print a bcrypt hash with cost 14 ($2y$ flavor).
-bcrypt_hash() {
-    local plaintext="${1:?bcrypt_hash: missing plaintext}"
-    # htpasswd -nbB <user> <password> emits "user:hash". We use a dummy user
-    # and strip the prefix. -B selects bcrypt, -C 14 sets the cost.
-    htpasswd -nbBC 14 _ "$plaintext" | sed -e 's/^_://' -e 's/[[:space:]]*$//'
+# jupyter_sha1_hash <plaintext> — print a JupyterLab-format password hash:
+#   sha1:<hex_salt_12>:<hex_sha1(passphrase || salt)>
+# This matches what `jupyter_server.auth.passwd(..., algorithm='sha1')` emits
+# and is accepted by ServerApp.password.
+jupyter_sha1_hash() {
+    local plaintext="${1:?jupyter_sha1_hash: missing plaintext}"
+    local salt hash
+    salt="$(openssl rand -hex 6)"
+    hash="$(printf '%s' "${plaintext}${salt}" | openssl dgst -sha1 | awk '{print $NF}')"
+    printf 'sha1:%s:%s\n' "$salt" "$hash"
 }

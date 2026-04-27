@@ -15,14 +15,23 @@ load helpers
     [[ "$a" != "$b" ]]
 }
 
-@test "bcrypt_hash: produces a \$2y\$14\$ hash" {
-    run bash -c "source $ROOT/scripts/lib/crypto.sh; bcrypt_hash hunter2"
+@test "jupyter_sha1_hash: emits sha1:<hex_salt>:<40-char-hex>" {
+    run bash -c "source $ROOT/scripts/lib/crypto.sh; jupyter_sha1_hash hunter2"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ ^\$2y\$14\$.{53}$ ]]
+    [[ "$output" =~ ^sha1:[0-9a-f]+:[0-9a-f]{40}$ ]]
 }
 
-@test "bcrypt_hash: same plaintext, different runs produce different hashes (random salt)" {
-    a="$(bash -c "source $ROOT/scripts/lib/crypto.sh; bcrypt_hash hunter2")"
-    b="$(bash -c "source $ROOT/scripts/lib/crypto.sh; bcrypt_hash hunter2")"
+@test "jupyter_sha1_hash: same plaintext, different runs produce different hashes (random salt)" {
+    a="$(bash -c "source $ROOT/scripts/lib/crypto.sh; jupyter_sha1_hash hunter2")"
+    b="$(bash -c "source $ROOT/scripts/lib/crypto.sh; jupyter_sha1_hash hunter2")"
     [[ "$a" != "$b" ]]
+}
+
+@test "jupyter_sha1_hash: matches jupyter_server's algorithm (sha1(passphrase || salt))" {
+    # Decompose the produced hash and recompute with python to confirm format compat.
+    out="$(bash -c "source $ROOT/scripts/lib/crypto.sh; jupyter_sha1_hash myPa55")"
+    salt="${out#sha1:}"; salt="${salt%:*}"
+    hash="${out##*:}"
+    expected="$(python3 -c "import hashlib,sys; print(hashlib.sha1((sys.argv[1]+sys.argv[2]).encode()).hexdigest())" myPa55 "$salt")"
+    [[ "$hash" == "$expected" ]]
 }

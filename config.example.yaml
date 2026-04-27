@@ -14,17 +14,13 @@ caddy:
 jupyter:
   # Pinned for reproducibility. Bump explicitly when you want to upgrade.
   image: quay.io/jupyter/scipy-notebook:2026-04-20
+  # Shared login password hash (sha1:<hex_salt>:<hex_sha1>) accepted by
+  # ServerApp.password. Manage via `task secrets:set-jupyter-password`.
+  password_hash: "<run task secrets:set-jupyter-password>"
 
 chisel:
   image: jpillora/chisel:1.10.1
   listen_port: 8080                   # PUBLIC: lab-device chisel clients dial in
-
-# JupyterLab basic-auth users. Manage via `task secrets:add-user`.
-caddy_users: []
-# Example shape (do not commit real hashes):
-# caddy_users:
-#   - name: alice
-#     password_hash: "$2y$14$..."
 
 # Lab devices that connect inbound via chisel. Manage via `task secrets:add-client`.
 # Each `reverse_port` is reachable inside the docker network as `chisel:<port>`,

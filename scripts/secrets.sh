@@ -30,46 +30,13 @@ prompt_password() {
     printf '%s' "$pw1"
 }
 
-cmd_add_user() {
-    local name="${1:?usage: secrets.sh add-user <name>}"
+cmd_set_jupyter_password() {
     ensure_config
-
-    local existing
-    existing="$(yq e ".caddy_users[] | select(.name == \"$name\") | .name" "$CONFIG")"
-    [[ -z "$existing" ]] || die "user $name already exists (use set-user-password to rotate)"
-
     local pw hash
-    pw="$(prompt_password "Password for $name")"
-    hash="$(bcrypt_hash "$pw")"
-    yq -i ".caddy_users += [{\"name\": \"$name\", \"password_hash\": \"$hash\"}]" "$CONFIG"
-    log "added user $name"
-}
-
-cmd_set_user_password() {
-    local name="${1:?usage: secrets.sh set-user-password <name>}"
-    ensure_config
-
-    local existing
-    existing="$(yq e ".caddy_users[] | select(.name == \"$name\") | .name" "$CONFIG")"
-    [[ -n "$existing" ]] || die "user $name not found"
-
-    local pw hash
-    pw="$(prompt_password "New password for $name")"
-    hash="$(bcrypt_hash "$pw")"
-    yq -i "(.caddy_users[] | select(.name == \"$name\") | .password_hash) = \"$hash\"" "$CONFIG"
-    log "rotated password for $name"
-}
-
-cmd_rm_user() {
-    local name="${1:?usage: secrets.sh rm-user <name>}"
-    ensure_config
-
-    local existing
-    existing="$(yq e ".caddy_users[] | select(.name == \"$name\") | .name" "$CONFIG")"
-    [[ -n "$existing" ]] || die "user $name not found"
-
-    yq -i "del(.caddy_users[] | select(.name == \"$name\"))" "$CONFIG"
-    log "removed user $name"
+    pw="$(prompt_password "JupyterLab password")"
+    hash="$(jupyter_sha1_hash "$pw")"
+    yq -i ".jupyter.password_hash = \"$hash\"" "$CONFIG"
+    log "set JupyterLab password (re-run task deploy to apply)"
 }
 
 cmd_add_client() {
@@ -141,12 +108,10 @@ cmd_rm_client() {
 main() {
     local sub="${1:-}"; shift || true
     case "$sub" in
-        add-user)            cmd_add_user "$@" ;;
-        set-user-password)   cmd_set_user_password "$@" ;;
-        rm-user)             cmd_rm_user "$@" ;;
-        add-client)          cmd_add_client "$@" ;;
-        show-client)         cmd_show_client "$@" ;;
-        rm-client)           cmd_rm_client "$@" ;;
+        set-jupyter-password) cmd_set_jupyter_password "$@" ;;
+        add-client)           cmd_add_client "$@" ;;
+        show-client)          cmd_show_client "$@" ;;
+        rm-client)            cmd_rm_client "$@" ;;
         *) die "unknown subcommand: $sub" ;;
     esac
 }

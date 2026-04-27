@@ -11,6 +11,7 @@ _REQUIRED_FIELDS=(
     .vps.notebooks_path
     .caddy.acme_email
     .jupyter.image
+    .jupyter.password_hash
     .chisel.image
     .chisel.listen_port
 )
@@ -42,24 +43,19 @@ validate_config() {
         fi
     done
 
-    # caddy_users password_hash format check (bcrypt: $2[aby]$NN$<50 chars>).
-    local i name hash
-    local count
-    count="$(_yq e '.caddy_users | length' "$path")"
-    for ((i=0; i<count; i++)); do
-        name="$(_yq e ".caddy_users[$i].name" "$path")"
-        hash="$(_yq e ".caddy_users[$i].password_hash" "$path")"
-        if [[ -z "$name" || "$name" == "null" ]]; then
-            errors+=("caddy_users[$i].name is empty")
+    # jupyter.password_hash format check (sha1:<hex_salt>:<hex_sha1>).
+    local jupyter_hash
+    jupyter_hash="$(_yq e '.jupyter.password_hash // ""' "$path")"
+    if [[ -n "$jupyter_hash" && "$jupyter_hash" != "null" ]]; then
+        if ! [[ "$jupyter_hash" =~ ^sha1:[0-9a-f]+:[0-9a-f]{40}$ ]]; then
+            errors+=("jupyter.password_hash is not a valid sha1: hash (expected sha1:<hex_salt>:<40-char-sha1>)")
         fi
-        if ! [[ "$hash" =~ ^\$2[aby]\$[0-9]{2}\$.{53}$ ]]; then
-            errors+=("caddy_users[$i].password_hash is not a valid bcrypt hash")
-        fi
-    done
+    fi
 
     # chisel_clients: per-entry validity + duplicate-port check.
+    local i count
     count="$(_yq e '.chisel_clients | length' "$path")"
-    local seen_ports=() port pwd
+    local seen_ports=() name port pwd
     for ((i=0; i<count; i++)); do
         name="$(_yq e ".chisel_clients[$i].name" "$path")"
         port="$(_yq e ".chisel_clients[$i].reverse_port" "$path")"
@@ -93,8 +89,9 @@ load_config() {
     export VPS_SSH_PORT      ; VPS_SSH_PORT="$(_yq e '.vps.ssh_port' "$path")"
     export VPS_REMOTE_ROOT   ; VPS_REMOTE_ROOT="$(_yq e '.vps.remote_root' "$path")"
     export VPS_NOTEBOOKS_PATH; VPS_NOTEBOOKS_PATH="$(_yq e '.vps.notebooks_path' "$path")"
-    export CADDY_ACME_EMAIL  ; CADDY_ACME_EMAIL="$(_yq e '.caddy.acme_email' "$path")"
-    export JUPYTER_IMAGE     ; JUPYTER_IMAGE="$(_yq e '.jupyter.image' "$path")"
-    export CHISEL_IMAGE      ; CHISEL_IMAGE="$(_yq e '.chisel.image' "$path")"
-    export CHISEL_LISTEN_PORT; CHISEL_LISTEN_PORT="$(_yq e '.chisel.listen_port' "$path")"
+    export CADDY_ACME_EMAIL       ; CADDY_ACME_EMAIL="$(_yq e '.caddy.acme_email' "$path")"
+    export JUPYTER_IMAGE          ; JUPYTER_IMAGE="$(_yq e '.jupyter.image' "$path")"
+    export JUPYTER_PASSWORD_HASH  ; JUPYTER_PASSWORD_HASH="$(_yq e '.jupyter.password_hash' "$path")"
+    export CHISEL_IMAGE           ; CHISEL_IMAGE="$(_yq e '.chisel.image' "$path")"
+    export CHISEL_LISTEN_PORT     ; CHISEL_LISTEN_PORT="$(_yq e '.chisel.listen_port' "$path")"
 }

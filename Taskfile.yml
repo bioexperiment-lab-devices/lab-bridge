@@ -29,15 +29,9 @@ tasks:
   destroy:  { desc: "docker compose down -v (DANGEROUS)",            cmd: "bash scripts/ops.sh destroy" }
 
   # --- Secrets ---
-  "secrets:add-user":
-    desc: Add a JupyterLab user (prompts for password)
-    cmd: bash scripts/secrets.sh add-user {{.CLI_ARGS}}
-  "secrets:set-user-password":
-    desc: Rotate password for an existing user
-    cmd: bash scripts/secrets.sh set-user-password {{.CLI_ARGS}}
-  "secrets:rm-user":
-    desc: Remove a user
-    cmd: bash scripts/secrets.sh rm-user {{.CLI_ARGS}}
+  "secrets:set-jupyter-password":
+    desc: Set the shared JupyterLab login password (prompts twice)
+    cmd: bash scripts/secrets.sh set-jupyter-password {{.CLI_ARGS}}
   "secrets:add-client":
     desc: Add a chisel client (lab device); generates a random password
     cmd: bash scripts/secrets.sh add-client {{.CLI_ARGS}}
