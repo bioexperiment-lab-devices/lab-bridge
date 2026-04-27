@@ -1,5 +1,9 @@
 {
     email __ACME_EMAIL__
+    # Modern TLS clients (curl, OpenSSL) do not send SNI when the URL is an IP
+    # literal (RFC 6066 forbids IP in SNI). Without this, Caddy returns
+    # tlsv1 internal_error to clients with no SNI, including our own healthcheck.
+    default_sni __VPS_HOST__
 }
 
 https://__VPS_HOST__ {
