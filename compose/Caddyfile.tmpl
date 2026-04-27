@@ -7,11 +7,10 @@
 }
 
 https://__VPS_HOST__ {
-    tls {
+    tls __ACME_EMAIL__ {
         issuer acme {
             profile shortlived
         }
-        issuer internal
     }
 
     basic_auth {

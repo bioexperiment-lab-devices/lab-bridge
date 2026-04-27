@@ -38,7 +38,7 @@ teardown() { teardown_tmpdir; }
     [[ "$output" == *"alice "*'$2y$14$abcdefghij'* ]]
     [[ "$output" == *"reverse_proxy jupyter:8888"* ]]
     [[ "$output" == *"profile shortlived"* ]]
-    [[ "$output" == *"issuer internal"* ]]
+    [[ "$output" == *"default_sni 192.0.2.10"* ]]
     [[ "$output" != *"__"*"__"* ]]
 }
 
