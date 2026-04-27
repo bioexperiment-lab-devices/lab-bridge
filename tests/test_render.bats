@@ -5,7 +5,7 @@ load helpers
 setup() { setup_tmpdir; }
 teardown() { teardown_tmpdir; }
 
-@test "render_compose: substitutes image, paths, chisel port, and jupyter password hash" {
+@test "render_compose: substitutes image, paths, password_hash, and chisel port" {
     run bash -c "
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
@@ -20,11 +20,11 @@ teardown() { teardown_tmpdir; }
     [[ "$output" == *"/srv/jupyterlab/work:/home/jovyan/work"* ]]
     [[ "$output" == *"--port=8080"* ]]
     [[ "$output" == *'"8080:8080"'* ]]
-    [[ "$output" == *"--ServerApp.password=sha1:abc123def456:0123456789abcdef"* ]]
+    [[ "$output" == *"--ServerApp.password=sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"* ]]
     [[ "$output" != *"__"*"__"* ]]   # no leftover placeholders
 }
 
-@test "render_caddyfile: includes IP, email, default_sni, and reverse_proxy (no basic_auth)" {
+@test "render_caddyfile: contains TLS, default_sni, reverse_proxy, no basic_auth" {
     run bash -c "
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
@@ -35,10 +35,10 @@ teardown() { teardown_tmpdir; }
     "
     [ "$status" -eq 0 ]
     [[ "$output" == *"https://192.0.2.10"* ]]
-    [[ "$output" == *"email ops@example.com"* ]]
-    [[ "$output" == *"reverse_proxy jupyter:8888"* ]]
+    [[ "$output" == *"tls ops@example.com"* ]]
     [[ "$output" == *"profile shortlived"* ]]
     [[ "$output" == *"default_sni 192.0.2.10"* ]]
+    [[ "$output" == *"reverse_proxy jupyter:8888"* ]]
     [[ "$output" != *"basic_auth"* ]]
     [[ "$output" != *"__"*"__"* ]]
 }
@@ -53,7 +53,6 @@ teardown() { teardown_tmpdir; }
         cat $TMPDIR/users.json
     "
     [ "$status" -eq 0 ]
-    # Valid JSON?
     echo "$output" | yq -p json e '.' >/dev/null
     [[ "$output" == *'"microscope-1:k7HfLpNqRsT3uVwX1yZ2aB3cD4eF5gH6"'* ]]
     [[ "$output" == *'R:0.0.0.0:9001'* ]]
@@ -63,7 +62,9 @@ teardown() { teardown_tmpdir; }
     cat > $TMPDIR/empty.yaml <<'EOF'
 vps: {host: 1.2.3.4, ssh_user: u, ssh_port: 22, remote_root: /srv/x, notebooks_path: /srv/y}
 caddy: {acme_email: o@x.io}
-jupyter: {image: quay.io/jupyter/scipy-notebook:2026-04-20, password_hash: "sha1:abc:0123456789abcdef0123456789abcdef01234567"}
+jupyter:
+  image: quay.io/jupyter/scipy-notebook:2026-04-20
+  password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"
 chisel: {image: jpillora/chisel:1.10.1, listen_port: 8080}
 chisel_clients: []
 EOF

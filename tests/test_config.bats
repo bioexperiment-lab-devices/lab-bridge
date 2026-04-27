@@ -35,14 +35,9 @@ teardown() { teardown_tmpdir; }
     [[ "$output" == *"not found"* ]] || [[ "$output" == *"nope.yaml"* ]]
 }
 
-@test "load_config: exports VPS_HOST etc." {
-    run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/fixtures/valid_config.yaml; echo \$VPS_HOST \$VPS_SSH_USER \$VPS_SSH_PORT"
+@test "load_config: exports VPS_HOST, JUPYTER_PASSWORD_HASH, etc." {
+    run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/fixtures/valid_config.yaml; echo \$VPS_HOST \$VPS_SSH_USER \$VPS_SSH_PORT \$JUPYTER_PASSWORD_HASH"
     [ "$status" -eq 0 ]
     [[ "$output" == *"192.0.2.10 khamit 22"* ]]
-}
-
-@test "load_config: exports JUPYTER_PASSWORD_HASH" {
-    run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/fixtures/valid_config.yaml; echo \"\$JUPYTER_PASSWORD_HASH\""
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"sha1:abc123def456:0123456789abcdef"* ]]
+    [[ "$output" == *"sha1:abcdef012345:"* ]]
 }

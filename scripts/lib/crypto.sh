@@ -9,14 +9,13 @@ gen_password() {
     echo
 }
 
-# jupyter_sha1_hash <plaintext> — print a JupyterLab-format password hash:
-#   sha1:<hex_salt_12>:<hex_sha1(passphrase || salt)>
-# This matches what `jupyter_server.auth.passwd(..., algorithm='sha1')` emits
-# and is accepted by ServerApp.password.
-jupyter_sha1_hash() {
-    local plaintext="${1:?jupyter_sha1_hash: missing plaintext}"
-    local salt hash
+# jupyter_password_hash <plaintext> — print "sha1:<salt>:<digest>" matching
+# JupyterLab's passwd_check (digest = sha1(plaintext || salt)).
+# Uses only openssl, which is already a prerequisite.
+jupyter_password_hash() {
+    local plaintext="${1:?jupyter_password_hash: missing plaintext}"
+    local salt digest
     salt="$(openssl rand -hex 6)"
-    hash="$(printf '%s' "${plaintext}${salt}" | openssl dgst -sha1 | awk '{print $NF}')"
-    printf 'sha1:%s:%s\n' "$salt" "$hash"
+    digest="$(printf '%s' "${plaintext}${salt}" | openssl sha1 | awk '{print $NF}')"
+    printf 'sha1:%s:%s\n' "$salt" "$digest"
 }

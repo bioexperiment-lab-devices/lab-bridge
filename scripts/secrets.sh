@@ -32,11 +32,12 @@ prompt_password() {
 
 cmd_set_jupyter_password() {
     ensure_config
+
     local pw hash
-    pw="$(prompt_password "JupyterLab password")"
-    hash="$(jupyter_sha1_hash "$pw")"
+    pw="$(prompt_password "JupyterLab password (shared by all team members)")"
+    hash="$(jupyter_password_hash "$pw")"
     yq -i ".jupyter.password_hash = \"$hash\"" "$CONFIG"
-    log "set JupyterLab password (re-run task deploy to apply)"
+    log "set JupyterLab password (deploy to apply)"
 }
 
 cmd_add_client() {

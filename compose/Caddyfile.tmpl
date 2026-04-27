@@ -13,5 +13,9 @@ https://__VPS_HOST__ {
         }
     }
 
+    # Auth is handled by JupyterLab itself (cookie-based), not at the edge.
+    # Reason: HTTP Basic Auth on mobile browsers re-prompts on every WebSocket
+    # upgrade, breaking notebook kernels. JupyterLab's password identity
+    # provider uses cookies and works reliably on mobile.
     reverse_proxy jupyter:8888
 }

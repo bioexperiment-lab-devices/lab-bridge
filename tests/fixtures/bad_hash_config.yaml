@@ -1,5 +1,7 @@
 vps: {host: 192.0.2.10, ssh_user: khamit, ssh_port: 22, remote_root: /srv/x, notebooks_path: /srv/y}
 caddy: {acme_email: ops@example.com}
-jupyter: {image: quay.io/jupyter/scipy-notebook:2026-04-20, password_hash: "not-a-jupyter-hash"}
+jupyter:
+  image: quay.io/jupyter/scipy-notebook:2026-04-20
+  password_hash: "not-a-valid-sha1-hash"
 chisel: {image: jpillora/chisel:1.10.1, listen_port: 8080}
 chisel_clients: []

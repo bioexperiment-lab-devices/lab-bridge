@@ -45,5 +45,5 @@ teardown() { teardown_tmpdir; }
     yq -i ".vps.host = \"127.0.0.1\" | .vps.ssh_port = 2222" "$LDS_CONFIG"
     run bash "$ROOT/scripts/deploy.sh"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"bcrypt"* ]] || [[ "$output" == *"password_hash"* ]]
+    [[ "$output" == *"password_hash"* ]] || [[ "$output" == *"sha1"* ]]
 }

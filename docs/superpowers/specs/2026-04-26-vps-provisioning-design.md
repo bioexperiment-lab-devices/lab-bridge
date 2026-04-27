@@ -340,3 +340,42 @@ operator invocation.
 - **Secrets vaulting.** `config.yaml` is gitignored on the operator's
   laptop. Adopting `sops + age` later is a drop-in replacement for the
   file-on-disk model and does not change the rest of the architecture.
+
+---
+
+## Amendment 2026-04-27 — auth at JupyterLab, not Caddy
+
+**Problem with the original design:** HTTP Basic Auth at the Caddy edge
+re-prompts on every request that doesn't carry the cached `Authorization`
+header. On mobile browsers (iOS Safari, Android Chrome) this includes
+JupyterLab's WebSocket upgrade requests for kernels, so the auth dialog
+re-appears every time a notebook is opened — sometimes mid-session.
+Desktop browsers cache more aggressively and don't show the bug.
+
+**Change:** Auth moves from the Caddy edge into JupyterLab itself.
+
+- `compose/Caddyfile.tmpl` no longer contains a `basic_auth` block. Caddy
+  is reduced to TLS termination + reverse_proxy.
+- JupyterLab runs with `--ServerApp.password=<sha1:salt:digest>` (the
+  format JupyterLab's `passwd_check` accepts). The hash is stored in
+  `config.yaml` at `jupyter.password_hash` and rendered into the compose
+  file at deploy time.
+- One shared password for the whole team. Per-user identity is given up
+  in exchange for a session-cookie auth flow that works on mobile.
+- The hash is generated locally with `openssl` only — no extra prereq.
+
+**Taskfile changes:** `secrets:add-user`, `secrets:set-user-password`,
+`secrets:rm-user` are removed; replaced by `secrets:set-jupyter-password`
+(prompts twice, hashes, writes to `config.yaml`). Chisel-related secrets
+tasks are unchanged.
+
+**Validation rule changes:** the `caddy_users` array is gone. Validation
+now requires `jupyter.password_hash` to match `^sha1:[0-9a-f]+:[0-9a-f]{40}$`.
+
+**Threat-model note:** SHA-1 with random salt is weaker than argon2 against
+offline brute-force, but the server is behind real public-CA TLS, the
+basic-auth user-set is "the team", and the password is not reused; argon2
+would have required adding `jupyter_server` Python or a Docker invocation
+as an operator-laptop prereq. If the threat model tightens later, swap in
+an argon2 hasher behind the same `task secrets:set-jupyter-password` UX —
+JupyterLab accepts both formats.

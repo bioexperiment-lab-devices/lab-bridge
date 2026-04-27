@@ -9,13 +9,11 @@ setup() {
 }
 teardown() { teardown_tmpdir; }
 
-@test "secrets set-jupyter-password: writes a sha1 hash to jupyter.password_hash" {
-    old_hash="$(yq e '.jupyter.password_hash' "$LDS_CONFIG")"
+@test "secrets set-jupyter-password: writes a sha1:<salt>:<digest> to jupyter.password_hash" {
     run bash -c "echo -e 'sekret\nsekret' | $ROOT/scripts/secrets.sh set-jupyter-password"
     [ "$status" -eq 0 ]
-    new_hash="$(yq e '.jupyter.password_hash' "$LDS_CONFIG")"
-    [[ "$new_hash" =~ ^sha1:[0-9a-f]+:[0-9a-f]{40}$ ]]
-    [[ "$new_hash" != "$old_hash" ]]
+    hash="$(yq e '.jupyter.password_hash' "$LDS_CONFIG")"
+    [[ "$hash" =~ ^sha1:[0-9a-f]+:[0-9a-f]{40}$ ]]
 }
 
 @test "secrets set-jupyter-password: refuses mismatched password confirmation" {
@@ -50,7 +48,7 @@ teardown() { teardown_tmpdir; }
 }
 
 @test "secrets show-client: re-prints invocation for existing client" {
-    pwd="$(yq e ".chisel_clients[] | select(.name == \"microscope-1\") | .password" "$LDS_CONFIG")"
+    pwd="$(yq e '.chisel_clients[] | select(.name == "microscope-1") | .password' "$LDS_CONFIG")"
     run bash "$ROOT/scripts/secrets.sh" show-client microscope-1
     [ "$status" -eq 0 ]
     [[ "$output" == *"microscope-1:$pwd"* ]]

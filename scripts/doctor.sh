@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
 missing=0
-for cmd in task yq htpasswd openssl ssh rsync; do
+for cmd in task yq openssl ssh rsync; do
     if command -v "$cmd" >/dev/null 2>&1; then
         log "$cmd ✓"
     else

@@ -14,8 +14,9 @@ caddy:
 jupyter:
   # Pinned for reproducibility. Bump explicitly when you want to upgrade.
   image: quay.io/jupyter/scipy-notebook:2026-04-20
-  # Shared login password hash (sha1:<hex_salt>:<hex_sha1>) accepted by
-  # ServerApp.password. Manage via `task secrets:set-jupyter-password`.
+  # Shared password (sha1:salt:digest). Set with `task secrets:set-jupyter-password`.
+  # Auth is enforced by JupyterLab itself, not at the Caddy edge — basic_auth
+  # would re-prompt on every WebSocket upgrade on mobile browsers.
   password_hash: "<run task secrets:set-jupyter-password>"
 
 chisel:
