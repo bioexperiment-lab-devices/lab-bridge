@@ -35,9 +35,13 @@ main() {
     rsync_e="$ssh_base"
     target="$VPS_SSH_USER@$VPS_HOST"
 
-    # 3. Rsync. --delete with --exclude=caddy_data/ keeps issued certs.
+    # 3. Rsync. --delete with excludes for Caddy's runtime state (issued certs
+    # in caddy_data/ and adapter cache in caddy_config/, both owned by root
+    # inside the container).
     log "rsyncing to $target:$VPS_REMOTE_ROOT/ ..."
-    rsync -az --delete --exclude='caddy_data/' \
+    rsync -az --delete \
+        --exclude='caddy_data/' \
+        --exclude='caddy_config/' \
         -e "$rsync_e" \
         "$stage/" "$target:$VPS_REMOTE_ROOT/"
 
