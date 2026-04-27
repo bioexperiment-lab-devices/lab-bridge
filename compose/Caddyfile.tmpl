@@ -7,7 +7,8 @@
 }
 
 https://__VPS_HOST__ {
-    tls __ACME_EMAIL__ {
+    tls {
+        # Email comes from the global `email` directive above.
         issuer acme {
             profile shortlived
         }

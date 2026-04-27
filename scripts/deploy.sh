@@ -45,18 +45,24 @@ main() {
         -e "$rsync_e" \
         "$stage/" "$target:$VPS_REMOTE_ROOT/"
 
-    # 4. docker compose up.
+    # 4. docker compose up. Always restart caddy because the bind-mounted
+    # Caddyfile may have been replaced (atomic rename → new inode → caddy's
+    # already-loaded reference goes stale; `up -d` doesn't recreate containers
+    # whose compose-config didn't change).
     log "bringing up the stack..."
-    $ssh_base "$target" "cd $VPS_REMOTE_ROOT && docker compose pull && docker compose up -d --remove-orphans"
+    $ssh_base "$target" "cd $VPS_REMOTE_ROOT && docker compose pull && docker compose up -d --remove-orphans && docker compose restart caddy"
 
-    # 5. Health check (skippable for tests).
+    # 5. Health check (skippable for tests). JupyterLab serves either 200
+    # (login page if no session) or 302 (redirect to /login) when its password
+    # auth is configured — anything in 2xx/3xx means TLS + reverse_proxy + jupyter
+    # are all up.
     if [[ "${LDS_SKIP_HEALTHCHECK:-}" != "1" ]]; then
-        log "waiting for HTTPS to respond with 401..."
+        log "waiting for HTTPS to respond..."
         local i status
         for ((i=0; i<60; i++)); do
             status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/" || true)"
-            if [[ "$status" == "401" ]]; then
-                log "deployed at https://$VPS_HOST/"
+            if [[ "$status" =~ ^[23][0-9][0-9]$ ]]; then
+                log "deployed at https://$VPS_HOST/ (HTTP $status)"
                 return 0
             fi
             sleep 1

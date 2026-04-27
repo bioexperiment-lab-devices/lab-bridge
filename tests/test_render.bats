@@ -35,7 +35,7 @@ teardown() { teardown_tmpdir; }
     "
     [ "$status" -eq 0 ]
     [[ "$output" == *"https://192.0.2.10"* ]]
-    [[ "$output" == *"tls ops@example.com"* ]]
+    [[ "$output" == *"email ops@example.com"* ]]
     [[ "$output" == *"profile shortlived"* ]]
     [[ "$output" == *"default_sni 192.0.2.10"* ]]
     [[ "$output" == *"reverse_proxy jupyter:8888"* ]]
