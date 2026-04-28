@@ -17,6 +17,9 @@ setup() {
     export LDS_SSH_KEY="$ROOT/tests/fake_vps/id_test"
     export LDS_SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     export LDS_SKIP_HEALTHCHECK=1   # tests don't need full TLS up; just deploy
+    export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
+    printf 'testpw' > "$LDS_GRAFANA_PASSWORD_FILE"
+    chmod 600 "$LDS_GRAFANA_PASSWORD_FILE"
     bash "$ROOT/scripts/provision.sh"
 }
 teardown() { teardown_tmpdir; }
@@ -46,4 +49,35 @@ teardown() { teardown_tmpdir; }
     run bash "$ROOT/scripts/deploy.sh"
     [ "$status" -ne 0 ]
     [[ "$output" == *"password_hash"* ]] || [[ "$output" == *"sha1"* ]]
+}
+
+@test "deploy: stages loki config, grafana provisioning, and admin_password" {
+    run bash "$ROOT/scripts/deploy.sh"
+    [ "$status" -eq 0 ]
+    docker exec lds-fake-vps test -f /srv/lab-bridge/loki/config.yaml
+    docker exec lds-fake-vps test -f /srv/lab-bridge/grafana/admin_password
+    docker exec lds-fake-vps test -f /srv/lab-bridge/grafana/provisioning/datasources/loki.yaml
+    docker exec lds-fake-vps test -f /srv/lab-bridge/grafana/provisioning/dashboards/lab-bridge.yaml
+    docker exec lds-fake-vps test -f /srv/lab-bridge/grafana/provisioning/dashboards/client-logs.json
+    # rendered loki config substitutes retention hours
+    run docker exec lds-fake-vps grep -F 'retention_period: 720h' /srv/lab-bridge/loki/config.yaml
+    [ "$status" -eq 0 ]
+}
+
+@test "deploy: rsync --delete preserves loki_data and grafana_data" {
+    bash "$ROOT/scripts/deploy.sh"
+    docker exec lds-fake-vps bash -c 'sudo mkdir -p /srv/lab-bridge/loki_data /srv/lab-bridge/grafana_data'
+    docker exec lds-fake-vps bash -c 'echo loki-marker | sudo tee /srv/lab-bridge/loki_data/marker > /dev/null'
+    docker exec lds-fake-vps bash -c 'echo grafana-marker | sudo tee /srv/lab-bridge/grafana_data/marker > /dev/null'
+    bash "$ROOT/scripts/deploy.sh"
+    docker exec lds-fake-vps test -f /srv/lab-bridge/loki_data/marker
+    docker exec lds-fake-vps test -f /srv/lab-bridge/grafana_data/marker
+}
+
+@test "deploy: fails fast when grafana admin_password is missing" {
+    # Override shared setup's password file so the lookup fails.
+    export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/does-not-exist"
+    run bash "$ROOT/scripts/deploy.sh"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"set-grafana-password"* ]] || [[ "$output" == *"admin_password"* ]]
 }

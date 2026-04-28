@@ -22,10 +22,19 @@ main() {
     local stage="$_STAGE"
 
     log "rendering templates..."
-    mkdir -p "$stage/chisel"
+    mkdir -p "$stage/chisel" "$stage/loki" "$stage/grafana/provisioning"
     render_compose     "$REPO_ROOT/compose/docker-compose.yml.tmpl" "$stage/docker-compose.yml"
     render_caddyfile   "$REPO_ROOT/compose/Caddyfile.tmpl"           "$stage/Caddyfile"
     render_chisel_users "$stage/chisel/users.json"
+    render_loki_config  "$REPO_ROOT/compose/loki/config.yaml.tmpl"   "$stage/loki/config.yaml"
+
+    # Static Grafana provisioning — datasource + dashboard provider + dashboard JSON.
+    cp -R "$REPO_ROOT/compose/grafana/provisioning/." "$stage/grafana/provisioning/"
+
+    # Grafana admin password file (created by `task secrets:set-grafana-password`).
+    local pwfile="${LDS_GRAFANA_PASSWORD_FILE:-$REPO_ROOT/compose/grafana/admin_password}"
+    [[ -f "$pwfile" ]] || die "grafana admin password not found at $pwfile — run: task secrets:set-grafana-password"
+    install -m 600 "$pwfile" "$stage/grafana/admin_password"
 
     # 2. Build SSH/rsync.
     local ssh_base rsync_e target
@@ -42,6 +51,8 @@ main() {
     rsync -az --delete \
         --exclude='caddy_data/' \
         --exclude='caddy_config/' \
+        --exclude='loki_data/' \
+        --exclude='grafana_data/' \
         -e "$rsync_e" \
         "$stage/" "$target:$VPS_REMOTE_ROOT/"
 
