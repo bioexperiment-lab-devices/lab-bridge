@@ -73,3 +73,27 @@ teardown() { teardown_tmpdir; }
     [ "$status" -ne 0 ]
     [[ "$output" == *"ghost"* ]]
 }
+
+@test "secrets set-grafana-password: writes plaintext to compose/grafana/admin_password mode 0600" {
+    export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
+    run bash -c "echo -e 'g00d-pw\ng00d-pw' | $ROOT/scripts/secrets.sh set-grafana-password"
+    [ "$status" -eq 0 ]
+    [[ -f "$LDS_GRAFANA_PASSWORD_FILE" ]]
+    [[ "$(cat "$LDS_GRAFANA_PASSWORD_FILE")" == "g00d-pw" ]]
+    perms="$(stat -c '%a' "$LDS_GRAFANA_PASSWORD_FILE" 2>/dev/null || stat -f '%Lp' "$LDS_GRAFANA_PASSWORD_FILE")"
+    [[ "$perms" == "600" ]]
+}
+
+@test "secrets set-grafana-password: refuses mismatched confirmation" {
+    export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
+    run bash -c "echo -e 'one\ntwo' | $ROOT/scripts/secrets.sh set-grafana-password"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"match"* ]] || [[ "$output" == *"mismatch"* ]]
+}
+
+@test "secrets set-grafana-password: refuses empty password" {
+    export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
+    run bash -c "echo -e '\n' | $ROOT/scripts/secrets.sh set-grafana-password"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"empty"* ]]
+}

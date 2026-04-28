@@ -32,6 +32,9 @@ tasks:
   "secrets:set-jupyter-password":
     desc: Set or rotate the shared JupyterLab password (prompts; deploy to apply)
     cmd: bash scripts/secrets.sh set-jupyter-password
+  "secrets:set-grafana-password":
+    desc: Set or rotate the Grafana admin password (prompts; deploy to apply)
+    cmd: bash scripts/secrets.sh set-grafana-password
   "secrets:add-client":
     desc: Add a chisel client (lab device); generates a random password
     cmd: bash scripts/secrets.sh add-client {{.CLI_ARGS}}

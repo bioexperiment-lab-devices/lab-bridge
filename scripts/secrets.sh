@@ -40,6 +40,24 @@ cmd_set_jupyter_password() {
     log "set JupyterLab password (deploy to apply)"
 }
 
+cmd_set_grafana_password() {
+    # Plaintext on disk; matches the existing trust model on the VPS
+    # (caddy_data certs and chisel-users.json are already plaintext under compose/).
+    local pwfile="${LDS_GRAFANA_PASSWORD_FILE:-$SCRIPT_DIR/../compose/grafana/admin_password}"
+    mkdir -p "$(dirname "$pwfile")"
+
+    local pw
+    pw="$(prompt_password "Grafana admin password (used to log in to https://<vps-host>/grafana/)")"
+
+    # Atomic write so a partial file never lingers.
+    local tmp
+    tmp="$(mktemp "${pwfile}.XXXXXX")"
+    printf '%s' "$pw" > "$tmp"
+    chmod 600 "$tmp"
+    mv "$tmp" "$pwfile"
+    log "wrote Grafana admin password to $pwfile (deploy to apply)"
+}
+
 cmd_add_client() {
     local name="${1:?usage: secrets.sh add-client <name> <reverse_port>}"
     local port="${2:?usage: secrets.sh add-client <name> <reverse_port>}"
@@ -110,6 +128,7 @@ main() {
     local sub="${1:-}"; shift || true
     case "$sub" in
         set-jupyter-password) cmd_set_jupyter_password "$@" ;;
+        set-grafana-password) cmd_set_grafana_password "$@" ;;
         add-client)           cmd_add_client "$@" ;;
         show-client)          cmd_show_client "$@" ;;
         rm-client)            cmd_rm_client "$@" ;;
