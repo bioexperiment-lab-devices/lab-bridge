@@ -60,13 +60,14 @@ teardown() { teardown_tmpdir; }
 }
 
 @test "render_chisel_users: each user gets exactly two allow-list entries" {
-    bash -c "
+    run bash -c "
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
         load_config $ROOT/tests/fixtures/valid_config.yaml
         render_chisel_users $TMPDIR/users.json
     "
+    [ "$status" -eq 0 ]
     run yq e '."microscope-1:k7HfLpNqRsT3uVwX1yZ2aB3cD4eF5gH6" | length' "$TMPDIR/users.json"
     [ "$status" -eq 0 ]
     [[ "$output" == "2" ]]
