@@ -81,3 +81,27 @@ teardown() { teardown_tmpdir; }
     [ "$status" -ne 0 ]
     [[ "$output" == *"set-grafana-password"* ]] || [[ "$output" == *"admin_password"* ]]
 }
+
+@test "deploy: loki and grafana come up healthy on the fake VPS" {
+    # Password file already provided by shared setup().
+    run bash "$ROOT/scripts/deploy.sh"
+    [ "$status" -eq 0 ]
+    # All five compose services should be in `running` state.
+    docker exec lds-fake-vps bash -c '
+        cd /srv/lab-bridge && docker compose ps --status running --format "{{.Service}}"
+    ' | sort | tr -d "\r" | grep -E "^(caddy|jupyter|chisel|loki|grafana)$" | wc -l | tr -d "[:space:]" | grep -q "^5$"
+
+    # Loki readiness: poll for up to 60 s. wget exits 0 when /ready returns 200.
+    local i
+    for i in $(seq 1 60); do
+        if docker exec lds-fake-vps bash -c '
+            cd /srv/lab-bridge && docker compose exec -T loki wget -q -O - http://localhost:3100/ready
+        ' >/dev/null 2>&1; then
+            break
+        fi
+        sleep 1
+    done
+    docker exec lds-fake-vps bash -c '
+        cd /srv/lab-bridge && docker compose exec -T loki wget -q -O - http://localhost:3100/ready
+    ' >/dev/null
+}
