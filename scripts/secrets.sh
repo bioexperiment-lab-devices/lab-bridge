@@ -49,12 +49,15 @@ cmd_set_grafana_password() {
     local pw
     pw="$(prompt_password "Grafana admin password (used to log in to https://<vps-host>/grafana/)")"
 
-    # Atomic write so a partial file never lingers.
+    # Atomic write so a partial file never lingers. The trap removes the temp
+    # file (which contains the plaintext password) if mv fails for any reason.
     local tmp
     tmp="$(mktemp "${pwfile}.XXXXXX")"
+    trap 'rm -f "$tmp"' EXIT
     printf '%s' "$pw" > "$tmp"
     chmod 600 "$tmp"
     mv "$tmp" "$pwfile"
+    trap - EXIT
     log "wrote Grafana admin password to $pwfile (deploy to apply)"
 }
 
