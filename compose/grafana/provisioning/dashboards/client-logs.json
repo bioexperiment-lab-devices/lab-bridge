@@ -1,0 +1,131 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "type": "logs",
+      "title": "Live tail",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      },
+      "targets": [
+        {
+          "expr": "{client=~\"$client\", stream=~\"$stream\", version=~\"$version\"}",
+          "refId": "A",
+          "queryType": "range",
+          "maxLines": 1000
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Log volume by client",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "targets": [
+        {
+          "expr": "sum by (client) (rate({client=~\".+\"}[5m]))",
+          "refId": "A",
+          "legendFormat": "{{client}}"
+        }
+      ]
+    },
+    {
+      "type": "logs",
+      "title": "Errors",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "expr": "{client=~\"$client\"} |= \"ERROR\"",
+          "refId": "A",
+          "queryType": "range",
+          "maxLines": 500
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Current versions",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+      "targets": [
+        {
+          "expr": "topk(1, max by (client, version) (max_over_time({client=~\".+\"}[1h])))",
+          "refId": "A",
+          "queryType": "instant"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["lab-bridge", "logs"],
+  "templating": {
+    "list": [
+      {
+        "name": "client",
+        "label": "Client",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "definition": "label_values(client)",
+        "query": { "type": 1, "label": "client", "stream": "" },
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2
+      },
+      {
+        "name": "stream",
+        "label": "Stream",
+        "type": "custom",
+        "query": "stdout,stderr",
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "options": [
+          { "selected": false, "text": "stdout", "value": "stdout" },
+          { "selected": false, "text": "stderr", "value": "stderr" }
+        ]
+      },
+      {
+        "name": "version",
+        "label": "Version",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "definition": "label_values(version)",
+        "query": { "type": 1, "label": "version", "stream": "" },
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "refresh": 2
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Lab client logs",
+  "uid": "lab-bridge-client-logs",
+  "version": 1,
+  "weekStart": ""
+}
