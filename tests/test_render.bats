@@ -43,7 +43,7 @@ teardown() { teardown_tmpdir; }
     [[ "$output" != *"__"*"__"* ]]
 }
 
-@test "render_chisel_users: emits one entry per chisel_clients with route restriction" {
+@test "render_chisel_users: emits one entry per chisel_clients with R: and loki:3100" {
     run bash -c "
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
@@ -56,6 +56,20 @@ teardown() { teardown_tmpdir; }
     echo "$output" | yq -p json e '.' >/dev/null
     [[ "$output" == *'"microscope-1:k7HfLpNqRsT3uVwX1yZ2aB3cD4eF5gH6"'* ]]
     [[ "$output" == *'R:0.0.0.0:9001'* ]]
+    [[ "$output" == *'loki:3100'* ]]
+}
+
+@test "render_chisel_users: each user gets exactly two allow-list entries" {
+    bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/fixtures/valid_config.yaml
+        render_chisel_users $TMPDIR/users.json
+    "
+    run yq e '."microscope-1:k7HfLpNqRsT3uVwX1yZ2aB3cD4eF5gH6" | length' "$TMPDIR/users.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "2" ]]
 }
 
 @test "render_chisel_users: empty chisel_clients yields empty object" {

@@ -33,11 +33,14 @@ render_caddyfile() {
 
 # render_chisel_users <output_path>
 # Builds the chisel users.json from .chisel_clients in CONFIG_PATH.
+# Each user is allow-listed for both their reverse port (R:0.0.0.0:<port>)
+# and the in-network Loki push endpoint (loki:3100). The forward path lets
+# the client tunnel its log stream to Loki without exposing Loki publicly.
 render_chisel_users() {
     local out="${1:?}"
     yq -o=json e '
         .chisel_clients
-        | map({(.name + ":" + .password): ["R:0.0.0.0:" + (.reverse_port | tostring)]})
+        | map({(.name + ":" + .password): ["R:0.0.0.0:" + (.reverse_port | tostring), "loki:3100"]})
         | (. // [{}])
         | .[] as $item ireduce ({}; . * $item)
     ' "${CONFIG_PATH:?}" > "$out"
