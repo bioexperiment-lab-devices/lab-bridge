@@ -41,6 +41,37 @@ services:
       - ./chisel/users.json:/etc/chisel/users.json:ro
     networks: [labnet]
 
+  loki:
+    image: __LOKI_IMAGE__
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ./loki/config.yaml:/etc/loki/config.yaml:ro
+      - ./loki_data:/loki
+    networks: [labnet]
+    # No `ports:` — only Grafana (over labnet) and chisel-tunneled clients reach it.
+
+  grafana:
+    image: __GRAFANA_IMAGE__
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_SERVER_ROOT_URL: https://__VPS_HOST__/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana_data:/var/lib/grafana
+    secrets:
+      - grafana_admin_password
+    networks: [labnet]
+    depends_on: [loki]
+
 networks:
   labnet:
     driver: bridge
+
+secrets:
+  grafana_admin_password:
+    file: ./grafana/admin_password

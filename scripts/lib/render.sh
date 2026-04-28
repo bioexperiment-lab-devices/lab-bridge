@@ -15,6 +15,9 @@ render_compose() {
         -e "s|__CHISEL_IMAGE__|${CHISEL_IMAGE:?}|g" \
         -e "s|__CHISEL_LISTEN_PORT__|${CHISEL_LISTEN_PORT:?}|g" \
         -e "s|__NOTEBOOKS_PATH__|${VPS_NOTEBOOKS_PATH:?}|g" \
+        -e "s|__LOKI_IMAGE__|${LOKI_IMAGE:?}|g" \
+        -e "s|__GRAFANA_IMAGE__|${GRAFANA_IMAGE:?}|g" \
+        -e "s|__VPS_HOST__|${VPS_HOST:?}|g" \
         "$tmpl" > "$out"
 }
 

@@ -79,3 +79,36 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$(echo "$output" | tr -d '[:space:]')" == "{}" ]]
 }
+
+@test "render_compose: emits loki and grafana services with correct images" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/fixtures/valid_config.yaml
+        render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
+        cat $TMPDIR/docker-compose.yml
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"image: grafana/loki:3.2.1"* ]]
+    [[ "$output" == *"image: grafana/grafana:11.3.0"* ]]
+    [[ "$output" == *"GF_SERVER_ROOT_URL: https://192.0.2.10/grafana/"* ]]
+    [[ "$output" == *"./loki/config.yaml:/etc/loki/config.yaml:ro"* ]]
+    [[ "$output" == *"./loki_data:/loki"* ]]
+    [[ "$output" == *"./grafana_data:/var/lib/grafana"* ]]
+    [[ "$output" == *"./grafana/admin_password"* ]]
+    [[ "$output" != *"__"*"__"* ]]
+}
+
+@test "render_compose: loki has no published ports (only labnet)" {
+    bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/fixtures/valid_config.yaml
+        render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
+    "
+    run yq e '.services.loki | has("ports")' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "false" ]]
+}
