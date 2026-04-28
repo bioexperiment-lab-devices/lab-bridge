@@ -14,6 +14,12 @@ https://__VPS_HOST__ {
         }
     }
 
+    # /grafana/* is handled exclusively (handle_path strips the prefix) so the
+    # default reverse_proxy below only sees notebook traffic.
+    handle_path /grafana/* {
+        reverse_proxy grafana:3000
+    }
+
     # Auth is handled by JupyterLab itself (cookie-based), not at the edge.
     # Reason: HTTP Basic Auth on mobile browsers re-prompts on every WebSocket
     # upgrade, breaking notebook kernels. JupyterLab's password identity

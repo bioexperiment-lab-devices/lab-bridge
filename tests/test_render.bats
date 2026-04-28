@@ -114,3 +114,18 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == "false" ]]
 }
+
+@test "render_caddyfile: routes /grafana/* to grafana:3000 and falls through to jupyter" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/fixtures/valid_config.yaml
+        render_caddyfile $ROOT/compose/Caddyfile.tmpl $TMPDIR/Caddyfile
+        cat $TMPDIR/Caddyfile
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"handle_path /grafana/*"* ]]
+    [[ "$output" == *"reverse_proxy grafana:3000"* ]]
+    [[ "$output" == *"reverse_proxy jupyter:8888"* ]]
+}
