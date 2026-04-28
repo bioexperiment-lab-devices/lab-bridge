@@ -5,7 +5,7 @@ vps:
   host: 0.0.0.0                       # public IPv4 of the VPS
   ssh_user: khamit                    # must already exist with passwordless sudo
   ssh_port: 22
-  remote_root: /srv/lab_devices_server # where rendered configs land on the VPS
+  remote_root: /srv/lab-bridge        # where rendered configs land on the VPS
   notebooks_path: /srv/jupyterlab/work # bind-mounted into the jupyter container
 
 caddy:

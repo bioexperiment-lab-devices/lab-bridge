@@ -36,7 +36,7 @@ cmd_destroy()  {
 cmd_logs() {
     load_config "$CONFIG"
     # No -f: print the recent tail and return. Operators wanting to follow
-    # can: task ssh, then `cd /srv/lab_devices_server && docker compose logs -f`.
+    # can: task ssh, then `cd /srv/lab-bridge && docker compose logs -f`.
     local svc="${1:-}"
     if [[ -n "$svc" ]]; then
         remote_compose "logs --tail=200 $svc"

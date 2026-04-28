@@ -2,7 +2,7 @@ vps:
   host: 192.0.2.10
   ssh_user: khamit
   ssh_port: 22
-  remote_root: /srv/lab_devices_server
+  remote_root: /srv/lab-bridge
   notebooks_path: /srv/jupyterlab/work
 caddy:
   acme_email: ops@example.com

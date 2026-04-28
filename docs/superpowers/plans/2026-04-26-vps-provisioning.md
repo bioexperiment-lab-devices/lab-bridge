@@ -15,7 +15,7 @@
 ## File Structure
 
 ```
-lab_devices_server/
+lab-bridge/
 ├── .gitignore
 ├── README.md
 ├── Taskfile.yml
@@ -85,7 +85,7 @@ backups/
 - [ ] **Step 2: Write `README.md`** (the content below — copy verbatim, including the inner triple-backtick fences)
 
 ````markdown
-# lab_devices_server
+# lab-bridge
 
 VPS provisioning + Docker Compose stack for a small-team JupyterLab server
 with chisel reverse-tunnel access for NAT'd lab devices.
@@ -137,7 +137,7 @@ vps:
   host: 0.0.0.0                       # public IPv4 of the VPS
   ssh_user: khamit                    # must already exist with passwordless sudo
   ssh_port: 22
-  remote_root: /srv/lab_devices_server # where rendered configs land on the VPS
+  remote_root: /srv/lab-bridge # where rendered configs land on the VPS
   notebooks_path: /srv/jupyterlab/work # bind-mounted into the jupyter container
 
 caddy:
@@ -435,7 +435,7 @@ vps:
   host: 192.0.2.10
   ssh_user: khamit
   ssh_port: 22
-  remote_root: /srv/lab_devices_server
+  remote_root: /srv/lab-bridge
   notebooks_path: /srv/jupyterlab/work
 caddy:
   acme_email: ops@example.com
@@ -1849,7 +1849,7 @@ teardown() { teardown_tmpdir; }
     docker exec lds-fake-vps ufw status | grep -q '443/tcp.*ALLOW'
     docker exec lds-fake-vps ufw status | grep -q '8080/tcp.*ALLOW'
     # dirs exist with right ownership
-    docker exec lds-fake-vps stat -c '%U' /srv/lab_devices_server | grep -q khamit
+    docker exec lds-fake-vps stat -c '%U' /srv/lab-bridge | grep -q khamit
     docker exec lds-fake-vps stat -c '%U' /srv/jupyterlab/work     | grep -q khamit
 }
 
@@ -2008,20 +2008,20 @@ teardown() { teardown_tmpdir; }
 @test "deploy: rsyncs templates and brings up containers" {
     run bash "$ROOT/scripts/deploy.sh"
     [ "$status" -eq 0 ]
-    docker exec lds-fake-vps test -f /srv/lab_devices_server/docker-compose.yml
-    docker exec lds-fake-vps test -f /srv/lab_devices_server/Caddyfile
-    docker exec lds-fake-vps test -f /srv/lab_devices_server/chisel/users.json
+    docker exec lds-fake-vps test -f /srv/lab-bridge/docker-compose.yml
+    docker exec lds-fake-vps test -f /srv/lab-bridge/Caddyfile
+    docker exec lds-fake-vps test -f /srv/lab-bridge/chisel/users.json
     # nested docker compose ps shows three services up
     docker exec lds-fake-vps bash -c '
-        cd /srv/lab_devices_server && docker compose ps --status running --format "{{.Service}}"
+        cd /srv/lab-bridge && docker compose ps --status running --format "{{.Service}}"
     ' | sort | tr -d "\r" | grep -E "^(caddy|jupyter|chisel)$" | wc -l | grep -q 3
 }
 
 @test "deploy: rsync --delete preserves caddy_data" {
     bash "$ROOT/scripts/deploy.sh"
-    docker exec lds-fake-vps bash -c 'echo testdata > /srv/lab_devices_server/caddy_data/marker'
+    docker exec lds-fake-vps bash -c 'echo testdata > /srv/lab-bridge/caddy_data/marker'
     bash "$ROOT/scripts/deploy.sh"
-    docker exec lds-fake-vps test -f /srv/lab_devices_server/caddy_data/marker
+    docker exec lds-fake-vps test -f /srv/lab-bridge/caddy_data/marker
 }
 
 @test "deploy: rejects config with invalid hash before touching VPS" {
@@ -2192,7 +2192,7 @@ teardown() { teardown_tmpdir; }
     run bash "$ROOT/scripts/ops.sh" down
     [ "$status" -eq 0 ]
     docker exec lds-fake-vps bash -c '
-        cd /srv/lab_devices_server && docker compose ps --status running --format "{{.Service}}"
+        cd /srv/lab-bridge && docker compose ps --status running --format "{{.Service}}"
     ' | grep -vE "^$" | wc -l | tr -d "[:space:]" | grep -q "^0$"
 }
 

@@ -51,8 +51,8 @@ intelligence beyond what the scripts upload.
 │                                                                       │
 │   bind mounts:                                                        │
 │     /srv/jupyterlab/work     → jupyter:/home/jovyan/work              │
-│     /srv/lab_devices_server/caddy_data → caddy:/data  (cert storage)  │
-│     /srv/lab_devices_server/chisel/users.json → chisel:/etc/...       │
+│     /srv/lab-bridge/caddy_data → caddy:/data  (cert storage)  │
+│     /srv/lab-bridge/chisel/users.json → chisel:/etc/...       │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -112,7 +112,7 @@ browser will show a cert warning until the operator investigates via
 ## Repository layout
 
 ```
-lab_devices_server/
+lab-bridge/
 ├── config.example.yaml           # committed, placeholder values + comments
 ├── config.yaml                   # GITIGNORED, the operator's source of truth
 ├── Taskfile.yml
@@ -152,7 +152,7 @@ vps:
   host: 111.88.145.138
   ssh_user: khamit
   ssh_port: 22
-  remote_root: /srv/lab_devices_server
+  remote_root: /srv/lab-bridge
   notebooks_path: /srv/jupyterlab/work
 
 caddy:

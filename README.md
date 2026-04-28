@@ -1,7 +1,8 @@
-# lab_devices_server
+# lab-bridge
 
-VPS provisioning + Docker Compose stack for a small-team JupyterLab server
-with chisel reverse-tunnel access for NAT'd lab devices.
+Self-hosted JupyterLab for small lab teams, with chisel reverse tunnels
+bringing NAT'd instruments onto the notebook network. VPS provisioning +
+Docker Compose stack.
 
 See `docs/superpowers/specs/2026-04-26-vps-provisioning-design.md` for the
 design.
