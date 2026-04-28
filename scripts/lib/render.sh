@@ -45,3 +45,12 @@ render_chisel_users() {
         | .[] as $item ireduce ({}; . * $item)
     ' "${CONFIG_PATH:?}" > "$out"
 }
+
+# render_loki_config <template_path> <output_path>
+# Substitutes __LOKI_RETENTION_HOURS__ (computed from LOKI_RETENTION_DAYS).
+render_loki_config() {
+    local tmpl="${1:?}" out="${2:?}"
+    [[ -f "$tmpl" ]] || die "template not found: $tmpl"
+    local hours=$(( ${LOKI_RETENTION_DAYS:?} * 24 ))
+    sed -e "s|__LOKI_RETENTION_HOURS__|${hours}|g" "$tmpl" > "$out"
+}

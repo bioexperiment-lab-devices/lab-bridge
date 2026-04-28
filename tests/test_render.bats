@@ -144,3 +144,33 @@ EOF
     [[ "$output" == *"reverse_proxy grafana:3000"* ]]
     [[ "$output" == *"reverse_proxy jupyter:8888"* ]]
 }
+
+@test "render_loki_config: substitutes retention hours (days * 24)" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/fixtures/valid_config.yaml
+        render_loki_config $ROOT/compose/loki/config.yaml.tmpl $TMPDIR/loki.yaml
+        cat $TMPDIR/loki.yaml
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"retention_period: 720h"* ]]
+    [[ "$output" != *"__"*"__"* ]]
+}
+
+@test "render_loki_config: parses as valid YAML with the expected schema" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/fixtures/valid_config.yaml
+        render_loki_config $ROOT/compose/loki/config.yaml.tmpl $TMPDIR/loki.yaml
+    "
+    [ "$status" -eq 0 ]
+    run yq e '.compactor.retention_enabled' "$TMPDIR/loki.yaml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "true" ]]
+    run yq e '.schema_config.configs[0].schema' "$TMPDIR/loki.yaml"
+    [[ "$output" == "v13" ]]
+}
