@@ -21,6 +21,7 @@ services:
       - --ServerApp.password=__JUPYTER_PASSWORD_HASH__
       - --ServerApp.allow_origin=*
       - --ServerApp.base_url=/
+      - --ServerApp.root_dir=/home/jovyan/work
     volumes:
       - __NOTEBOOKS_PATH__:/home/jovyan/work
     networks: [labnet]
