@@ -45,6 +45,20 @@ cmd_logs() {
     fi
 }
 
+cmd_logs_loki()    { load_config "$CONFIG"; remote_compose "logs --tail=200 loki"; }
+cmd_logs_grafana() { load_config "$CONFIG"; remote_compose "logs --tail=200 grafana"; }
+
+cmd_loki_disk() {
+    load_config "$CONFIG"
+    local ssh_base
+    ssh_base="$(build_ssh)"
+    # du -sh on the VPS, then echo the configured retention so the operator
+    # has both numbers in one place.
+    $ssh_base "$VPS_SSH_USER@$VPS_HOST" \
+        "du -sh $VPS_REMOTE_ROOT/loki_data 2>/dev/null || echo '0  $VPS_REMOTE_ROOT/loki_data (missing)'"
+    log "configured retention: ${LOKI_RETENTION_DAYS} days"
+}
+
 cmd_ssh() {
     load_config "$CONFIG"
     local ssh_base
@@ -69,13 +83,16 @@ cmd_backup() {
 main() {
     local sub="${1:-}"; shift || true
     case "$sub" in
-        ps)        cmd_ps ;;
-        logs)      cmd_logs "$@" ;;
-        ssh)       cmd_ssh ;;
-        restart)   cmd_restart ;;
-        down)      cmd_down ;;
-        destroy)   cmd_destroy ;;
-        backup)    cmd_backup ;;
+        ps)            cmd_ps ;;
+        logs)          cmd_logs "$@" ;;
+        logs:loki)     cmd_logs_loki ;;
+        logs:grafana)  cmd_logs_grafana ;;
+        loki-disk)     cmd_loki_disk ;;
+        ssh)           cmd_ssh ;;
+        restart)       cmd_restart ;;
+        down)          cmd_down ;;
+        destroy)       cmd_destroy ;;
+        backup)        cmd_backup ;;
         *) die "unknown subcommand: $sub" ;;
     esac
 }

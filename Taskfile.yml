@@ -50,3 +50,12 @@ tasks:
   ps:       { desc: "docker compose ps on the VPS",                  cmd: "bash scripts/ops.sh ps" }
   ssh:      { desc: "Open an interactive SSH session to the VPS",    cmd: "bash scripts/ops.sh ssh" }
   backup:   { desc: "rsync notebooks to ./backups/notebooks-<ts>/",  cmd: "bash scripts/ops.sh backup" }
+  "ops:logs:loki":
+    desc: Tail recent loki container logs
+    cmd: bash scripts/ops.sh logs:loki
+  "ops:logs:grafana":
+    desc: Tail recent grafana container logs
+    cmd: bash scripts/ops.sh logs:grafana
+  "ops:loki-disk":
+    desc: Show loki_data disk usage and configured retention
+    cmd: bash scripts/ops.sh loki-disk

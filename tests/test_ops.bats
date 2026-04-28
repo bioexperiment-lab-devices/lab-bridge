@@ -17,6 +17,9 @@ setup() {
     export LDS_SSH_KEY="$ROOT/tests/fake_vps/id_test"
     export LDS_SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     export LDS_SKIP_HEALTHCHECK=1
+    export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
+    printf 'testpw' > "$LDS_GRAFANA_PASSWORD_FILE"
+    chmod 600 "$LDS_GRAFANA_PASSWORD_FILE"
     bash "$ROOT/scripts/provision.sh"
     bash "$ROOT/scripts/deploy.sh"
 }
@@ -56,4 +59,21 @@ teardown() { teardown_tmpdir; }
     found="$(find "$TMPDIR/backups" -name 'note.txt' | head -1)"
     [[ -n "$found" ]]
     [[ "$(cat "$found")" == "hello" ]]
+}
+
+@test "ops logs:loki: returns success and shows recent log lines" {
+    run bash "$ROOT/scripts/ops.sh" logs:loki
+    [ "$status" -eq 0 ]
+}
+
+@test "ops logs:grafana: returns success" {
+    run bash "$ROOT/scripts/ops.sh" logs:grafana
+    [ "$status" -eq 0 ]
+}
+
+@test "ops loki-disk: prints loki_data size and configured retention" {
+    run bash "$ROOT/scripts/ops.sh" loki-disk
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"loki_data"* ]]
+    [[ "$output" == *"retention"* ]] || [[ "$output" == *"30"* ]]
 }
