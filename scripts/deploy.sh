@@ -69,24 +69,24 @@ main() {
     $ssh_base "$target" "cd $VPS_REMOTE_ROOT && docker compose pull && docker compose up -d --remove-orphans && docker compose restart caddy"
 
     # 5. Health check (skippable for tests). Probe both routed paths:
-    # `/` (JupyterLab) and `/grafana/` (Grafana sub-path). Both 2xx/3xx means
-    # TLS + reverse_proxy + the upstream container are alive — so a crash-looping
-    # grafana/loki fails the deploy instead of silently shipping a 502.
-    # JupyterLab returns 200 (login page) or 302 (→/login). Grafana with
-    # GF_SERVER_SERVE_FROM_SUB_PATH returns 302 → /grafana/login.
+    # `/` (JupyterLab → 200/302) and `/grafana/login` (Grafana → 200, terminal,
+    # no redirect). Probing a terminal page rather than `/grafana/` itself is
+    # deliberate: a 3xx-only check passes a redirect loop (e.g. when the proxy
+    # is misconfigured to strip the sub-path Grafana expects to receive),
+    # which 200-on-login does not.
     if [[ "${LDS_SKIP_HEALTHCHECK:-}" != "1" ]]; then
         log "waiting for HTTPS to respond..."
         local i jupyter_status grafana_status
         for ((i=0; i<60; i++)); do
             jupyter_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/" || true)"
-            grafana_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/grafana/" || true)"
-            if [[ "$jupyter_status" =~ ^[23][0-9][0-9]$ ]] && [[ "$grafana_status" =~ ^[23][0-9][0-9]$ ]]; then
-                log "deployed: jupyter HTTP $jupyter_status, grafana HTTP $grafana_status"
+            grafana_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/grafana/login" || true)"
+            if [[ "$jupyter_status" =~ ^[23][0-9][0-9]$ ]] && [[ "$grafana_status" == "200" ]]; then
+                log "deployed: jupyter HTTP $jupyter_status, grafana/login HTTP $grafana_status"
                 return 0
             fi
             sleep 1
         done
-        warn "health check timed out (jupyter: $jupyter_status, grafana: $grafana_status). Check: task logs"
+        warn "health check timed out (jupyter: $jupyter_status, grafana/login: $grafana_status). Check: task logs"
         return 1
     fi
     log "deployed (healthcheck skipped)"

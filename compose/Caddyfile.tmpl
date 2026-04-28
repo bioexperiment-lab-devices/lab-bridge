@@ -14,9 +14,12 @@ https://__VPS_HOST__ {
         }
     }
 
-    # /grafana/* is handled exclusively (handle_path strips the prefix) so the
-    # default reverse_proxy below only sees notebook traffic.
-    handle_path /grafana/* {
+    # /grafana/* is handled exclusively so the default reverse_proxy below
+    # only sees notebook traffic. Use `handle` (not `handle_path`) to PRESERVE
+    # the /grafana prefix on the upstream request: Grafana runs with
+    # GF_SERVER_SERVE_FROM_SUB_PATH=true and root_url=…/grafana/, so it expects
+    # to receive `/grafana/...` and 301-loops on bare `/`.
+    handle /grafana/* {
         reverse_proxy grafana:3000
     }
 

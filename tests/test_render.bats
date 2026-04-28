@@ -140,7 +140,7 @@ EOF
         cat $TMPDIR/Caddyfile
     "
     [ "$status" -eq 0 ]
-    [[ "$output" == *"handle_path /grafana/*"* ]]
+    [[ "$output" == *"handle /grafana/*"* ]]
     [[ "$output" == *"reverse_proxy grafana:3000"* ]]
     [[ "$output" == *"reverse_proxy jupyter:8888"* ]]
 }
