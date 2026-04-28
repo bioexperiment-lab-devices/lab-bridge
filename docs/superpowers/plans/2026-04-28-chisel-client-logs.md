@@ -663,6 +663,9 @@ git commit -m "feat(loki): add filesystem-backed config template with retention 
 apiVersion: 1
 datasources:
   - name: Loki
+    uid: loki              # stable uid so the bundled dashboard's "uid": "loki"
+                           # references resolve to this datasource (otherwise
+                           # Grafana auto-generates one and panels break)
     type: loki
     access: proxy
     url: http://loki:3100
@@ -838,6 +841,12 @@ load helpers
     run yq e '.datasources[0].url' "$ROOT/compose/grafana/provisioning/datasources/loki.yaml"
     [ "$status" -eq 0 ]
     [[ "$output" == "http://loki:3100" ]]
+}
+
+@test "grafana datasource has stable uid 'loki' (matches dashboard refs)" {
+    run yq e '.datasources[0].uid' "$ROOT/compose/grafana/provisioning/datasources/loki.yaml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "loki" ]]
 }
 
 @test "grafana dashboard provider yaml is valid and read-only" {
@@ -1056,18 +1065,22 @@ git commit -m "feat(provision): create loki_data and grafana_data with correct u
 - Modify: `scripts/deploy.sh`
 - Modify: `tests/test_deploy.bats`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Update shared `setup()` to provide a grafana password file**
 
-Append to `tests/test_deploy.bats`:
+Once Task 9's deploy.sh changes land, every call to `deploy.sh` will require `LDS_GRAFANA_PASSWORD_FILE` (or the default `compose/grafana/admin_password` path) to point at an existing file. Update the shared `setup()` in `tests/test_deploy.bats` so all tests in the file (existing and new) get one. After the existing `export LDS_SKIP_HEALTHCHECK=1` line and before `bash "$ROOT/scripts/provision.sh"`, insert:
 
 ```bash
-@test "deploy: stages loki config, grafana provisioning, and admin_password" {
-    # Pre-create the grafana admin password file (secrets:set-grafana-password
-    # output, simulated to keep the test hermetic).
     export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
     printf 'testpw' > "$LDS_GRAFANA_PASSWORD_FILE"
     chmod 600 "$LDS_GRAFANA_PASSWORD_FILE"
+```
 
+- [ ] **Step 2: Write the failing tests**
+
+Append to `tests/test_deploy.bats` (the password file is now provided by shared `setup()`, so individual tests don't repeat that setup):
+
+```bash
+@test "deploy: stages loki config, grafana provisioning, and admin_password" {
     run bash "$ROOT/scripts/deploy.sh"
     [ "$status" -eq 0 ]
     docker exec lds-fake-vps test -f /srv/lab-bridge/loki/config.yaml
@@ -1081,10 +1094,6 @@ Append to `tests/test_deploy.bats`:
 }
 
 @test "deploy: rsync --delete preserves loki_data and grafana_data" {
-    export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
-    printf 'testpw' > "$LDS_GRAFANA_PASSWORD_FILE"
-    chmod 600 "$LDS_GRAFANA_PASSWORD_FILE"
-
     bash "$ROOT/scripts/deploy.sh"
     docker exec lds-fake-vps bash -c 'sudo mkdir -p /srv/lab-bridge/loki_data /srv/lab-bridge/grafana_data'
     docker exec lds-fake-vps bash -c 'echo loki-marker | sudo tee /srv/lab-bridge/loki_data/marker > /dev/null'
@@ -1095,6 +1104,7 @@ Append to `tests/test_deploy.bats`:
 }
 
 @test "deploy: fails fast when grafana admin_password is missing" {
+    # Override shared setup's password file so the lookup fails.
     export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/does-not-exist"
     run bash "$ROOT/scripts/deploy.sh"
     [ "$status" -ne 0 ]
@@ -1102,12 +1112,12 @@ Append to `tests/test_deploy.bats`:
 }
 ```
 
-- [ ] **Step 2: Run tests, verify they fail**
+- [ ] **Step 3: Run tests, verify they fail**
 
 Run: `bats tests/test_deploy.bats`
-Expected: new tests fail (deploy.sh does not stage the new files yet).
+Expected: new tests fail (deploy.sh does not stage the new files yet). Existing tests should keep passing because the shared `setup()` now writes the dummy password file.
 
-- [ ] **Step 3: Update `scripts/deploy.sh` to stage the new files**
+- [ ] **Step 4: Update `scripts/deploy.sh` to stage the new files**
 
 Replace the body of `main()` after the "render templates" log line and before the "Build SSH/rsync" section with:
 
@@ -1140,12 +1150,12 @@ In the rsync command, add the new excludes:
         "$stage/" "$target:$VPS_REMOTE_ROOT/"
 ```
 
-- [ ] **Step 4: Run tests, verify they pass**
+- [ ] **Step 5: Run tests, verify they pass**
 
 Run: `bats tests/test_deploy.bats`
 Expected: all tests pass.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add scripts/deploy.sh tests/test_deploy.bats
@@ -1278,10 +1288,7 @@ Append to `tests/test_deploy.bats`:
 
 ```bash
 @test "deploy: loki and grafana come up healthy on the fake VPS" {
-    export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
-    printf 'testpw' > "$LDS_GRAFANA_PASSWORD_FILE"
-    chmod 600 "$LDS_GRAFANA_PASSWORD_FILE"
-
+    # Password file already provided by shared setup().
     run bash "$ROOT/scripts/deploy.sh"
     [ "$status" -eq 0 ]
     # All five compose services should be in `running` state.
