@@ -68,22 +68,25 @@ main() {
     log "bringing up the stack..."
     $ssh_base "$target" "cd $VPS_REMOTE_ROOT && docker compose pull && docker compose up -d --remove-orphans && docker compose restart caddy"
 
-    # 5. Health check (skippable for tests). JupyterLab serves either 200
-    # (login page if no session) or 302 (redirect to /login) when its password
-    # auth is configured — anything in 2xx/3xx means TLS + reverse_proxy + jupyter
-    # are all up.
+    # 5. Health check (skippable for tests). Probe both routed paths:
+    # `/` (JupyterLab) and `/grafana/` (Grafana sub-path). Both 2xx/3xx means
+    # TLS + reverse_proxy + the upstream container are alive — so a crash-looping
+    # grafana/loki fails the deploy instead of silently shipping a 502.
+    # JupyterLab returns 200 (login page) or 302 (→/login). Grafana with
+    # GF_SERVER_SERVE_FROM_SUB_PATH returns 302 → /grafana/login.
     if [[ "${LDS_SKIP_HEALTHCHECK:-}" != "1" ]]; then
         log "waiting for HTTPS to respond..."
-        local i status
+        local i jupyter_status grafana_status
         for ((i=0; i<60; i++)); do
-            status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/" || true)"
-            if [[ "$status" =~ ^[23][0-9][0-9]$ ]]; then
-                log "deployed at https://$VPS_HOST/ (HTTP $status)"
+            jupyter_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/" || true)"
+            grafana_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/grafana/" || true)"
+            if [[ "$jupyter_status" =~ ^[23][0-9][0-9]$ ]] && [[ "$grafana_status" =~ ^[23][0-9][0-9]$ ]]; then
+                log "deployed: jupyter HTTP $jupyter_status, grafana HTTP $grafana_status"
                 return 0
             fi
             sleep 1
         done
-        warn "health check timed out (last status: $status). Check: task logs -- caddy"
+        warn "health check timed out (jupyter: $jupyter_status, grafana: $grafana_status). Check: task logs"
         return 1
     fi
     log "deployed (healthcheck skipped)"
