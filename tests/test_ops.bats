@@ -44,7 +44,7 @@ teardown() { teardown_tmpdir; }
     run bash "$ROOT/scripts/ops.sh" down
     [ "$status" -eq 0 ]
     docker exec lds-fake-vps bash -c '
-        cd /srv/lab_devices_server && docker compose ps --status running --format "{{.Service}}"
+        cd /srv/lab-bridge && docker compose ps --status running --format "{{.Service}}"
     ' | grep -vE "^$" | wc -l | tr -d "[:space:]" | grep -q "^0$"
 }
 

@@ -35,7 +35,7 @@ teardown() { teardown_tmpdir; }
     docker exec lds-fake-vps ufw status | grep -q '443/tcp.*ALLOW'
     docker exec lds-fake-vps ufw status | grep -q '8080/tcp.*ALLOW'
     # dirs exist with right ownership
-    docker exec lds-fake-vps stat -c '%U' /srv/lab_devices_server | grep -q khamit
+    docker exec lds-fake-vps stat -c '%U' /srv/lab-bridge | grep -q khamit
     docker exec lds-fake-vps stat -c '%U' /srv/jupyterlab/work     | grep -q khamit
 }
 

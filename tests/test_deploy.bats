@@ -24,20 +24,20 @@ teardown() { teardown_tmpdir; }
 @test "deploy: rsyncs templates and brings up containers" {
     run bash "$ROOT/scripts/deploy.sh"
     [ "$status" -eq 0 ]
-    docker exec lds-fake-vps test -f /srv/lab_devices_server/docker-compose.yml
-    docker exec lds-fake-vps test -f /srv/lab_devices_server/Caddyfile
-    docker exec lds-fake-vps test -f /srv/lab_devices_server/chisel/users.json
+    docker exec lds-fake-vps test -f /srv/lab-bridge/docker-compose.yml
+    docker exec lds-fake-vps test -f /srv/lab-bridge/Caddyfile
+    docker exec lds-fake-vps test -f /srv/lab-bridge/chisel/users.json
     # nested docker compose ps shows three services up
     docker exec lds-fake-vps bash -c '
-        cd /srv/lab_devices_server && docker compose ps --status running --format "{{.Service}}"
+        cd /srv/lab-bridge && docker compose ps --status running --format "{{.Service}}"
     ' | sort | tr -d "\r" | grep -E "^(caddy|jupyter|chisel)$" | wc -l | grep -q 3
 }
 
 @test "deploy: rsync --delete preserves caddy_data" {
     bash "$ROOT/scripts/deploy.sh"
-    docker exec lds-fake-vps bash -c 'echo testdata > /srv/lab_devices_server/caddy_data/marker'
+    docker exec lds-fake-vps bash -c 'echo testdata > /srv/lab-bridge/caddy_data/marker'
     bash "$ROOT/scripts/deploy.sh"
-    docker exec lds-fake-vps test -f /srv/lab_devices_server/caddy_data/marker
+    docker exec lds-fake-vps test -f /srv/lab-bridge/caddy_data/marker
 }
 
 @test "deploy: rejects config with invalid hash before touching VPS" {
