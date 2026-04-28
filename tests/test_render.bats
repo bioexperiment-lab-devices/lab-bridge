@@ -172,5 +172,6 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == "true" ]]
     run yq e '.schema_config.configs[0].schema' "$TMPDIR/loki.yaml"
+    [ "$status" -eq 0 ]
     [[ "$output" == "v13" ]]
 }

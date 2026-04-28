@@ -51,6 +51,11 @@ render_chisel_users() {
 render_loki_config() {
     local tmpl="${1:?}" out="${2:?}"
     [[ -f "$tmpl" ]] || die "template not found: $tmpl"
-    local hours=$(( ${LOKI_RETENTION_DAYS:?} * 24 ))
+    local days="${LOKI_RETENTION_DAYS:?}"
+    # Defence in depth: bash arithmetic silently coerces non-numeric to 0,
+    # which would render `retention_period: 0h` (= grow forever). config.sh
+    # already validates this, but render_loki_config is callable standalone.
+    [[ "$days" =~ ^[0-9]+$ ]] || die "LOKI_RETENTION_DAYS must be a positive integer, got: $days"
+    local hours=$(( days * 24 ))
     sed -e "s|__LOKI_RETENTION_HOURS__|${hours}|g" "$tmpl" > "$out"
 }
