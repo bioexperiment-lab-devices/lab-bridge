@@ -44,3 +44,12 @@ teardown() { teardown_tmpdir; }
     run bash "$ROOT/scripts/provision.sh"
     [ "$status" -eq 0 ]
 }
+
+@test "provision: creates loki_data and grafana_data with correct ownership" {
+    run bash "$ROOT/scripts/provision.sh"
+    [ "$status" -eq 0 ]
+    # Loki container runs as uid 10001
+    docker exec lds-fake-vps stat -c '%u' /srv/lab-bridge/loki_data | grep -q '^10001$'
+    # Grafana container runs as uid 472
+    docker exec lds-fake-vps stat -c '%u' /srv/lab-bridge/grafana_data | grep -q '^472$'
+}

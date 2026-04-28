@@ -76,10 +76,22 @@ sudo ufw allow "${CHISEL_PORT:?}"/tcp
 sudo ufw --force enable
 
 # 3. Directories. JupyterLab containers run as UID 1000 (jovyan).
-sudo mkdir -p "$REMOTE_ROOT" "$REMOTE_ROOT/chisel" "$REMOTE_ROOT/caddy_data" "$NOTEBOOKS_PATH"
+# Loki and Grafana run as their own non-root UIDs and need to write
+# to the bind-mounted state dirs.
+sudo mkdir -p \
+    "$REMOTE_ROOT" \
+    "$REMOTE_ROOT/chisel" \
+    "$REMOTE_ROOT/caddy_data" \
+    "$REMOTE_ROOT/loki_data" \
+    "$REMOTE_ROOT/grafana_data" \
+    "$NOTEBOOKS_PATH"
 sudo chown -R "$USER:$USER" "$REMOTE_ROOT"
 sudo chown -R 1000:100 "$NOTEBOOKS_PATH"
 sudo chmod 775 "$NOTEBOOKS_PATH"
+# Loki uses 10001 (grafana/loki image's "loki" user).
+sudo chown -R 10001:10001 "$REMOTE_ROOT/loki_data"
+# Grafana uses 472 ("grafana" user in grafana/grafana).
+sudo chown -R 472:472   "$REMOTE_ROOT/grafana_data"
 log "ok"
 REMOTE
 
