@@ -23,6 +23,16 @@ chisel:
   image: jpillora/chisel:1.10.1
   listen_port: 8080                   # PUBLIC: lab-device chisel clients dial in
 
+loki:
+  # Single-binary, filesystem-backed log storage. Pinned for reproducibility.
+  image: grafana/loki:3.2.1
+  retention_days: 30                  # age-based eviction in Loki's compactor
+
+grafana:
+  # UI for tailing/searching the chisel-client logs Loki ingests.
+  # Behind the existing Caddy site at https://<vps-host>/grafana/.
+  image: grafana/grafana:11.3.0
+
 # Lab devices that connect inbound via chisel. Manage via `task secrets:add-client`.
 # Each `reverse_port` is reachable inside the docker network as `chisel:<port>`,
 # never published to the host. Each device's chisel credential is restricted to

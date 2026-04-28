@@ -14,6 +14,9 @@ _REQUIRED_FIELDS=(
     .jupyter.password_hash
     .chisel.image
     .chisel.listen_port
+    .loki.image
+    .loki.retention_days
+    .grafana.image
 )
 
 _yq() { yq "$@" 2>/dev/null; }
@@ -70,6 +73,13 @@ validate_config() {
         fi
     done
 
+    # loki.retention_days must be a positive integer.
+    local retention
+    retention="$(_yq e '.loki.retention_days // ""' "$path")"
+    if [[ -n "$retention" ]] && ! [[ "$retention" =~ ^[0-9]+$ ]]; then
+        errors+=("loki.retention_days must be a positive integer, got: $retention")
+    fi
+
     if (( ${#errors[@]} > 0 )); then
         printf 'config validation failed:\n' >&2
         printf '  - %s\n' "${errors[@]}" >&2
@@ -93,4 +103,7 @@ load_config() {
     export JUPYTER_PASSWORD_HASH ; JUPYTER_PASSWORD_HASH="$(_yq e '.jupyter.password_hash' "$path")"
     export CHISEL_IMAGE          ; CHISEL_IMAGE="$(_yq e '.chisel.image' "$path")"
     export CHISEL_LISTEN_PORT    ; CHISEL_LISTEN_PORT="$(_yq e '.chisel.listen_port' "$path")"
+    export LOKI_IMAGE            ; LOKI_IMAGE="$(_yq e '.loki.image' "$path")"
+    export LOKI_RETENTION_DAYS   ; LOKI_RETENTION_DAYS="$(_yq e '.loki.retention_days' "$path")"
+    export GRAFANA_IMAGE         ; GRAFANA_IMAGE="$(_yq e '.grafana.image' "$path")"
 }
