@@ -66,6 +66,8 @@ jupyter:
   image: quay.io/jupyter/scipy-notebook:2026-04-20
   password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"
 chisel: {image: jpillora/chisel:1.10.1, listen_port: 8080}
+loki: {image: grafana/loki:3.2.1, retention_days: 30}
+grafana: {image: grafana/grafana:11.3.0}
 chisel_clients: []
 EOF
     run bash -c "
