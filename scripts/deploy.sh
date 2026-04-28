@@ -32,9 +32,14 @@ main() {
     cp -R "$REPO_ROOT/compose/grafana/provisioning/." "$stage/grafana/provisioning/"
 
     # Grafana admin password file (created by `task secrets:set-grafana-password`).
+    # Mode 0644 on the staged/deployed file: Docker Compose bind-mounts it to
+    # /run/secrets/grafana_admin_password inside the container, where Grafana
+    # runs as uid 472 and cannot read a 0600 file owned by the deploy user.
+    # The local copy in compose/grafana/admin_password stays 0600 — only the
+    # deploy artifact on the private VPS path is loosened.
     local pwfile="${LDS_GRAFANA_PASSWORD_FILE:-$REPO_ROOT/compose/grafana/admin_password}"
     [[ -f "$pwfile" ]] || die "grafana admin password not found at $pwfile — run: task secrets:set-grafana-password"
-    install -m 600 "$pwfile" "$stage/grafana/admin_password"
+    install -m 644 "$pwfile" "$stage/grafana/admin_password"
 
     # 2. Build SSH/rsync.
     local ssh_base rsync_e target
