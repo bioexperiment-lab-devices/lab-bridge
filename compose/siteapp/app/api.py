@@ -55,7 +55,7 @@ async def upload_agent(
                     raise HTTPException(status_code=413, detail="upload too large")
                 digest.update(chunk)
                 out.write(chunk)
-    except HTTPException:
+    except BaseException:
         try:
             os.unlink(tmp_name)
         except OSError:
