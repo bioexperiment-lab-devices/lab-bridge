@@ -2,6 +2,7 @@
 config.yaml
 backups/
 .task/
+.worktrees/
 
 # Editor cruft
 .DS_Store
