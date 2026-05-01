@@ -84,6 +84,7 @@ sudo mkdir -p \
     "$REMOTE_ROOT/caddy_data" \
     "$REMOTE_ROOT/loki_data" \
     "$REMOTE_ROOT/grafana_data" \
+    "$REMOTE_ROOT/site_data" \
     "$NOTEBOOKS_PATH"
 sudo chown -R "$USER:$USER" "$REMOTE_ROOT"
 sudo chown -R 1000:100 "$NOTEBOOKS_PATH"
@@ -92,6 +93,9 @@ sudo chmod 775 "$NOTEBOOKS_PATH"
 sudo chown -R 10001:10001 "$REMOTE_ROOT/loki_data"
 # Grafana uses 472 ("grafana" user in grafana/grafana).
 sudo chown -R 472:472   "$REMOTE_ROOT/grafana_data"
+# siteapp also uses uid 10001 (matching the Dockerfile's `siteapp` user).
+# Distinct directory from loki_data so the two services don't share state.
+sudo chown -R 10001:10001 "$REMOTE_ROOT/site_data"
 log "ok"
 REMOTE
 

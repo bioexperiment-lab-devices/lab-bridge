@@ -66,6 +66,7 @@ main() {
         --exclude='caddy_config/' \
         --exclude='loki_data/' \
         --exclude='grafana_data/' \
+        --exclude='site_data/' \
         -e "$rsync_e" \
         "$stage/" "$target:$VPS_REMOTE_ROOT/"
 
@@ -77,7 +78,7 @@ main() {
     # mount pins the original inode so even fsnotify-based auto-reload
     # re-reads the same stale contents).
     log "bringing up the stack..."
-    $ssh_base "$target" "cd $VPS_REMOTE_ROOT && docker compose pull && docker compose up -d --remove-orphans && docker compose restart caddy chisel siteapp"
+    $ssh_base "$target" "cd $VPS_REMOTE_ROOT && (docker compose pull --ignore-pull-failures || true) && docker compose up -d --remove-orphans && docker compose restart caddy chisel siteapp"
 
     # 5. Health check (skippable for tests). Probe both routed paths:
     # `/` (JupyterLab → 200/302) and `/grafana/login` (Grafana → 200, terminal,

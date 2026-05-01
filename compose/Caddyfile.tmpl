@@ -10,13 +10,16 @@ https://__VPS_HOST__ {
         }
     }
 
-    # Public docs.
-    handle_path /docs* {
+    # Public docs. Use `handle` (not `handle_path`) so the upstream sees the
+    # full `/docs/...` path: siteapp's FastAPI routes are declared on
+    # `/docs/{path:path}`, so prefix-stripping would 404 every request.
+    handle /docs* {
         reverse_proxy siteapp:8000
     }
 
-    # Public agent download page + binary.
-    handle_path /download* {
+    # Public agent download page + binary. Same reasoning — siteapp routes
+    # are declared on `/download/agent` and `/download/agent/windows/agent.exe`.
+    handle /download* {
         reverse_proxy siteapp:8000
     }
 
