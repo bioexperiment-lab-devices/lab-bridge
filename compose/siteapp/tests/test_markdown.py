@@ -41,3 +41,22 @@ def test_heading_anchor() -> None:
     html, _ = render_markdown(src)
     # mdit-py-plugins anchors gives id="my-section".
     assert 'id="my-section"' in html
+
+
+def test_unknown_language_still_escapes() -> None:
+    src = "```zzznotalang\n<script>alert(1)</script>\n```\n"
+    html, _ = render_markdown(src)
+    assert "<script>" not in html
+    assert "&lt;script&gt;" in html
+
+
+def test_h1_inside_fenced_code_not_treated_as_title() -> None:
+    src = "Intro paragraph.\n\n```\n# Not a title\n```\n"
+    _, title = render_markdown(src)
+    assert title is None
+
+
+def test_h1_with_inline_code_extracts_rendered_text() -> None:
+    _, title = render_markdown("# Use `pip install` carefully\n")
+    # Title should be the rendered text (no backticks).
+    assert title == "Use pip install carefully"
