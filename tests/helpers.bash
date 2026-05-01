@@ -110,15 +110,35 @@ patch_caddyfile_tls_internal() {
     return 1
 }
 
-# Wait for siteapp's /healthz to return 200 inside the fake-VPS network.
+# Wait for siteapp's /healthz to return 200 inside the fake-VPS network,
+# AND for Caddy to successfully reach siteapp on a public route. The second
+# gate matters because patch_caddyfile_tls_internal restarts caddy, and
+# caddy's upstream resolution to siteapp races with test probes — without
+# this, the first probe through Caddy's HTTPS sometimes hits an upstream
+# that hasn't resolved yet, manifesting as a flaky 502/connection-error.
 # Returns non-zero on timeout.
 wait_siteapp_ready() {
     local i
+    # Gate 1: siteapp's own /healthz inside the container.
     for i in $(seq 1 60); do
         if docker exec lds-fake-vps bash -c '
             cd /srv/lab-bridge && docker compose exec -T siteapp \
                 python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(\"http://127.0.0.1:8000/healthz\").status==200 else 1)" \
                 >/dev/null 2>&1
+        '; then
+            break
+        fi
+        sleep 1
+    done
+    # Gate 2: Caddy can reach siteapp on a public route. After patch_caddyfile_tls_internal
+    # restarts caddy, the caddy→siteapp upstream resolution races test probes; this loop
+    # waits until /docs/ and /download/agent both return 200 through HTTPS.
+    for i in $(seq 1 30); do
+        if docker exec lds-fake-vps bash -c '
+            cd /srv/lab-bridge && docker compose exec -T caddy sh -c "
+                wget --no-check-certificate -q -O /dev/null https://127.0.0.1/docs/ &&
+                wget --no-check-certificate -q -O /dev/null https://127.0.0.1/download/agent
+            " >/dev/null 2>&1
         '; then
             return 0
         fi
