@@ -9,14 +9,17 @@ from starlette.status import HTTP_308_PERMANENT_REDIRECT
 from app.config import Settings
 from app.markdown import pygments_css, render_markdown
 from app.nav import build_nav
+from app.paths import safe_join
 from app.templates import templates
 from app.translations import find_doc, resolve_lang_file
 
 
 def _pick_lang(query: str | None, cookie: str | None) -> Literal["en", "ru"]:
     for v in (query, cookie):
-        if v in ("en", "ru"):
-            return v  # type: ignore[return-value]
+        if v == "en":
+            return "en"
+        if v == "ru":
+            return "ru"
     return "en"
 
 
@@ -34,9 +37,13 @@ def make_router(settings: Settings) -> APIRouter:
         lang: str | None = None,
     ) -> Response:
         # Trailing-slash semantics: a directory URL must end with `/` so relative
-        # links inside index.md resolve correctly in the browser.
+        # links inside index.md resolve correctly in the browser. Use safe_join
+        # so URL-encoded traversal can't leak directory existence outside docs_root.
         if path and not path.endswith("/"):
-            candidate = settings.docs_root / path
+            try:
+                candidate = safe_join(settings.docs_root, *[p for p in path.split("/") if p])
+            except ValueError:
+                return Response(status_code=404)
             if candidate.is_dir():
                 return RedirectResponse(
                     url=f"/docs/{path}/", status_code=HTTP_308_PERMANENT_REDIRECT
@@ -66,7 +73,14 @@ def make_router(settings: Settings) -> APIRouter:
             },
         )
         if lang in ("en", "ru"):
-            response.set_cookie("lang", lang, max_age=60 * 60 * 24 * 365, samesite="lax")
+            response.set_cookie(
+                "lang",
+                lang,
+                max_age=60 * 60 * 24 * 365,
+                samesite="lax",
+                secure=True,
+                httponly=True,
+            )
         return response
 
     return router

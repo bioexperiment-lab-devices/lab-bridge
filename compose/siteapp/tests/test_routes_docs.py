@@ -60,7 +60,8 @@ def test_lang_falls_back_to_english(client: TestClient) -> None:
 def test_lang_cookie_persists(client: TestClient) -> None:
     r = client.get("/docs/intro?lang=ru", follow_redirects=False)
     assert r.cookies.get("lang") == "ru"
-    r2 = client.get("/docs/intro", cookies={"lang": "ru"})
+    client.cookies.set("lang", "ru")
+    r2 = client.get("/docs/intro")
     assert "привет" in r2.text
 
 
@@ -71,3 +72,11 @@ def test_missing_returns_404(client: TestClient) -> None:
 def test_orphan_ru_only_returns_404(client: TestClient, tmp_path: Path) -> None:
     (tmp_path / "docs" / "only.ru.md").write_text("# Только\n", encoding="utf-8")
     assert client.get("/docs/only").status_code == 404
+
+
+def test_url_encoded_traversal_returns_404_not_redirect(client: TestClient) -> None:
+    """A URL-encoded `..` segment must not leak directory existence via 308.
+    Without safe_join, `/docs/..%2Fagent` would 308 to `/docs/../agent/`.
+    With safe_join, traversal is treated like a missing doc -> 404."""
+    r = client.get("/docs/..%2Fagent", follow_redirects=False)
+    assert r.status_code == 404
