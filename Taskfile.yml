@@ -38,6 +38,9 @@ tasks:
   "secrets:set-grafana-password":
     desc: Set or rotate the Grafana admin password (prompts; deploy to apply)
     cmd: bash scripts/secrets.sh set-grafana-password
+  "secrets:rotate-agent-upload-token":
+    desc: Generate a new CI agent upload token (deploy to apply; old token stops working)
+    cmd: bash scripts/secrets.sh rotate-agent-upload-token
   "secrets:add-client":
     desc: Add a chisel client (lab device); generates a random password
     cmd: bash scripts/secrets.sh add-client {{.CLI_ARGS}}

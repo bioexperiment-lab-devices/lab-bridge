@@ -76,6 +76,37 @@ cmd_set_admin_password() {
     log "set admin panel password (deploy to apply)"
 }
 
+cmd_rotate_agent_upload_token() {
+    require_cmd python3
+    local tokfile="${LDS_AGENT_TOKEN_FILE:-$SCRIPT_DIR/../compose/siteapp/agent_upload_token}"
+    mkdir -p "$(dirname "$tokfile")"
+
+    local token
+    token="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+
+    # Atomic write so a partial file never lingers.
+    local tmp
+    tmp="$(mktemp "${tokfile}.XXXXXX")"
+    trap 'rm -f "$tmp"' EXIT
+    printf '%s' "$token" > "$tmp"
+    chmod 600 "$tmp"
+    mv "$tmp" "$tokfile"
+    trap - EXIT
+
+    log "wrote new agent upload token to $tokfile"
+    cat <<EOF
+
+NEW TOKEN (save this in your CI secret store; it won't be shown again):
+
+  $token
+
+Update CI:
+  - GitHub Actions: replace the AGENT_UPLOAD_TOKEN secret value
+  - then run: task deploy
+
+EOF
+}
+
 cmd_add_client() {
     local name="${1:?usage: secrets.sh add-client <name> <reverse_port>}"
     local port="${2:?usage: secrets.sh add-client <name> <reverse_port>}"
@@ -148,6 +179,7 @@ main() {
         set-admin-password)   cmd_set_admin_password "$@" ;;
         set-jupyter-password) cmd_set_jupyter_password "$@" ;;
         set-grafana-password) cmd_set_grafana_password "$@" ;;
+        rotate-agent-upload-token) cmd_rotate_agent_upload_token "$@" ;;
         add-client)           cmd_add_client "$@" ;;
         show-client)          cmd_show_client "$@" ;;
         rm-client)            cmd_rm_client "$@" ;;

@@ -119,3 +119,13 @@ EOS
     [ "$status" -eq 0 ]
     yq -e ".siteapp.admin_password_hash" "$LDS_CONFIG" | grep -q '^\$2a\$14\$'
 }
+
+@test "secrets:rotate-agent-upload-token writes a 32+ char token to file" {
+    setup_tmpdir
+    export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
+    run bash "$ROOT/scripts/secrets.sh" rotate-agent-upload-token
+    [ "$status" -eq 0 ]
+    [ -f "$LDS_AGENT_TOKEN_FILE" ]
+    [ "$(stat -f '%Lp' "$LDS_AGENT_TOKEN_FILE" 2>/dev/null || stat -c '%a' "$LDS_AGENT_TOKEN_FILE")" = "600" ]
+    [ "$(wc -c < "$LDS_AGENT_TOKEN_FILE")" -ge 40 ]
+}
