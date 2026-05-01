@@ -7,3 +7,6 @@ chisel: {image: jpillora/chisel:1.10.1, listen_port: 8080}
 chisel_clients:
   - {name: a, reverse_port: 9001, password: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
   - {name: b, reverse_port: 9001, password: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb}
+siteapp:
+  image: ghcr.io/test/lab-bridge-siteapp:0.0.1
+  admin_password_hash: "$2a$14$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345"

@@ -43,3 +43,8 @@ chisel_clients: []
 #   - name: microscope-1
 #     reverse_port: 9001
 #     password: "32-char-random"
+
+siteapp:
+  image: ghcr.io/<owner>/lab-bridge-siteapp:0.1.0   # pinned tag (+ digest after first publish)
+  # bcrypt hash for the admin panel — set via `task secrets:set-admin-password`.
+  admin_password_hash: "<run task secrets:set-admin-password>"
