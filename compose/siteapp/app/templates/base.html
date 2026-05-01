@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}lab-bridge{% endblock %}</title>
   <link rel="stylesheet" href="/_static/site.css">
-  <style>{{ pygments_css|safe }}</style>
+  {% if pygments_css %}<style>{{ pygments_css|safe }}</style>{% endif %}
 </head>
 <body>
   <header class="topbar">
@@ -14,5 +14,6 @@
   </header>
   <main>{% block main %}{% endblock %}</main>
   <footer><a href="/">lab-bridge</a></footer>
+  <script src="/_static/copy-code.js" defer></script>
 </body>
 </html>
