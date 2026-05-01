@@ -65,3 +65,9 @@ tasks:
   "ops:loki-disk":
     desc: Show loki_data disk usage and configured retention
     cmd: bash scripts/ops.sh loki-disk
+  "ops:logs:siteapp":
+    desc: Tail recent siteapp container logs
+    cmd: bash scripts/ops.sh logs:siteapp
+  "ops:site-disk":
+    desc: Show site_data/ disk usage (docs/ and agent/)
+    cmd: bash scripts/ops.sh site-disk
