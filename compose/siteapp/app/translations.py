@@ -21,18 +21,13 @@ class DocFile:
 def find_doc(docs_root: Path, url_path: str) -> DocFile | None:
     """Resolve a `/docs` sub-path to a DocFile. Return None on missing English."""
     cleaned = url_path.strip("/")
-    parts: list[str]
     if not cleaned:
-        rel = Path("index")
-    elif url_path.endswith("/"):
-        rel = Path(cleaned) / "index"
-    else:
-        rel = Path(cleaned)
-
-    parts = [p for p in rel.parts if p]
-    if not parts:
-        rel = Path("index")
         parts = ["index"]
+    elif url_path.endswith("/"):
+        # Check the raw url_path here — strip("/") already removed the marker.
+        parts = cleaned.split("/") + ["index"]
+    else:
+        parts = cleaned.split("/")
 
     try:
         en = _safe_md(docs_root, parts, ".md")
@@ -46,7 +41,12 @@ def find_doc(docs_root: Path, url_path: str) -> DocFile | None:
 
 
 def resolve_lang_file(docs_root: Path, doc: DocFile, lang: Lang) -> Path:
-    """Disk path for a given language, falling back to English silently."""
+    """Disk path for a given language, falling back to English silently.
+
+    Any value of `lang` other than `"ru"` (including `"en"` and unrecognized
+    inputs) returns the English file. Callers should validate user-supplied
+    `lang` against the `Lang` Literal before passing it in.
+    """
     if lang == "ru" and doc.ru_exists:
         return _safe_md(docs_root, doc.rel_path.parts, ".ru.md")
     return _safe_md(docs_root, doc.rel_path.parts, ".md")

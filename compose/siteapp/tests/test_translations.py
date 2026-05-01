@@ -68,3 +68,18 @@ def test_resolve_lang_file_falls_back_to_english(docs: Path) -> None:
     assert doc is not None
     path = resolve_lang_file(docs, doc, "ru")
     assert path == docs / "section" / "page.md"
+
+
+def test_find_doc_section_without_slash_returns_none(docs: Path) -> None:
+    """Without trailing slash, `section` is treated as a file `section.md`,
+    not as the section's index. Since no `section.md` exists, the result is None.
+    This pins the trailing-slash contract at this layer."""
+    assert find_doc(docs, "section") is None
+
+
+def test_find_doc_orphan_ru_only_returns_none(site_data: Path) -> None:
+    """A foo.ru.md without a matching foo.md must be ignored — English is
+    the source of truth."""
+    docs_root = site_data / "docs"
+    (docs_root / "only.ru.md").write_text("# Только\n", encoding="utf-8")
+    assert find_doc(docs_root, "only") is None
