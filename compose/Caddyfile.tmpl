@@ -1,31 +1,42 @@
 {
     email __ACME_EMAIL__
-    # Modern TLS clients (curl, OpenSSL) do not send SNI when the URL is an IP
-    # literal (RFC 6066 forbids IP in SNI). Without this, Caddy returns
-    # tlsv1 internal_error to clients with no SNI, including our own healthcheck.
     default_sni __VPS_HOST__
 }
 
 https://__VPS_HOST__ {
     tls {
-        # Email comes from the global `email` directive above.
         issuer acme {
             profile shortlived
         }
     }
 
-    # /grafana/* is handled exclusively so the default reverse_proxy below
-    # only sees notebook traffic. Use `handle` (not `handle_path`) to PRESERVE
-    # the /grafana prefix on the upstream request: Grafana runs with
-    # GF_SERVER_SERVE_FROM_SUB_PATH=true and root_url=…/grafana/, so it expects
-    # to receive `/grafana/...` and 301-loops on bare `/`.
+    # Public docs.
+    handle_path /docs* {
+        reverse_proxy siteapp:8000
+    }
+
+    # Public agent download page + binary.
+    handle_path /download* {
+        reverse_proxy siteapp:8000
+    }
+
+    # Admin panel — basic_auth scoped here ONLY. Mobile-WS issue does not
+    # apply: this surface is plain HTTP file uploads, no kernels.
+    handle /admin* {
+        basic_auth {
+            admin __ADMIN_BCRYPT_HASH__
+        }
+        reverse_proxy siteapp:8000
+    }
+
+    # CI upload endpoint — bearer-token auth in the app, not Caddy.
+    handle /api/agent/upload {
+        reverse_proxy siteapp:8000
+    }
+
+    # Existing routes (unchanged).
     handle /grafana/* {
         reverse_proxy grafana:3000
     }
-
-    # Auth is handled by JupyterLab itself (cookie-based), not at the edge.
-    # Reason: HTTP Basic Auth on mobile browsers re-prompts on every WebSocket
-    # upgrade, breaking notebook kernels. JupyterLab's password identity
-    # provider uses cookies and works reliably on mobile.
     reverse_proxy jupyter:8888
 }
