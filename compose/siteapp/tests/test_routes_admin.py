@@ -170,3 +170,35 @@ def test_breadcrumb_accumulates_path(client: TestClient, tmp_path: Path) -> None
     # The 'b' link must point at /admin/docs?target=a/b (cumulative).
     assert 'href="/admin/docs?target=a"' in r.text
     assert 'href="/admin/docs?target=a/b"' in r.text
+
+
+def test_agent_page_renders(client: TestClient) -> None:
+    r = client.get("/admin/agent")
+    assert r.status_code == 200
+    assert "Agent" in r.text
+
+
+def test_agent_manual_upload(client: TestClient, tmp_path: Path) -> None:
+    r = client.get("/admin/agent")
+    import re
+
+    csrf = re.search(r'name="csrf"\s+value="([^"]+)"', r.text).group(1)  # type: ignore[union-attr]
+    r = client.post(
+        "/admin/agent/upload",
+        data={"csrf": csrf, "version": "9.9.9"},
+        files={"binary": ("agent.exe", b"manual-bytes", "application/octet-stream")},
+    )
+    assert r.status_code in (200, 303)
+    assert (tmp_path / "agent" / "windows" / "agent.exe").read_bytes() == b"manual-bytes"
+
+
+def test_rotate_token_returns_value(client: TestClient) -> None:
+    r = client.get("/admin/agent")
+    import re
+
+    csrf = re.search(r'name="csrf"\s+value="([^"]+)"', r.text).group(1)  # type: ignore[union-attr]
+    r = client.post("/admin/agent/rotate-token", data={"csrf": csrf})
+    assert r.status_code == 200
+    assert "new_token" in r.text
+    import re as _re
+    assert _re.search(r"[A-Za-z0-9_-]{40,}", r.text)

@@ -193,4 +193,48 @@ def make_router(settings: Settings) -> APIRouter:
             raise HTTPException(status_code=404, detail="parent missing") from e
         return RedirectResponse(url=f"/admin/docs?target={target}", status_code=303)
 
+    @router.get("/agent", include_in_schema=False)
+    def agent_admin(request: Request) -> Response:
+        from app.agent import load_meta
+
+        return templates.TemplateResponse(
+            request,
+            "admin/agent.html",
+            {
+                "info": load_meta(settings.agent_root),
+                "csrf": _make_csrf(serializer),
+            },
+        )
+
+    @router.post("/agent/upload")
+    async def agent_admin_upload(
+        version: str = Form(...),
+        csrf: str = Form(""),
+        binary: UploadFile = File(...),
+    ) -> Response:
+        _check_csrf(serializer, csrf)
+        from app.api import upload_agent
+
+        synthetic = f"Bearer {settings.agent_upload_token}"
+        await upload_agent(
+            settings, version=version, binary=binary, authorization=synthetic
+        )
+        return RedirectResponse(url="/admin/agent", status_code=303)
+
+    @router.post("/agent/rotate-token")
+    def rotate_token(request: Request, csrf: str = Form("")) -> Response:
+        _check_csrf(serializer, csrf)
+        import secrets as _secrets
+        from app.agent import load_meta
+
+        return templates.TemplateResponse(
+            request,
+            "admin/agent.html",
+            {
+                "info": load_meta(settings.agent_root),
+                "csrf": _make_csrf(serializer),
+                "new_token": _secrets.token_urlsafe(32),
+            },
+        )
+
     return router
