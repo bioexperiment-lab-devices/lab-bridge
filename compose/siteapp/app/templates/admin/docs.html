@@ -4,10 +4,10 @@
 <h1>Documentation</h1>
 <p class="breadcrumb">
   <a href="/admin/docs">/docs</a>
-  {% set acc = '' %}
+  {% set ns = namespace(acc='') %}
   {% for part in target.split('/') if part %}
-    {% set acc = acc + '/' + part %}
-    / <a href="/admin/docs?target={{ acc.lstrip('/') }}">{{ part }}</a>
+    {% set ns.acc = ns.acc + '/' + part %}
+    / <a href="/admin/docs?target={{ ns.acc.lstrip('/') }}">{{ part }}</a>
   {% endfor %}
 </p>
 

@@ -36,7 +36,16 @@ def _resolve_target(docs_root: Path, target: str) -> Path:
     if not parts:
         return docs_root.resolve()
     try:
-        return safe_join(docs_root, *parts)
+        clean = [sanitize_filename(p) for p in parts]
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="bad target") from e
+    # Navigation paths must be canonical: any segment that would be rewritten
+    # by sanitisation (e.g. "<script>" -> "-script-") is rejected outright so
+    # we never silently create dirs from messy/attacker-controlled input.
+    if clean != parts:
+        raise HTTPException(status_code=400, detail="bad target")
+    try:
+        return safe_join(docs_root, *clean)
     except ValueError as e:
         raise HTTPException(status_code=400, detail="bad target") from e
 
@@ -46,7 +55,7 @@ def _list_dir(path: Path) -> list[dict[str, object]]:
         return []
     out: list[dict[str, object]] = []
     for child in sorted(path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
-        if child.name.startswith(".") or child.name.startswith("agent_upload_token"):
+        if child.name.startswith("."):
             continue
         st = child.stat()
         out.append(
@@ -176,7 +185,12 @@ def make_router(settings: Settings) -> APIRouter:
         target_path = _resolve_target(settings.docs_root, target)
         clean = sanitize_filename(name)
         new_dir = safe_join(target_path, clean)
-        new_dir.mkdir(parents=False, exist_ok=False)
+        try:
+            new_dir.mkdir(parents=False, exist_ok=False)
+        except FileExistsError as e:
+            raise HTTPException(status_code=409, detail="exists") from e
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail="parent missing") from e
         return RedirectResponse(url=f"/admin/docs?target={target}", status_code=303)
 
     return router

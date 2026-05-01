@@ -112,3 +112,61 @@ def test_new_folder(client: TestClient, tmp_path: Path) -> None:
     )
     assert r.status_code in (200, 303)
     assert (tmp_path / "docs" / "section-one").is_dir()
+
+
+def test_target_with_unsafe_segment_rejected(client: TestClient) -> None:
+    """target=<script> must 400, not silently create a polluted directory."""
+    csrf = _csrf(client)
+    r = client.post(
+        "/admin/docs/upload",
+        data={"csrf": csrf, "target": "<script>"},
+        files={"files": ("ok.md", b"# Ok\n", "text/markdown")},
+    )
+    assert r.status_code == 400
+
+
+def test_new_folder_existing_returns_409(client: TestClient, tmp_path: Path) -> None:
+    (tmp_path / "docs" / "already").mkdir()
+    csrf = _csrf(client)
+    r = client.post(
+        "/admin/docs/new-folder",
+        data={"csrf": csrf, "target": "", "name": "already"},
+    )
+    assert r.status_code == 409
+
+
+def test_new_folder_missing_parent_returns_404(client: TestClient) -> None:
+    csrf = _csrf(client)
+    # `target=ghost` — parent dir doesn't exist on disk yet.
+    # Note: GET /admin/docs?target=ghost would 400 because we sanitize but the
+    # path doesn't exist. We hit /admin/docs/new-folder directly with that target.
+    r = client.post(
+        "/admin/docs/new-folder",
+        data={"csrf": csrf, "target": "ghost", "name": "newly"},
+    )
+    assert r.status_code in (404, 400)
+
+
+def test_delete_non_empty_directory_returns_400(client: TestClient, tmp_path: Path) -> None:
+    sec = tmp_path / "docs" / "filled"
+    sec.mkdir()
+    (sec / "child.md").write_text("# c\n", encoding="utf-8")
+    csrf = _csrf(client)
+    r = client.post(
+        "/admin/docs/delete",
+        data={"csrf": csrf, "target": "", "name": "filled"},
+    )
+    assert r.status_code == 400
+
+
+def test_breadcrumb_accumulates_path(client: TestClient, tmp_path: Path) -> None:
+    """Nested target should produce links that include the cumulative path,
+    not just each segment in isolation."""
+    nested = tmp_path / "docs" / "a" / "b"
+    nested.mkdir(parents=True)
+    r = client.get("/admin/docs?target=a/b")
+    assert r.status_code == 200
+    # The 'a' link must point at /admin/docs?target=a (not just a value of a).
+    # The 'b' link must point at /admin/docs?target=a/b (cumulative).
+    assert 'href="/admin/docs?target=a"' in r.text
+    assert 'href="/admin/docs?target=a/b"' in r.text
