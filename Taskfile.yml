@@ -71,3 +71,8 @@ tasks:
   "ops:site-disk":
     desc: Show site_data/ disk usage (docs/ and agent/)
     cmd: bash scripts/ops.sh site-disk
+
+  # --- Siteapp image ---
+  "siteapp:build-and-push":
+    desc: Build and push the siteapp image. Set SITEAPP_IMAGE=ghcr.io/<owner>/lab-bridge-siteapp:<tag>.
+    cmd: bash compose/siteapp/build.sh
