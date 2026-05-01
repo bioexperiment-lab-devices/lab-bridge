@@ -1,0 +1,17 @@
+{% macro render_entry(entry, lang, current_url) -%}
+  {%- set title = entry.title_ru if (lang == 'ru' and entry.title_ru) else entry.title_en -%}
+  <li {% if entry.url == current_url %}class="active"{% endif %}>
+    <a href="{{ entry.url }}{% if lang == 'ru' %}?lang=ru{% endif %}">{{ title }}</a>
+    {% if entry.children %}
+      <ul>
+        {% for child in entry.children %}{{ render_entry(child, lang, current_url) }}{% endfor %}
+      </ul>
+    {% endif %}
+  </li>
+{%- endmacro %}
+
+<nav class="sidebar">
+  <ul>
+    {% for entry in nav %}{{ render_entry(entry, lang, current_url) }}{% endfor %}
+  </ul>
+</nav>
