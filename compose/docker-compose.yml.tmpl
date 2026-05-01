@@ -10,7 +10,7 @@ services:
       - ./caddy_data:/data
       - ./caddy_config:/config
     networks: [labnet]
-    depends_on: [jupyter]
+    depends_on: [jupyter, siteapp]
 
   jupyter:
     image: __JUPYTER_IMAGE__
@@ -25,7 +25,6 @@ services:
     volumes:
       - __NOTEBOOKS_PATH__:/home/jovyan/work
     networks: [labnet]
-    # No `ports:` — only Caddy reaches it as jupyter:8888 on labnet.
 
   chisel:
     image: __CHISEL_IMAGE__
@@ -49,7 +48,6 @@ services:
       - ./loki/config.yaml:/etc/loki/config.yaml:ro
       - ./loki_data:/loki
     networks: [labnet]
-    # No `ports:` — only Grafana (over labnet) and chisel-tunneled clients reach it.
 
   grafana:
     image: __GRAFANA_IMAGE__
@@ -68,6 +66,17 @@ services:
     networks: [labnet]
     depends_on: [loki]
 
+  siteapp:
+    image: __SITEAPP_IMAGE__
+    restart: unless-stopped
+    environment:
+      SITEAPP_AGENT_UPLOAD_TOKEN__FILE: /run/secrets/agent_upload_token
+    volumes:
+      - ./site_data:/data
+    secrets:
+      - agent_upload_token
+    networks: [labnet]
+
 networks:
   labnet:
     driver: bridge
@@ -75,3 +84,5 @@ networks:
 secrets:
   grafana_admin_password:
     file: ./grafana/admin_password
+  agent_upload_token:
+    file: ./siteapp/agent_upload_token
