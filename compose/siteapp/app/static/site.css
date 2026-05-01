@@ -1,0 +1,6 @@
+:root { color-scheme: light dark; }
+body { font: 16px/1.55 system-ui, sans-serif; margin: 0; }
+.topbar { display:flex; justify-content:space-between; padding: 12px 20px; border-bottom: 1px solid #0001; }
+.brand { font-weight: 600; text-decoration: none; color: inherit; }
+main { max-width: 720px; margin: 24px auto; padding: 0 20px; }
+footer { margin: 48px 20px; color: #888; text-align: center; }
