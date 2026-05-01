@@ -61,12 +61,15 @@ main() {
         -e "$rsync_e" \
         "$stage/" "$target:$VPS_REMOTE_ROOT/"
 
-    # 4. docker compose up. Always restart caddy because the bind-mounted
-    # Caddyfile may have been replaced (atomic rename → new inode → caddy's
-    # already-loaded reference goes stale; `up -d` doesn't recreate containers
-    # whose compose-config didn't change).
+    # 4. docker compose up. Always restart caddy and chisel because their
+    # bind-mounted config files (Caddyfile, chisel/users.json) may have been
+    # replaced by rsync (atomic rename → new inode → the already-loaded
+    # reference inside the container goes stale; `up -d` doesn't recreate
+    # containers whose compose-config didn't change, and a single-file bind
+    # mount pins the original inode so even fsnotify-based auto-reload
+    # re-reads the same stale contents).
     log "bringing up the stack..."
-    $ssh_base "$target" "cd $VPS_REMOTE_ROOT && docker compose pull && docker compose up -d --remove-orphans && docker compose restart caddy"
+    $ssh_base "$target" "cd $VPS_REMOTE_ROOT && docker compose pull && docker compose up -d --remove-orphans && docker compose restart caddy chisel"
 
     # 5. Health check (skippable for tests). Probe both routed paths:
     # `/` (JupyterLab → 200/302) and `/grafana/login` (Grafana → 200, terminal,
