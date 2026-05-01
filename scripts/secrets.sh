@@ -61,6 +61,21 @@ cmd_set_grafana_password() {
     log "wrote Grafana admin password to $pwfile (deploy to apply)"
 }
 
+cmd_set_admin_password() {
+    ensure_config
+    require_cmd docker
+
+    local pw hash
+    pw="$(prompt_password "Admin panel password (used at /admin/*)")"
+    # Use the official Caddy image's hash-password subcommand to produce a
+    # bcrypt hash. We pipe via stdin to avoid the password ever appearing
+    # on the process command line.
+    hash="$(printf '%s' "$pw" | docker run --rm -i caddy:2 caddy hash-password --plaintext-stdin)"
+    [[ "$hash" =~ ^\$2[abxy]\$ ]] || die "hash-password produced unexpected output: $hash"
+    yq -i ".siteapp.admin_password_hash = \"$hash\"" "$CONFIG"
+    log "set admin panel password (deploy to apply)"
+}
+
 cmd_add_client() {
     local name="${1:?usage: secrets.sh add-client <name> <reverse_port>}"
     local port="${2:?usage: secrets.sh add-client <name> <reverse_port>}"
@@ -130,6 +145,7 @@ cmd_rm_client() {
 main() {
     local sub="${1:-}"; shift || true
     case "$sub" in
+        set-admin-password)   cmd_set_admin_password "$@" ;;
         set-jupyter-password) cmd_set_jupyter_password "$@" ;;
         set-grafana-password) cmd_set_grafana_password "$@" ;;
         add-client)           cmd_add_client "$@" ;;
