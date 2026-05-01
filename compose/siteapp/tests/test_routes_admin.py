@@ -59,7 +59,10 @@ def test_upload_rejects_bad_extension(client: TestClient, tmp_path: Path) -> Non
         files={"files": ("evil.exe", b"\x4d\x5a", "application/octet-stream")},
     )
     assert r.status_code == 400
-    assert not any((tmp_path / "docs").iterdir())
+    # Only the seeded default index.md should be present; no evil.exe written.
+    names = {p.name for p in (tmp_path / "docs").iterdir()}
+    assert "evil.exe" not in names
+    assert names <= {"index.md"}
 
 
 def test_upload_rejects_traversal(client: TestClient, tmp_path: Path) -> None:

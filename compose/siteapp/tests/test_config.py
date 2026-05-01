@@ -40,3 +40,21 @@ def test_creates_subdirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     assert (s.site_data / "docs").is_dir()
     assert (s.site_data / "agent" / "windows").is_dir()
     assert isinstance(s, Settings)
+
+
+def test_seeds_default_index_when_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SITE_DATA", str(tmp_path))
+    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
+    s = load_settings()
+    index = s.docs_root / "index.md"
+    assert index.is_file()
+    assert "lab-bridge documentation" in index.read_text(encoding="utf-8")
+
+
+def test_does_not_overwrite_existing_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "index.md").write_text("# Custom\n", encoding="utf-8")
+    monkeypatch.setenv("SITE_DATA", str(tmp_path))
+    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
+    load_settings()
+    assert (tmp_path / "docs" / "index.md").read_text(encoding="utf-8") == "# Custom\n"

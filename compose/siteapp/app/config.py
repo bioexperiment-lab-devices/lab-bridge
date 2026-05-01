@@ -43,6 +43,15 @@ def load_settings() -> Settings:
 
     csrf = os.environ.get("SITEAPP_CSRF_SECRET", secrets.token_urlsafe(32))
 
+    # Seed a default index.md on a fresh deploy so the public /docs/ landing
+    # page returns 200 even before the operator uploads anything. Idempotent —
+    # an existing index.md is never overwritten.
+    docs_index = site_data / "docs" / "index.md"
+    if not docs_index.exists():
+        default = Path(__file__).parent / "default_docs" / "index.md"
+        if default.is_file():
+            docs_index.write_text(default.read_text(encoding="utf-8"), encoding="utf-8")
+
     return Settings(
         site_data=site_data,
         agent_upload_token=token,

@@ -36,7 +36,7 @@
           <a href="/admin/docs?target={{ (target ~ '/' ~ it.name).lstrip('/') }}">📁 {{ it.name }}</a>
         {% else %}
           {{ it.name }}
-          {% if it.name.endswith('.md') %}
+          {% if it.name.endswith('.md') and not it.name.endswith('.ru.md') %}
             <a href="/docs/{{ (target ~ '/' ~ it.name).lstrip('/').rsplit('.md', 1)[0] }}" target="_blank">view</a>
           {% endif %}
         {% endif %}
