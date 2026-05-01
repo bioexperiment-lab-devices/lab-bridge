@@ -20,6 +20,9 @@ setup() {
     export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
     printf 'testpw' > "$LDS_GRAFANA_PASSWORD_FILE"
     chmod 600 "$LDS_GRAFANA_PASSWORD_FILE"
+    export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
+    printf 'testtok' > "$LDS_AGENT_TOKEN_FILE"
+    chmod 600 "$LDS_AGENT_TOKEN_FILE"
     bash "$ROOT/scripts/provision.sh"
 }
 teardown() { teardown_tmpdir; }
@@ -104,4 +107,23 @@ teardown() { teardown_tmpdir; }
     docker exec lds-fake-vps bash -c '
         cd /srv/lab-bridge && docker compose exec -T loki wget -q -O - http://localhost:3100/ready
     ' >/dev/null
+}
+
+@test "deploy: fails fast when agent_upload_token is missing" {
+    export LDS_AGENT_TOKEN_FILE="$TMPDIR/does-not-exist"
+    run bash "$ROOT/scripts/deploy.sh"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"rotate-agent-upload-token"* ]]
+}
+
+@test "deploy: stages siteapp/agent_upload_token" {
+    # Gated on `docker compose pull` reaching the configured siteapp.image. The
+    # fixture points at ghcr.io/test/lab-bridge-siteapp:0.0.1 (an unpublishable
+    # name) so the fake_vps daemon — which has its own image cache, separate
+    # from the host — cannot pull it. The end-to-end smoke check in Task 27
+    # covers this path against a real GHCR build. See Task 20 step 4.
+    skip "siteapp.image fixture is unpullable from fake_vps; covered by Task 27 smoke"
+    run bash "$ROOT/scripts/deploy.sh"
+    [ "$status" -eq 0 ]
+    docker exec lds-fake-vps test -f /srv/lab-bridge/siteapp/agent_upload_token
 }
