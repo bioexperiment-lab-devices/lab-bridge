@@ -1,0 +1,64 @@
+{% extends "admin/base.html" %}
+{% block title %}Docs · admin{% endblock %}
+{% block main %}
+<h1>Documentation</h1>
+<p class="breadcrumb">
+  <a href="/admin/docs">/docs</a>
+  {% set ns = namespace(acc='') %}
+  {% for part in target.split('/') if part %}
+    {% set ns.acc = ns.acc + '/' + part %}
+    / <a href="/admin/docs?target={{ ns.acc.lstrip('/') }}">{{ part }}</a>
+  {% endfor %}
+</p>
+
+<form method="post" action="/admin/docs/upload" enctype="multipart/form-data" class="dropzone">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="target" value="{{ target }}">
+  <p>Drop files here or click to browse.</p>
+  <input type="file" name="files" multiple accept=".md,.png,.jpg,.jpeg,.gif,.svg,.webp">
+  <button type="submit">Upload</button>
+</form>
+
+<form method="post" action="/admin/docs/new-folder">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="target" value="{{ target }}">
+  <label>New folder: <input name="name" required></label>
+  <button type="submit">Create</button>
+</form>
+
+<table class="files">
+  <thead><tr><th>Name</th><th>Size</th><th>Actions</th></tr></thead>
+  <tbody>
+    {% for it in items %}
+    <tr>
+      <td>
+        {% if it.is_dir %}
+          <a href="/admin/docs?target={{ (target ~ '/' ~ it.name).lstrip('/') }}">📁 {{ it.name }}</a>
+        {% else %}
+          {{ it.name }}
+          {% if it.name.endswith('.md') and not it.name.endswith('.ru.md') %}
+            <a href="/docs/{{ (target ~ '/' ~ it.name).lstrip('/').rsplit('.md', 1)[0] }}" target="_blank">view</a>
+          {% endif %}
+        {% endif %}
+      </td>
+      <td>{{ it.size }}</td>
+      <td>
+        <form method="post" action="/admin/docs/delete" style="display:inline">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="target" value="{{ target }}">
+          <input type="hidden" name="name" value="{{ it.name }}">
+          <button type="submit">Delete</button>
+        </form>
+        <form method="post" action="/admin/docs/rename" style="display:inline">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="target" value="{{ target }}">
+          <input type="hidden" name="old" value="{{ it.name }}">
+          <input name="new" placeholder="new name" required>
+          <button type="submit">Rename</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

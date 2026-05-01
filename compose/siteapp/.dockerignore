@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+sample_data/
+agent_upload_token
+tests/
+*.md

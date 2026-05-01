@@ -21,3 +21,6 @@ chisel_clients:
   - name: microscope-1
     reverse_port: 9001
     password: "k7HfLpNqRsT3uVwX1yZ2aB3cD4eF5gH6"
+siteapp:
+  image: ghcr.io/test/lab-bridge-siteapp:0.0.1
+  admin_password_hash: "$2a$14$HO81PFKmfx2eOcpGyeogN.ct3M9SzgDmvXYHaeNrlTzV66aFbPK2y"

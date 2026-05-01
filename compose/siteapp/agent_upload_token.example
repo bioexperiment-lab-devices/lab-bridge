@@ -1,0 +1,3 @@
+# Replace this file's parent (compose/siteapp/agent_upload_token, gitignored)
+# with a 32-char URL-safe random string. Generate via:
+#   task secrets:rotate-agent-upload-token

@@ -1,0 +1,13 @@
+{% if doc.ru_exists %}
+<form method="get" class="lang-toggle">
+  <a class="pill {{ 'active' if lang == 'en' else '' }}"
+     href="?lang=en">EN</a>
+  <a class="pill {{ 'active' if lang == 'ru' else '' }}"
+     href="?lang=ru">RU</a>
+</form>
+{% else %}
+<span class="lang-toggle disabled">
+  <span class="pill active">EN</span>
+  <span class="pill muted" title="No translation available">RU</span>
+</span>
+{% endif %}

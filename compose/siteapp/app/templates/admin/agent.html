@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}
+{% block title %}Agent · admin{% endblock %}
+{% block main %}
+<h1>Agent</h1>
+{% if info %}
+  <dl>
+    <dt>Version</dt><dd>{{ info.version }}</dd>
+    <dt>Uploaded</dt><dd>{{ info.uploaded_at }}</dd>
+    <dt>SHA-256</dt><dd><code>{{ info.sha256 }}</code></dd>
+  </dl>
+{% else %}
+  <p>No build uploaded yet.</p>
+{% endif %}
+
+<h2>Manual upload</h2>
+<form method="post" action="/admin/agent/upload" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>Version: <input name="version" required pattern="^[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.]+)?$"></label>
+  <input type="file" name="binary" required>
+  <button type="submit">Upload</button>
+</form>
+
+<h2>Rotate upload token</h2>
+<p>Generates a new value here. To activate, paste it into
+<code>compose/siteapp/agent_upload_token</code> on the operator laptop and
+re-run <code>task deploy</code>. (Doing it this way keeps the container's
+secret filesystem read-only.)</p>
+<form method="post" action="/admin/agent/rotate-token">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit">Generate</button>
+</form>
+{% if new_token %}
+  <p>New token (copy now — won't be shown again):</p>
+  <pre data-name="new_token">{{ new_token }}</pre>
+{% endif %}
+{% endblock %}

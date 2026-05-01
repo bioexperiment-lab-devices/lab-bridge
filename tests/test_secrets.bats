@@ -97,3 +97,35 @@ teardown() { teardown_tmpdir; }
     [ "$status" -ne 0 ]
     [[ "$output" == *"empty"* ]]
 }
+
+@test "secrets:set-admin-password writes a bcrypt hash to config.yaml" {
+    setup_tmpdir
+    cp "$ROOT/tests/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
+    export LDS_CONFIG="$TMPDIR/config.yaml"
+
+    # Bypass the docker call by stubbing it in PATH for this test.
+    mkdir -p "$TMPDIR/bin"
+    cat > "$TMPDIR/bin/docker" <<'EOS'
+#!/usr/bin/env bash
+# Read stdin (the password) but ignore it — emit a fake but valid bcrypt hash.
+cat > /dev/null
+echo '$2a$14$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345'
+EOS
+    chmod +x "$TMPDIR/bin/docker"
+    export ROOT
+    PATH="$TMPDIR/bin:$PATH" run bash -c '
+        printf "secretpass\nsecretpass\n" | bash "$ROOT/scripts/secrets.sh" set-admin-password
+    '
+    [ "$status" -eq 0 ]
+    yq -e ".siteapp.admin_password_hash" "$LDS_CONFIG" | grep -q '^\$2a\$14\$'
+}
+
+@test "secrets:rotate-agent-upload-token writes a 32+ char token to file" {
+    setup_tmpdir
+    export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
+    run bash "$ROOT/scripts/secrets.sh" rotate-agent-upload-token
+    [ "$status" -eq 0 ]
+    [ -f "$LDS_AGENT_TOKEN_FILE" ]
+    [ "$(stat -f '%Lp' "$LDS_AGENT_TOKEN_FILE" 2>/dev/null || stat -c '%a' "$LDS_AGENT_TOKEN_FILE")" = "600" ]
+    [ "$(wc -c < "$LDS_AGENT_TOKEN_FILE")" -ge 40 ]
+}

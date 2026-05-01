@@ -17,6 +17,8 @@ _REQUIRED_FIELDS=(
     .loki.image
     .loki.retention_days
     .grafana.image
+    .siteapp.image
+    .siteapp.admin_password_hash
 )
 
 _yq() { yq "$@" 2>/dev/null; }
@@ -52,6 +54,12 @@ validate_config() {
     hash="$(_yq e '.jupyter.password_hash // ""' "$path")"
     if [[ -n "$hash" ]] && ! [[ "$hash" =~ ^sha1:[0-9a-f]+:[0-9a-f]{40}$ ]]; then
         errors+=("jupyter.password_hash is not in sha1:<salt>:<digest> format (run: task secrets:set-jupyter-password)")
+    fi
+
+    local admin_hash
+    admin_hash="$(_yq e '.siteapp.admin_password_hash // ""' "$path")"
+    if [[ -n "$admin_hash" ]] && ! [[ "$admin_hash" =~ ^\$2[abxy]\$[0-9]{2}\$[A-Za-z0-9./]{53}$ ]]; then
+        errors+=("siteapp.admin_password_hash is not a bcrypt hash (run: task secrets:set-admin-password)")
     fi
 
     # chisel_clients: per-entry validity + duplicate-port check.
@@ -106,4 +114,6 @@ load_config() {
     export LOKI_IMAGE            ; LOKI_IMAGE="$(_yq e '.loki.image' "$path")"
     export LOKI_RETENTION_DAYS   ; LOKI_RETENTION_DAYS="$(_yq e '.loki.retention_days' "$path")"
     export GRAFANA_IMAGE         ; GRAFANA_IMAGE="$(_yq e '.grafana.image' "$path")"
+    export SITEAPP_IMAGE        ; SITEAPP_IMAGE="$(_yq e '.siteapp.image' "$path")"
+    export SITEAPP_ADMIN_PASSWORD_HASH ; SITEAPP_ADMIN_PASSWORD_HASH="$(_yq e '.siteapp.admin_password_hash' "$path")"
 }

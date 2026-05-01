@@ -21,7 +21,9 @@ teardown() { teardown_tmpdir; }
     [[ "$output" == *"--port=8080"* ]]
     [[ "$output" == *'"8080:8080"'* ]]
     [[ "$output" == *"--ServerApp.password=sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"* ]]
-    [[ "$output" != *"__"*"__"* ]]   # no leftover placeholders
+    # No leftover placeholders. Match `__NAME__` (bracketed both sides) to
+    # avoid false positives on Docker secret env var suffixes like `__FILE`.
+    ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
 }
 
 @test "render_caddyfile: contains TLS, default_sni, reverse_proxy, no basic_auth" {
@@ -40,7 +42,7 @@ teardown() { teardown_tmpdir; }
     [[ "$output" == *"default_sni 192.0.2.10"* ]]
     [[ "$output" == *"reverse_proxy jupyter:8888"* ]]
     [[ "$output" != *"basic_auth"* ]]
-    [[ "$output" != *"__"*"__"* ]]
+    ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
 }
 
 @test "render_chisel_users: emits one entry per chisel_clients with R: and loki:3100" {
@@ -83,6 +85,9 @@ jupyter:
 chisel: {image: jpillora/chisel:1.10.1, listen_port: 8080}
 loki: {image: grafana/loki:3.2.1, retention_days: 30}
 grafana: {image: grafana/grafana:11.3.0}
+siteapp:
+  image: ghcr.io/test/lab-bridge-siteapp:0.0.1
+  admin_password_hash: "$2a$14$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
 chisel_clients: []
 EOF
     run bash -c "
@@ -114,7 +119,7 @@ EOF
     [[ "$output" == *"./loki_data:/loki"* ]]
     [[ "$output" == *"./grafana_data:/var/lib/grafana"* ]]
     [[ "$output" == *"./grafana/admin_password"* ]]
-    [[ "$output" != *"__"*"__"* ]]
+    ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
 }
 
 @test "render_compose: loki has no published ports (only labnet)" {

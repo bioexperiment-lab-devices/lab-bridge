@@ -47,6 +47,7 @@ cmd_logs() {
 
 cmd_logs_loki()    { load_config "$CONFIG"; remote_compose "logs --tail=200 loki"; }
 cmd_logs_grafana() { load_config "$CONFIG"; remote_compose "logs --tail=200 grafana"; }
+cmd_logs_siteapp() { load_config "$CONFIG"; remote_compose "logs --tail=200 siteapp"; }
 
 cmd_loki_disk() {
     load_config "$CONFIG"
@@ -57,6 +58,17 @@ cmd_loki_disk() {
     $ssh_base "$VPS_SSH_USER@$VPS_HOST" \
         "du -sh $VPS_REMOTE_ROOT/loki_data 2>/dev/null || echo '0  $VPS_REMOTE_ROOT/loki_data (missing)'"
     log "configured retention: ${LOKI_RETENTION_DAYS} days"
+}
+
+cmd_site_disk() {
+    load_config "$CONFIG"
+    local ssh_base
+    ssh_base="$(build_ssh)"
+    $ssh_base "$VPS_SSH_USER@$VPS_HOST" "
+        for d in docs agent; do
+            du -sh $VPS_REMOTE_ROOT/site_data/\$d 2>/dev/null || echo \"0    $VPS_REMOTE_ROOT/site_data/\$d (missing)\"
+        done
+    "
 }
 
 cmd_ssh() {
@@ -87,7 +99,9 @@ main() {
         logs)          cmd_logs "$@" ;;
         logs:loki)     cmd_logs_loki ;;
         logs:grafana)  cmd_logs_grafana ;;
+        logs:siteapp)  cmd_logs_siteapp ;;
         loki-disk)     cmd_loki_disk ;;
+        site-disk)     cmd_site_disk ;;
         ssh)           cmd_ssh ;;
         restart)       cmd_restart ;;
         down)          cmd_down ;;

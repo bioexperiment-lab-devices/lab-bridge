@@ -29,12 +29,18 @@ tasks:
   destroy:  { desc: "docker compose down -v (DANGEROUS)",            cmd: "bash scripts/ops.sh destroy" }
 
   # --- Secrets ---
+  "secrets:set-admin-password":
+    desc: Set or rotate the /admin/* basic-auth password (prompts; deploy to apply)
+    cmd: bash scripts/secrets.sh set-admin-password
   "secrets:set-jupyter-password":
     desc: Set or rotate the shared JupyterLab password (prompts; deploy to apply)
     cmd: bash scripts/secrets.sh set-jupyter-password
   "secrets:set-grafana-password":
     desc: Set or rotate the Grafana admin password (prompts; deploy to apply)
     cmd: bash scripts/secrets.sh set-grafana-password
+  "secrets:rotate-agent-upload-token":
+    desc: Generate a new CI agent upload token (deploy to apply; old token stops working)
+    cmd: bash scripts/secrets.sh rotate-agent-upload-token
   "secrets:add-client":
     desc: Add a chisel client (lab device); generates a random password
     cmd: bash scripts/secrets.sh add-client {{.CLI_ARGS}}
@@ -59,3 +65,14 @@ tasks:
   "ops:loki-disk":
     desc: Show loki_data disk usage and configured retention
     cmd: bash scripts/ops.sh loki-disk
+  "ops:logs:siteapp":
+    desc: Tail recent siteapp container logs
+    cmd: bash scripts/ops.sh logs:siteapp
+  "ops:site-disk":
+    desc: Show site_data/ disk usage (docs/ and agent/)
+    cmd: bash scripts/ops.sh site-disk
+
+  # --- Siteapp image ---
+  "siteapp:build-and-push":
+    desc: Build and push the siteapp image. Set SITEAPP_IMAGE=ghcr.io/<owner>/lab-bridge-siteapp:<tag>.
+    cmd: bash compose/siteapp/build.sh

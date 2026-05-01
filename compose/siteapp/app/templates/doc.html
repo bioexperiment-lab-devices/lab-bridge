@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} · lab-bridge docs{% endblock %}
+{% block topbar_right %}{% include "_lang_toggle.html" %}{% endblock %}
+{% block main %}
+<div class="layout-with-sidebar">
+  {% include "_nav.html" %}
+  <article class="prose">
+    {{ html|safe }}
+  </article>
+</div>
+{% endblock %}

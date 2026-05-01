@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Lab Bridge Agent{% endblock %}
+{% block topbar_right %}
+  {% if ru_exists %}
+    <span class="lang-toggle">
+      <a class="pill {{ 'active' if lang == 'en' else '' }}" href="?lang=en">EN</a>
+      <a class="pill {{ 'active' if lang == 'ru' else '' }}" href="?lang=ru">RU</a>
+    </span>
+  {% endif %}
+{% endblock %}
+{% block main %}
+<section class="agent-hero">
+  <h1>Lab Bridge Agent</h1>
+  <p class="lede">Windows service that connects a lab device to the lab-bridge VPS.</p>
+  {% if info %}
+    <a class="download-button"
+       href="/download/agent/windows/agent.exe">
+      Download for Windows · v{{ info.version }} · {{ "%.1f"|format(info.size / 1048576) }} MB
+    </a>
+  {% else %}
+    <button class="download-button" disabled>Not yet available — check back soon</button>
+  {% endif %}
+</section>
+
+{% if body_html %}
+<section class="agent-body prose">{{ body_html|safe }}</section>
+{% endif %}
+
+{% if info %}
+<section class="agent-meta">
+  <h2>Version metadata</h2>
+  <dl>
+    <dt>Version</dt><dd>{{ info.version }}</dd>
+    <dt>Released</dt><dd>{{ info.uploaded_at }}</dd>
+    <dt>SHA-256</dt><dd><code>{{ info.sha256 }}</code></dd>
+  </dl>
+</section>
+{% endif %}
+{% endblock %}

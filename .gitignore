@@ -13,3 +13,5 @@ backups/
 tests/fake_vps/id_test
 tests/fake_vps/id_test.pub
 compose/grafana/admin_password
+compose/siteapp/agent_upload_token
+compose/siteapp/sample_data/
