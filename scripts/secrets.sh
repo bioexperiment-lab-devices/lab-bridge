@@ -68,9 +68,10 @@ cmd_set_admin_password() {
     local pw hash
     pw="$(prompt_password "Admin panel password (used at /admin/*)")"
     # Use the official Caddy image's hash-password subcommand to produce a
-    # bcrypt hash. We pipe via stdin to avoid the password ever appearing
-    # on the process command line.
-    hash="$(printf '%s' "$pw" | docker run --rm -i caddy:2 caddy hash-password --plaintext-stdin)"
+    # bcrypt hash. We pipe via stdin to avoid the password ever appearing on
+    # the process command line. Caddy reads one newline-terminated line from
+    # stdin (the older --plaintext-stdin flag was removed in newer releases).
+    hash="$(printf '%s\n' "$pw" | docker run --rm -i caddy:2 caddy hash-password)"
     [[ "$hash" =~ ^\$2[abxy]\$ ]] || die "hash-password produced unexpected output: $hash"
     yq -i ".siteapp.admin_password_hash = \"$hash\"" "$CONFIG"
     log "set admin panel password (deploy to apply)"
