@@ -43,14 +43,21 @@ def load_settings() -> Settings:
 
     csrf = os.environ.get("SITEAPP_CSRF_SECRET", secrets.token_urlsafe(32))
 
-    # Seed a default index.md on a fresh deploy so the public /docs/ landing
-    # page returns 200 even before the operator uploads anything. Idempotent —
-    # an existing index.md is never overwritten.
-    docs_index = site_data / "docs" / "index.md"
-    if not docs_index.exists():
-        default = Path(__file__).parent / "default_docs" / "index.md"
-        if default.is_file():
-            docs_index.write_text(default.read_text(encoding="utf-8"), encoding="utf-8")
+    # Seed default_docs/ so the public /docs/ landing page returns 200
+    # and any assets referenced by the seeded index (icons, etc.) resolve.
+    # Per-file gating: each default file is copied iff its destination
+    # is missing — so an operator who has authored their own index.md or
+    # edited an icon is never overwritten, and a deleted file gets
+    # re-seeded on next boot (matching today's behavior for index.md).
+    default_dir = Path(__file__).parent / "default_docs"
+    if default_dir.is_dir():
+        for src in default_dir.rglob("*"):
+            if src.is_file():
+                rel = src.relative_to(default_dir)
+                dst = site_data / "docs" / rel
+                if not dst.exists():
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    dst.write_bytes(src.read_bytes())
 
     return Settings(
         site_data=site_data,

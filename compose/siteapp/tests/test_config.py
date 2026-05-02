@@ -48,7 +48,7 @@ def test_seeds_default_index_when_missing(tmp_path: Path, monkeypatch: pytest.Mo
     s = load_settings()
     index = s.docs_root / "index.md"
     assert index.is_file()
-    assert "Welcome to lab-bridge" in index.read_text(encoding="utf-8")
+    assert "lab-bridge" in index.read_text(encoding="utf-8")
 
 
 def test_does_not_overwrite_existing_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -58,3 +58,15 @@ def test_does_not_overwrite_existing_index(tmp_path: Path, monkeypatch: pytest.M
     monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
     load_settings()
     assert (tmp_path / "docs" / "index.md").read_text(encoding="utf-8") == "# Custom\n"
+
+
+def test_seeds_default_icons_when_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fresh deploy must seed every file under default_docs/, not just index.md.
+    Otherwise the seeded landing page renders with broken <img> references."""
+    monkeypatch.setenv("SITE_DATA", str(tmp_path))
+    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
+    s = load_settings()
+    # The richer default index references icons/*.svg via relative paths.
+    seeded_icon = s.docs_root / "icons" / "jupyter.svg"
+    assert seeded_icon.is_file()
+    assert seeded_icon.read_bytes().startswith(b"<")  # SVG / XML opening

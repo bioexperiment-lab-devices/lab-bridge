@@ -120,3 +120,26 @@ def test_doc_static_disallowed_extension_is_404(client: TestClient) -> None:
 def test_doc_static_missing_file_is_404(client: TestClient) -> None:
     r = client.get("/docs/icons/nope.svg")
     assert r.status_code == 404
+
+
+def test_default_index_smoke(tmp_path: Path, monkeypatch) -> None:
+    """The shipped default_docs/index.md must render with all four
+    extensions active: alert div, mermaid pre, sanitized <img>, and
+    a working /docs/icons/jupyter.svg URL."""
+    monkeypatch.setenv("SITE_DATA", str(tmp_path))
+    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
+    from importlib import reload
+    import app.main
+    reload(app.main)
+    c = TestClient(app.main.app)
+
+    page = c.get("/docs/")
+    assert page.status_code == 200
+    assert '<div class="alert alert-important">' in page.text
+    assert '<pre class="mermaid">' in page.text
+    assert 'src="icons/jupyter.svg"' in page.text
+    assert "/_static/mermaid-init.js" in page.text
+
+    icon = c.get("/docs/icons/jupyter.svg")
+    assert icon.status_code == 200
+    assert icon.headers["content-type"].startswith("image/svg+xml")
