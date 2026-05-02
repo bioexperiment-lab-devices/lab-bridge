@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from html import escape as html_escape
 from html import unescape
 
+import bleach
 from markdown_it import MarkdownIt
 from mdit_py_plugins.anchors import anchors_plugin
 from mdit_py_plugins.footnote import footnote_plugin
@@ -12,6 +14,33 @@ from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import get_lexer_by_name
 from pygments.util import ClassNotFound
+
+
+# --- bleach allow-list ------------------------------------------------------
+# Tags markdown-it produces (kept) plus a small set of inline HTML we want
+# authors to be able to use directly.
+ALLOWED_TAGS: frozenset[str] = frozenset({
+    # markdown-produced
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "p", "a", "ul", "ol", "li", "blockquote",
+    "pre", "code", "table", "thead", "tbody", "tr", "th", "td",
+    "hr", "strong", "em", "del", "img", "input", "span", "div",
+    # author-allowed inline HTML
+    "kbd", "sub", "sup", "br", "details", "summary",
+})
+ALLOWED_ATTRS: dict[str, set[str]] = {
+    "a": {"href", "title", "rel", "target"},
+    "img": {"src", "alt", "width", "height", "title", "loading"},
+    "input": {"type", "disabled", "checked", "class"},  # tasklists
+    "li": {"class"},                                     # tasklists
+    "code": {"class"},                                   # highlighted code
+    "pre": {"class"},                                    # highlighter + mermaid
+    "div": {"class"},                                    # alerts
+    "span": {"class"},                                   # anchors
+    "h1": {"id"}, "h2": {"id"}, "h3": {"id"},
+    "h4": {"id"}, "h5": {"id"}, "h6": {"id"},
+}
+ALLOWED_PROTOCOLS: frozenset[str] = frozenset({"http", "https"})  # plus relative
 
 
 def _highlight(code: str, name: str | None, _attrs: object) -> str:
@@ -37,7 +66,7 @@ def _highlight(code: str, name: str | None, _attrs: object) -> str:
 
 def _make_md() -> MarkdownIt:
     md = (
-        MarkdownIt("commonmark", {"html": False, "linkify": True, "typographer": True})
+        MarkdownIt("commonmark", {"html": True, "linkify": True, "typographer": True})
         .enable(["table", "strikethrough"])
         .use(anchors_plugin, min_level=2, max_level=4, permalink=False, slug_func=_slug)
         .use(footnote_plugin)
@@ -101,11 +130,21 @@ class Rendered:
     needs_mermaid: bool = False
 
 
+def _sanitize(html: str) -> str:
+    return bleach.clean(
+        html,
+        tags=ALLOWED_TAGS,
+        attributes=ALLOWED_ATTRS,
+        protocols=ALLOWED_PROTOCOLS,
+        strip=True,
+    )
+
+
 def render_markdown(text: str) -> Rendered:
     tokens = _MD.parse(text)
     title = _title_from_tokens(tokens)
-    html = _MD.renderer.render(tokens, _MD.options, {})
-    return Rendered(html=html, title=title, needs_mermaid=False)
+    raw_html = _MD.renderer.render(tokens, _MD.options, {})
+    return Rendered(html=_sanitize(raw_html), title=title, needs_mermaid=False)
 
 
 _PYGMENTS_BG_RE = re.compile(r"^\.highlight\s*\{[^}]*\}\s*$", re.MULTILINE)

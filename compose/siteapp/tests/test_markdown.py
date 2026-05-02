@@ -16,11 +16,39 @@ def test_no_h1_returns_none_title() -> None:
     assert "<p>plain paragraph" in r.html
 
 
-def test_raw_html_is_escaped() -> None:
-    # html=False in markdown-it: raw HTML in source is rendered as text.
+def test_script_tag_is_stripped() -> None:
+    """With html=True + bleach, raw <script> tags are removed entirely.
+    The inner text may remain as content (bleach.strip=True), but the
+    tag cannot execute."""
     r = render_markdown("<script>alert(1)</script>\n")
     assert "<script>" not in r.html
-    assert "&lt;script&gt;" in r.html
+    assert "</script>" not in r.html
+
+
+def test_iframe_is_stripped() -> None:
+    r = render_markdown('<iframe src="http://evil"></iframe>\n')
+    assert "<iframe" not in r.html
+
+
+def test_img_with_allowed_attrs_survives() -> None:
+    src = '<img src="icons/jupyter.svg" alt="JupyterLab" width="28">\n'
+    r = render_markdown(src)
+    assert '<img' in r.html
+    assert 'src="icons/jupyter.svg"' in r.html
+    assert 'alt="JupyterLab"' in r.html
+    assert 'width="28"' in r.html
+
+
+def test_img_disallowed_attr_is_stripped() -> None:
+    src = '<img src="x.svg" onerror="alert(1)">\n'
+    r = render_markdown(src)
+    assert "<img" in r.html
+    assert "onerror" not in r.html
+
+
+def test_kbd_inline_passes() -> None:
+    r = render_markdown("Press <kbd>Esc</kbd> to quit.\n")
+    assert "<kbd>Esc</kbd>" in r.html
 
 
 def test_fenced_code_is_highlighted() -> None:
