@@ -60,3 +60,16 @@ def test_h1_with_inline_code_extracts_rendered_text() -> None:
     _, title = render_markdown("# Use `pip install` carefully\n")
     # Title should be the rendered text (no backticks).
     assert title == "Use pip install carefully"
+
+
+def test_highlighted_code_block_is_not_double_wrapped() -> None:
+    """Markdown-it wraps any highlighter output that doesn't start with `<pre`
+    in its own `<pre><code>`. Pygments' default output starts with `<div>`,
+    which historically caused two stacked <pre> boxes to render with doubled
+    padding and borders. Our highlighter must emit a single <pre class="highlight">
+    so markdown-it skips the wrap. Exactly one <pre> per fenced block."""
+    src = '```python\nprint("hi")\n```\n'
+    html, _ = render_markdown(src)
+    assert html.count("<pre") == 1
+    assert html.count("</pre>") == 1
+    assert '<pre class="highlight">' in html

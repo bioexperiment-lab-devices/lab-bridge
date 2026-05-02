@@ -14,14 +14,24 @@ from pygments.util import ClassNotFound
 
 
 def _highlight(code: str, name: str | None, _attrs: object) -> str:
+    """Return highlighted code wrapped in our own <pre><code>.
+
+    The output MUST start with `<pre` — markdown-it auto-wraps any
+    highlighter output that doesn't, producing nested `<pre>` boxes that
+    double-up padding and borders. We use `nowrap=True` to get just the
+    Pygments spans, then wrap with a single <pre class="highlight"><code>
+    so the .highlight CSS still applies for syntax colors.
+    """
     if not name:
         return ""  # let markdown-it fall back to its default (escapes content)
     try:
         lexer = get_lexer_by_name(name)
     except ClassNotFound:
         return ""
-    formatter = HtmlFormatter(nowrap=False, cssclass="highlight")
-    return highlight(code, lexer, formatter)
+    formatter = HtmlFormatter(nowrap=True)
+    inner = highlight(code, lexer, formatter).rstrip("\n")
+    safe_lang = re.sub(r"[^a-zA-Z0-9_-]", "", name)
+    return f'<pre class="highlight"><code class="language-{safe_lang}">{inner}</code></pre>\n'
 
 
 def _make_md() -> MarkdownIt:
