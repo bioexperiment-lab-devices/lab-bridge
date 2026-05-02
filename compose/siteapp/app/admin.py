@@ -172,6 +172,16 @@ def make_router(settings: Settings) -> APIRouter:
         dst = safe_join(target_path, new_clean)
         if not src.exists():
             raise HTTPException(status_code=404)
+        # Files: enforce that the new name keeps an allowed extension. Without
+        # this check, renaming `intro.md` to `intro` silently makes the doc
+        # unreachable via /docs/<name> because find_doc only resolves *.md.
+        if src.is_file():
+            new_ext = Path(new_clean).suffix.lower()
+            if new_ext not in ALLOWED_DOC_EXT:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"new name must end with one of {sorted(ALLOWED_DOC_EXT)}",
+                )
         if dst.exists():
             raise HTTPException(status_code=409, detail="destination exists")
         src.rename(dst)

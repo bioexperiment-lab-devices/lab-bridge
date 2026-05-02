@@ -205,3 +205,41 @@ def test_rotate_token_returns_value(client: TestClient) -> None:
     assert "new_token" in r.text
     import re as _re
     assert _re.search(r"[A-Za-z0-9_-]{40,}", r.text)
+
+
+def test_rename_rejects_extensionless_new_name(client: TestClient, tmp_path: Path) -> None:
+    """Renaming a .md file to a name with no extension must 400, otherwise the
+    file becomes unreachable via /docs/<name>. Original must be preserved."""
+    (tmp_path / "docs" / "intro.md").write_text("# Intro\n", encoding="utf-8")
+    csrf = _csrf(client)
+    r = client.post(
+        "/admin/docs/rename",
+        data={"csrf": csrf, "target": "", "old": "intro.md", "new": "intro"},
+    )
+    assert r.status_code == 400
+    assert (tmp_path / "docs" / "intro.md").is_file()
+    assert not (tmp_path / "docs" / "intro").exists()
+
+
+def test_rename_rejects_disallowed_extension(client: TestClient, tmp_path: Path) -> None:
+    """Renaming to a name with an extension outside ALLOWED_DOC_EXT must 400."""
+    (tmp_path / "docs" / "intro.md").write_text("# Intro\n", encoding="utf-8")
+    csrf = _csrf(client)
+    r = client.post(
+        "/admin/docs/rename",
+        data={"csrf": csrf, "target": "", "old": "intro.md", "new": "intro.exe"},
+    )
+    assert r.status_code == 400
+    assert (tmp_path / "docs" / "intro.md").is_file()
+
+
+def test_rename_directory_no_extension_check(client: TestClient, tmp_path: Path) -> None:
+    """Directories rename freely — no extension constraint."""
+    (tmp_path / "docs" / "old-section").mkdir()
+    csrf = _csrf(client)
+    r = client.post(
+        "/admin/docs/rename",
+        data={"csrf": csrf, "target": "", "old": "old-section", "new": "new-section"},
+    )
+    assert r.status_code in (200, 303)
+    assert (tmp_path / "docs" / "new-section").is_dir()
