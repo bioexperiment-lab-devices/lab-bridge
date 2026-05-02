@@ -56,15 +56,16 @@ def make_router(settings: Settings) -> APIRouter:
         chosen = _pick_lang(lang, request.cookies.get("lang"))
         file = resolve_lang_file(settings.docs_root, doc, chosen)
         text = file.read_text(encoding="utf-8")
-        html, title = render_markdown(text)
+        result = render_markdown(text)
 
         nav = build_nav(settings.docs_root)
         response = templates.TemplateResponse(
             request,
             "doc.html",
             {
-                "title": title or doc.rel_path.name,
-                "html": html,
+                "title": result.title or doc.rel_path.name,
+                "html": result.html,
+                "needs_mermaid": result.needs_mermaid,
                 "lang": chosen,
                 "doc": doc,
                 "nav": nav,

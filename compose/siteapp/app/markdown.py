@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from html import unescape
 
 from markdown_it import MarkdownIt
@@ -86,12 +87,25 @@ def _title_from_tokens(tokens) -> str | None:
     return None
 
 
-def render_markdown(text: str) -> tuple[str, str | None]:
-    """Return (html, title). Title is the first H1's text, or None."""
+@dataclass(frozen=True)
+class Rendered:
+    """Output of `render_markdown`.
+
+    `needs_mermaid` is True iff the source contained at least one
+    ` ```mermaid ` fenced block; the page template uses it to decide
+    whether to load the vendored Mermaid JS bundle.
+    """
+
+    html: str
+    title: str | None
+    needs_mermaid: bool
+
+
+def render_markdown(text: str) -> Rendered:
     tokens = _MD.parse(text)
     title = _title_from_tokens(tokens)
     html = _MD.renderer.render(tokens, _MD.options, {})
-    return html, title
+    return Rendered(html=html, title=title, needs_mermaid=False)
 
 
 _PYGMENTS_BG_RE = re.compile(r"^\.highlight\s*\{[^}]*\}\s*$", re.MULTILINE)

@@ -44,16 +44,18 @@ def _pick_lang(query: str | None, cookie: str | None) -> Literal["en", "ru"]:
     return "en"
 
 
-def _body_markdown(agent_root: Path, lang: str) -> str | None:
+def _body_markdown(agent_root: Path, lang: str) -> tuple[str | None, bool]:
+    """Returns (html, needs_mermaid) — the second flag tells the template
+    whether the rendered body contains a Mermaid block."""
     candidates: list[Path] = []
     if lang == "ru":
         candidates.append(agent_root / "page.ru.md")
     candidates.append(agent_root / "page.md")
     for c in candidates:
         if c.is_file():
-            html, _ = render_markdown(c.read_text(encoding="utf-8"))
-            return html
-    return None
+            result = render_markdown(c.read_text(encoding="utf-8"))
+            return result.html, result.needs_mermaid
+    return None, False
 
 
 def make_router(settings: Settings) -> APIRouter:
@@ -63,7 +65,7 @@ def make_router(settings: Settings) -> APIRouter:
     def agent_page(request: Request, lang: str | None = None) -> Response:
         chosen = _pick_lang(lang, request.cookies.get("lang"))
         info = load_meta(settings.agent_root)
-        body_html = _body_markdown(settings.agent_root, chosen)
+        body_html, needs_mermaid = _body_markdown(settings.agent_root, chosen)
         ru_body_exists = (settings.agent_root / "page.ru.md").is_file()
         response = templates.TemplateResponse(
             request,
@@ -71,6 +73,7 @@ def make_router(settings: Settings) -> APIRouter:
             {
                 "info": info,
                 "body_html": body_html,
+                "needs_mermaid": needs_mermaid,
                 "lang": chosen,
                 "ru_exists": ru_body_exists,
                 "pygments_css": pygments_css(),
