@@ -48,7 +48,7 @@ def test_seeds_default_index_when_missing(tmp_path: Path, monkeypatch: pytest.Mo
     s = load_settings()
     index = s.docs_root / "index.md"
     assert index.is_file()
-    assert "lab-bridge documentation" in index.read_text(encoding="utf-8")
+    assert "Welcome to lab-bridge" in index.read_text(encoding="utf-8")
 
 
 def test_does_not_overwrite_existing_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
