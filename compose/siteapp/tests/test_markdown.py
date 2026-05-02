@@ -145,3 +145,55 @@ def test_pygments_languages_unaffected_by_mermaid_branch() -> None:
     r = render_markdown(src)
     assert 'class="highlight"' in r.html
     assert 'class="language-python"' in r.html
+
+
+import pytest
+
+
+@pytest.mark.parametrize(
+    "marker,cls",
+    [
+        ("NOTE", "alert-note"),
+        ("TIP", "alert-tip"),
+        ("IMPORTANT", "alert-important"),
+        ("WARNING", "alert-warning"),
+        ("CAUTION", "alert-caution"),
+    ],
+)
+def test_alert_renders_for_each_type(marker: str, cls: str) -> None:
+    src = f"> [!{marker}]\n> body text here\n"
+    r = render_markdown(src)
+    assert f'<div class="alert {cls}">' in r.html
+    assert "body text here" in r.html
+    # The marker line must be stripped from the rendered body.
+    assert f"[!{marker}]" not in r.html
+
+
+def test_plain_blockquote_unchanged() -> None:
+    src = "> just a quote, no marker\n"
+    r = render_markdown(src)
+    assert "<blockquote>" in r.html
+    assert "alert" not in r.html
+
+
+def test_unknown_marker_leaves_blockquote() -> None:
+    src = "> [!FOO]\n> body\n"
+    r = render_markdown(src)
+    assert "<blockquote>" in r.html
+    # The marker text remains visible since we did not transform it.
+    assert "[!FOO]" in r.html
+
+
+def test_marker_inside_fenced_code_is_not_transformed() -> None:
+    src = "```\n> [!IMPORTANT]\n> body\n```\n"
+    r = render_markdown(src)
+    assert '<div class="alert' not in r.html
+    # Inside the code block, the literal marker text survives (escaped).
+    assert "[!IMPORTANT]" in r.html
+
+
+def test_alert_preserves_inline_formatting() -> None:
+    src = "> [!IMPORTANT]\n> No data **leaves** the box.\n"
+    r = render_markdown(src)
+    assert '<div class="alert alert-important">' in r.html
+    assert "<strong>leaves</strong>" in r.html

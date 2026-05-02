@@ -169,6 +169,95 @@ def _sanitize(html: str) -> str:
     )
 
 
+_ALERT_TYPES: frozenset[str] = frozenset({"NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION"})
+_ALERT_MARKER_RE = re.compile(
+    r"^\[!(?P<type>NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*(?:\n|$)"
+)
+
+
+def _apply_alerts(tokens) -> None:
+    """Rewrite GitHub-style alert blockquotes to <div class="alert alert-X">.
+
+    For each blockquote whose first inline content begins with `[!TYPE]\\n`,
+    where TYPE is one of NOTE/TIP/IMPORTANT/WARNING/CAUTION:
+      * The blockquote_open / blockquote_close tokens are mutated in place
+        to render as <div class="alert alert-{type}">…</div>.
+      * The marker line is stripped from the inline content (both the
+        `content` field and the corresponding leading children).
+
+    Other blockquotes are untouched. Markers inside fenced code blocks
+    cannot match because they are never parsed as blockquotes.
+    """
+    i = 0
+    while i < len(tokens):
+        tok = tokens[i]
+        if tok.type != "blockquote_open":
+            i += 1
+            continue
+
+        # Locate the first inline token inside this blockquote.
+        # Structure: blockquote_open, paragraph_open, inline, paragraph_close,
+        # ..., blockquote_close.
+        inline_idx = None
+        depth = 1
+        j = i + 1
+        while j < len(tokens):
+            t = tokens[j]
+            if t.type == "blockquote_open":
+                depth += 1
+            elif t.type == "blockquote_close":
+                depth -= 1
+                if depth == 0:
+                    break
+            elif t.type == "inline" and inline_idx is None:
+                inline_idx = j
+            j += 1
+        close_idx = j  # blockquote_close index, or len(tokens) if malformed
+
+        if inline_idx is None:
+            i = close_idx + 1
+            continue
+
+        inline = tokens[inline_idx]
+        m = _ALERT_MARKER_RE.match(inline.content)
+        if not m:
+            i = close_idx + 1
+            continue
+
+        alert_type = m.group("type").lower()
+
+        # Strip the marker from the inline source.
+        inline.content = inline.content[m.end():]
+
+        # Strip the matching leading children: the marker `text` token, plus
+        # any `softbreak` / `hardbreak` directly after it. The surviving
+        # children render as the body.
+        if inline.children:
+            new_children = list(inline.children)
+            # Remove leading text token that contains the marker.
+            if new_children and new_children[0].type == "text":
+                # The marker text token's content equals "[!TYPE]" exactly
+                # (markdown-it splits on softbreak).
+                if new_children[0].content == f"[!{m.group('type')}]":
+                    new_children.pop(0)
+                    # Also drop the immediately-following softbreak/hardbreak.
+                    if new_children and new_children[0].type in ("softbreak", "hardbreak"):
+                        new_children.pop(0)
+            inline.children = new_children
+
+        # Mutate the blockquote_open token to render as <div class=...>.
+        open_tok = tokens[i]
+        open_tok.tag = "div"
+        open_tok.attrSet("class", f"alert alert-{alert_type}")
+
+        # Mutate the matching blockquote_close.
+        if close_idx < len(tokens):
+            close_tok = tokens[close_idx]
+            close_tok.tag = "div"
+
+        i = close_idx + 1
+
+
 def _has_mermaid(tokens) -> bool:
     """True if any fenced code block declares language 'mermaid'.
 
@@ -187,6 +276,7 @@ def _has_mermaid(tokens) -> bool:
 
 def render_markdown(text: str) -> Rendered:
     tokens = _MD.parse(text)
+    _apply_alerts(tokens)
     title = _title_from_tokens(tokens)
     needs_mermaid = _has_mermaid(tokens)
     raw_html = _MD.renderer.render(tokens, _MD.options, {})
