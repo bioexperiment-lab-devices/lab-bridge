@@ -9,7 +9,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, Response
 
 from app.config import Settings
-from app.markdown import pygments_css, render_markdown
+from app.markdown import Rendered, pygments_css, render_markdown
 from app.templates import templates
 
 
@@ -44,18 +44,20 @@ def _pick_lang(query: str | None, cookie: str | None) -> Literal["en", "ru"]:
     return "en"
 
 
-def _body_markdown(agent_root: Path, lang: str) -> tuple[str | None, bool]:
-    """Returns (html, needs_mermaid) — the second flag tells the template
-    whether the rendered body contains a Mermaid block."""
+def _body_markdown(agent_root: Path, lang: str) -> Rendered | None:
+    """Render the agent download page's optional markdown body.
+
+    Returns None when no `page.md` (or `page.ru.md`) exists for the
+    requested language; the caller treats that as "no body" and just
+    renders the hero + metadata."""
     candidates: list[Path] = []
     if lang == "ru":
         candidates.append(agent_root / "page.ru.md")
     candidates.append(agent_root / "page.md")
     for c in candidates:
         if c.is_file():
-            result = render_markdown(c.read_text(encoding="utf-8"))
-            return result.html, result.needs_mermaid
-    return None, False
+            return render_markdown(c.read_text(encoding="utf-8"))
+    return None
 
 
 def make_router(settings: Settings) -> APIRouter:
@@ -65,7 +67,9 @@ def make_router(settings: Settings) -> APIRouter:
     def agent_page(request: Request, lang: str | None = None) -> Response:
         chosen = _pick_lang(lang, request.cookies.get("lang"))
         info = load_meta(settings.agent_root)
-        body_html, needs_mermaid = _body_markdown(settings.agent_root, chosen)
+        body = _body_markdown(settings.agent_root, chosen)
+        body_html = body.html if body else None
+        needs_mermaid = body.needs_mermaid if body else False
         ru_body_exists = (settings.agent_root / "page.ru.md").is_file()
         response = templates.TemplateResponse(
             request,

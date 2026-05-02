@@ -98,7 +98,7 @@ class Rendered:
 
     html: str
     title: str | None
-    needs_mermaid: bool
+    needs_mermaid: bool = False
 
 
 def render_markdown(text: str) -> Rendered:
