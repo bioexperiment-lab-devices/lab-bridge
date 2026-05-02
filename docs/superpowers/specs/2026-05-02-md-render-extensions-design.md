@@ -172,7 +172,6 @@ callback, special-case `name == "mermaid"`:
 
 ```python
 if name == "mermaid":
-    env["needs_mermaid"] = True
     return f'<pre class="mermaid">{html_escape(code)}</pre>\n'
 ```
 
@@ -181,7 +180,12 @@ The Pygments path is untouched for every other language. The escape on
 sanitized by bleach, escaping at the highlighter keeps the contract
 ("highlighters return safe HTML") intact.
 
-`needs_mermaid` is read off the env after `renderer.render(...)`.
+`needs_mermaid` is determined by a small token walk between `parse` and
+`render`: scan for any `fence` token whose `info.split(maxsplit=1)[0]`
+is `"mermaid"`. The markdown-it-py 3.x highlighter signature is
+`(code, name, attrs)` and does not receive the parser env, so a side
+channel via env is not available; a one-pass token scan is the
+cleanest equivalent and runs in negligible time.
 
 **Alert post-processor.** New function `_apply_alerts(tokens)` runs
 between `parse` and `render`. Algorithm:
