@@ -161,3 +161,39 @@ footer { color: var(--muted); padding: 32px; text-align: center; font-size: 14px
 table.files { width: 100%; border-collapse: collapse; margin-top: 16px; }
 table.files th, table.files td { border-bottom: 1px solid var(--border); padding: 8px; text-align: left; }
 .breadcrumb { color: var(--muted); }
+
+/* GitHub-style alerts ------------------------------------------------- */
+.prose .alert {
+  margin: 1em 0;
+  padding: 12px 16px;
+  border-left: 4px solid var(--alert-accent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--alert-accent) 8%, var(--bg));
+}
+.prose .alert::before {
+  content: var(--alert-label);
+  display: block;
+  font-weight: 600;
+  color: var(--alert-accent);
+  margin-bottom: 4px;
+}
+.prose .alert > :first-child { margin-top: 0; }
+.prose .alert > :last-child  { margin-bottom: 0; }
+.alert-note      { --alert-accent: #2855ff; --alert-label: "Note"; }
+.alert-tip       { --alert-accent: #16a34a; --alert-label: "Tip"; }
+.alert-important { --alert-accent: #8b5cf6; --alert-label: "Important"; }
+.alert-warning   { --alert-accent: #d97706; --alert-label: "Warning"; }
+.alert-caution   { --alert-accent: #dc2626; --alert-label: "Caution"; }
+
+/* Mermaid block reset ------------------------------------------------- */
+/* Override .prose pre defaults so the diagram source doesn't render
+   inside a code-block frame while loading; once mermaid replaces the
+   <pre> with an <svg>, the SVG centers and scales to width. */
+.prose pre.mermaid {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: center;
+  white-space: pre;
+}
+.prose pre.mermaid svg { max-width: 100%; height: auto; }
