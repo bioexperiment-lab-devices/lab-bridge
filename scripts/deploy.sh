@@ -88,25 +88,29 @@ main() {
     # which 200-on-login does not.
     if [[ "${LDS_SKIP_HEALTHCHECK:-}" != "1" ]]; then
         log "waiting for HTTPS to respond..."
-        local i jupyter_status grafana_status docs_status download_status admin_status
+        local i jupyter_status grafana_status docs_status download_status admin_status static_status
         for ((i=0; i<60; i++)); do
             jupyter_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/" || true)"
             grafana_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/grafana/login" || true)"
             docs_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/docs/" || true)"
             download_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/download/agent" || true)"
             admin_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/admin/" || true)"
+            # /_static/site.css must reach siteapp (not the jupyter catchall) or
+            # every siteapp page renders unstyled. Probe one known asset.
+            static_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/_static/site.css" || true)"
             # /admin/ MUST be 401 without creds. A 200 here is a security regression.
             if [[ "$jupyter_status" =~ ^[23][0-9][0-9]$ ]] \
                 && [[ "$grafana_status" == "200" ]] \
                 && [[ "$docs_status" == "200" ]] \
                 && [[ "$download_status" == "200" ]] \
-                && [[ "$admin_status" == "401" ]]; then
-                log "deployed: jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, admin $admin_status"
+                && [[ "$admin_status" == "401" ]] \
+                && [[ "$static_status" == "200" ]]; then
+                log "deployed: jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, admin $admin_status, static $static_status"
                 return 0
             fi
             sleep 1
         done
-        warn "health check timed out (jupyter:$jupyter_status grafana:$grafana_status docs:$docs_status download:$download_status admin:$admin_status). Check: task logs"
+        warn "health check timed out (jupyter:$jupyter_status grafana:$grafana_status docs:$docs_status download:$download_status admin:$admin_status static:$static_status). Check: task logs"
         return 1
     fi
     log "deployed (healthcheck skipped)"

@@ -10,6 +10,13 @@ https://__VPS_HOST__ {
         }
     }
 
+    # Static assets (CSS, JS) for siteapp templates. Without this, the
+    # browser request for /_static/site.css falls through to the jupyter
+    # catchall and 404s, leaving every siteapp page unstyled.
+    handle /_static/* {
+        reverse_proxy siteapp:8000
+    }
+
     # Public docs. Use `handle` (not `handle_path`) so the upstream sees the
     # full `/docs/...` path: siteapp's FastAPI routes are declared on
     # `/docs/{path:path}`, so prefix-stripping would 404 every request.
