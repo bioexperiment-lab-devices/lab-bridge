@@ -13,6 +13,10 @@ def client(tmp_path: Path, monkeypatch) -> TestClient:
     (docs / "index.md").write_text("# Home\n\nWelcome\n", encoding="utf-8")
     (docs / "intro.md").write_text("# Intro\n\nhello world\n", encoding="utf-8")
     (docs / "intro.ru.md").write_text("# Введение\n\nпривет\n", encoding="utf-8")
+    (docs / "diagram.md").write_text(
+        "# Diagram\n\n```mermaid\nflowchart LR\n  A --> B\n```\n",
+        encoding="utf-8",
+    )
     section = docs / "section"
     section.mkdir()
     (section / "index.md").write_text("# Section\n", encoding="utf-8")
@@ -80,3 +84,15 @@ def test_url_encoded_traversal_returns_404_not_redirect(client: TestClient) -> N
     With safe_join, traversal is treated like a missing doc -> 404."""
     r = client.get("/docs/..%2Fagent", follow_redirects=False)
     assert r.status_code == 404
+
+
+def test_diagram_page_loads_mermaid_script(client: TestClient) -> None:
+    r = client.get("/docs/diagram")
+    assert r.status_code == 200
+    assert "/_static/mermaid-init.js" in r.text
+
+
+def test_plain_page_does_not_load_mermaid_script(client: TestClient) -> None:
+    r = client.get("/docs/intro")
+    assert r.status_code == 200
+    assert "/_static/mermaid-init.js" not in r.text
