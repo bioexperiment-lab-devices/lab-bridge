@@ -84,6 +84,19 @@ def render_markdown(text: str) -> tuple[str, str | None]:
     return html, title
 
 
+_PYGMENTS_BG_RE = re.compile(r"^\.highlight\s*\{[^}]*\}\s*$", re.MULTILINE)
+
+
+def _theme_css(style: str) -> str:
+    """Pygments style defs minus the embedded `.highlight { background: ... }`
+    rule, which would otherwise override the page's own --code-bg variable."""
+    css = HtmlFormatter(style=style, cssclass="highlight").get_style_defs(".highlight")
+    return _PYGMENTS_BG_RE.sub("", css).strip()
+
+
 def pygments_css() -> str:
-    """The CSS rules pygments needs for the chosen theme. Include in templates once."""
-    return HtmlFormatter(cssclass="highlight").get_style_defs(".highlight")
+    """Light + dark code-highlighting CSS. The dark variant is gated on
+    `prefers-color-scheme: dark` so the colors track the rest of the site."""
+    light = _theme_css("friendly")
+    dark = _theme_css("github-dark")
+    return f"{light}\n@media (prefers-color-scheme: dark) {{\n{dark}\n}}\n"
