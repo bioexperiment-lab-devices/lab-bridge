@@ -196,3 +196,15 @@ def test_alert_preserves_inline_formatting() -> None:
     r = render_markdown(src)
     assert '<div class="alert alert-important">' in r.html
     assert "<strong>leaves</strong>" in r.html
+
+
+def test_alert_containing_img() -> None:
+    """An <img> inside an alert body must survive both the alert
+    post-processor (which mutates blockquote tokens) and the bleach
+    sanitizer (which sees the resulting <div class="alert ..."> wrapper)."""
+    src = '> [!NOTE]\n> <img src="icons/foo.svg" alt="x" width="28">\n'
+    r = render_markdown(src)
+    assert '<div class="alert alert-note">' in r.html
+    assert '<img src="icons/foo.svg"' in r.html
+    assert 'alt="x"' in r.html
+    assert 'width="28"' in r.html
