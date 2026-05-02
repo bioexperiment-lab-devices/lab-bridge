@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from html import escape as html_escape
 from html import unescape
 
 import bleach
@@ -63,12 +64,19 @@ class _TableAlignCSSsanitizer:
 def _highlight(code: str, name: str | None, _attrs: object) -> str:
     """Return highlighted code wrapped in our own <pre><code>.
 
+    Special-cases `mermaid`: emit <pre class="mermaid"> with the source
+    HTML-escaped, so the client-side mermaid runtime can pick it up
+    without any chance of injecting markup into the page. Pygments is
+    skipped for mermaid (the source is a diagram DSL, not code).
+
     The output MUST start with `<pre` — markdown-it auto-wraps any
     highlighter output that doesn't, producing nested `<pre>` boxes that
     double-up padding and borders. We use `nowrap=True` to get just the
     Pygments spans, then wrap with a single <pre class="highlight"><code>
     so the .highlight CSS still applies for syntax colors.
     """
+    if name == "mermaid":
+        return f'<pre class="mermaid">{html_escape(code)}</pre>\n'
     if not name:
         return ""  # let markdown-it fall back to its default (escapes content)
     try:
@@ -161,11 +169,28 @@ def _sanitize(html: str) -> str:
     )
 
 
+def _has_mermaid(tokens) -> bool:
+    """True if any fenced code block declares language 'mermaid'.
+
+    The markdown-it-py 3.x highlight callback signature is (code, name, attrs)
+    and does not receive the parser env, so we cannot side-channel the flag
+    out of the highlighter. A token walk is the cleanest equivalent and runs
+    in negligible time (linear in token count).
+    """
+    for tok in tokens:
+        if tok.type == "fence" and tok.info:
+            first = tok.info.strip().split(maxsplit=1)[0]
+            if first == "mermaid":
+                return True
+    return False
+
+
 def render_markdown(text: str) -> Rendered:
     tokens = _MD.parse(text)
     title = _title_from_tokens(tokens)
+    needs_mermaid = _has_mermaid(tokens)
     raw_html = _MD.renderer.render(tokens, _MD.options, {})
-    return Rendered(html=_sanitize(raw_html), title=title, needs_mermaid=False)
+    return Rendered(html=_sanitize(raw_html), title=title, needs_mermaid=needs_mermaid)
 
 
 _PYGMENTS_BG_RE = re.compile(r"^\.highlight\s*\{[^}]*\}\s*$", re.MULTILINE)

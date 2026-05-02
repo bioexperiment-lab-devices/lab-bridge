@@ -112,3 +112,36 @@ def test_table_column_alignment_survives_sanitizer() -> None:
     assert "text-align:left" in r.html or 'style="text-align:left"' in r.html
     assert "text-align:center" in r.html or 'style="text-align:center"' in r.html
     assert "text-align:right" in r.html or 'style="text-align:right"' in r.html
+
+
+def test_mermaid_block_renders_as_pre_mermaid() -> None:
+    src = "```mermaid\nflowchart LR\n  A --> B\n```\n"
+    r = render_markdown(src)
+    assert '<pre class="mermaid">' in r.html
+    # Source must be HTML-escaped before being placed in the DOM.
+    assert "flowchart LR" in r.html
+
+
+def test_mermaid_source_is_escaped() -> None:
+    src = "```mermaid\nA[\"<script>\"] --> B\n```\n"
+    r = render_markdown(src)
+    assert "<script>" not in r.html
+    assert "&lt;script&gt;" in r.html
+
+
+def test_needs_mermaid_true_when_block_present() -> None:
+    src = "intro\n\n```mermaid\nflowchart LR\n  A --> B\n```\n"
+    r = render_markdown(src)
+    assert r.needs_mermaid is True
+
+
+def test_needs_mermaid_false_for_plain_doc() -> None:
+    r = render_markdown("# Hello\n\nworld\n")
+    assert r.needs_mermaid is False
+
+
+def test_pygments_languages_unaffected_by_mermaid_branch() -> None:
+    src = '```python\nprint("hi")\n```\n'
+    r = render_markdown(src)
+    assert 'class="highlight"' in r.html
+    assert 'class="language-python"' in r.html
