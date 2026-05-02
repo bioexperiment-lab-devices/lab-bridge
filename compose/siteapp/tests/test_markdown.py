@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from app.markdown import render_markdown
 
 
@@ -145,9 +147,6 @@ def test_pygments_languages_unaffected_by_mermaid_branch() -> None:
     r = render_markdown(src)
     assert 'class="highlight"' in r.html
     assert 'class="language-python"' in r.html
-
-
-import pytest
 
 
 @pytest.mark.parametrize(

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.translations import DocFile, find_doc, resolve_lang_file
+from app.translations import find_doc, resolve_lang_file
 
 
 @pytest.fixture
