@@ -102,3 +102,13 @@ def test_highlighted_code_block_is_not_double_wrapped() -> None:
 def test_needs_mermaid_default_false() -> None:
     r = render_markdown("# Hello\n\nworld\n")
     assert r.needs_mermaid is False
+
+
+def test_table_column_alignment_survives_sanitizer() -> None:
+    """markdown-it emits style="text-align:..." on aligned <th>/<td>;
+    bleach must keep it. The default index.md uses :-: alignment."""
+    src = "| L | C | R |\n| :- | :-: | -: |\n| a | b | c |\n"
+    r = render_markdown(src)
+    assert "text-align:left" in r.html or 'style="text-align:left"' in r.html
+    assert "text-align:center" in r.html or 'style="text-align:center"' in r.html
+    assert "text-align:right" in r.html or 'style="text-align:right"' in r.html

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from html import escape as html_escape
 from html import unescape
 
 import bleach
@@ -25,6 +24,7 @@ ALLOWED_TAGS: frozenset[str] = frozenset({
     "p", "a", "ul", "ol", "li", "blockquote",
     "pre", "code", "table", "thead", "tbody", "tr", "th", "td",
     "hr", "strong", "em", "del", "img", "input", "span", "div",
+    "section",
     # author-allowed inline HTML
     "kbd", "sub", "sup", "br", "details", "summary",
 })
@@ -39,8 +39,25 @@ ALLOWED_ATTRS: dict[str, set[str]] = {
     "span": {"class"},                                   # anchors
     "h1": {"id"}, "h2": {"id"}, "h3": {"id"},
     "h4": {"id"}, "h5": {"id"}, "h6": {"id"},
+    "th": {"style"},                                     # column alignment
+    "td": {"style"},                                     # column alignment
+    "section": {"class"},                                # footnotes
+    "sup": {"class"},                                    # footnote-ref
 }
 ALLOWED_PROTOCOLS: frozenset[str] = frozenset({"http", "https"})  # plus relative
+
+# Minimal CSS sanitizer: only passes through text-align used by markdown-it for
+# aligned table columns (e.g. | :- | :-: | -: |).  bleach requires a
+# css_sanitizer instance whenever "style" appears in ALLOWED_ATTRS — without
+# one it silently clears every style value.
+_TEXT_ALIGN_RE = re.compile(r"^text-align:\s*(left|center|right)\s*$")
+
+
+class _TableAlignCSSsanitizer:
+    """Pass through only 'text-align: left|center|right'; drop everything else."""
+
+    def sanitize_css(self, style: str) -> str:
+        return style if _TEXT_ALIGN_RE.match(style.strip()) else ""
 
 
 def _highlight(code: str, name: str | None, _attrs: object) -> str:
@@ -130,6 +147,9 @@ class Rendered:
     needs_mermaid: bool = False
 
 
+_CSS_SANITIZER = _TableAlignCSSsanitizer()
+
+
 def _sanitize(html: str) -> str:
     return bleach.clean(
         html,
@@ -137,6 +157,7 @@ def _sanitize(html: str) -> str:
         attributes=ALLOWED_ATTRS,
         protocols=ALLOWED_PROTOCOLS,
         strip=True,
+        css_sanitizer=_CSS_SANITIZER,
     )
 
 
