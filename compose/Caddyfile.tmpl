@@ -44,6 +44,14 @@ https://__VPS_HOST__ {
         reverse_proxy siteapp:8000
     }
 
+    # Bare-root redirect: visitors hitting / land on the public docs portal
+    # rather than the JupyterLab login. JupyterLab is still reachable at /lab,
+    # /login, /tree, /api/*, etc. — only the exact path / is intercepted.
+    # path_regexp guarantees exact-match where `path /` and `path =/` were
+    # silently being treated as prefix-match against this Caddy build.
+    @bare_root path_regexp ^/$
+    redir @bare_root /docs/ 302
+
     # Existing routes (unchanged).
     handle /grafana/* {
         reverse_proxy grafana:3000
