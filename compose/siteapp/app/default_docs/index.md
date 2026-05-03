@@ -1,6 +1,4 @@
-<h1>
-  🧬 lab-bridge
-</h1>
+# 🧬 lab-bridge
 
 The bio-experiment lab's private portal — one TLS endpoint that ties together
 a shared JupyterLab, the Windows agents that bridge lab instruments to the
@@ -9,8 +7,6 @@ notebook network, and the live logs they ship back.
 > [!IMPORTANT]
 > Everything you see here runs on a single VPS we operate ourselves.
 > **No data leaves the box.**
-
----
 
 ## 🚀 Get started
 
@@ -21,9 +17,7 @@ notebook network, and the live logs they ship back.
 | <img src="icons/grafana.svg" alt="Grafana" width="28"> | **[Device logs (Grafana) →](/grafana/)** | Live tail of every connected agent: errors, versions, traffic. |
 | <img src="icons/github.svg" alt="GitHub" width="28"> | **[`bioexperiment_suite` on GitHub →](https://github.com/khamitovdr/bio_tools)** | The Python package the notebooks import to talk to instruments. |
 
----
-
-## 🧩 How it fits together
+## How it fits together
 
 ```mermaid
 flowchart LR
@@ -40,7 +34,7 @@ flowchart LR
         Loki --> Grafana
     end
 
-    Agent ==>|reverse tunnel| JupyterLab
+    Agent <==>|reverse tunnel| JupyterLab
     Agent -->|logs| Loki
 
     Team(((Team))) --> JupyterLab
@@ -58,10 +52,8 @@ Three pieces, one stack:
   into Loki; Grafana renders a per-client dashboard so the operator can
   diagnose remote misbehaviour without needing lab access.
 
----
-
 ## 🆘 Need help?
 
 - 📊 Open the [device logs dashboard](/grafana/) and filter by your client
   name to see what your agent is doing.
-- 💬 For everything else, reach out to the lab-bridge operator on the team chat.
+- 💬 For everything else, reach out to the lab-bridge operator [@khamitov_denis](https://t.me/khamitov_denis)
