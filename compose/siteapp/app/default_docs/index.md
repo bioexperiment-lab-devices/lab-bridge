@@ -1,21 +1,32 @@
-# 🧬 lab-bridge
+# 🧪 lab-bridge
 
-The bio-experiment lab's private portal — one TLS endpoint that ties together
-a shared JupyterLab, the Windows agents that bridge lab instruments to the
-notebook network, and the live logs they ship back.
+lab-bridge is the team's private workspace for running bio-experiments and
+analyzing results. Open the shared JupyterLab in your browser, drive any
+instrument connected through a SerialHop agent on a lab PC, and work in the
+same Python environment as the rest of the team.
 
-> [!IMPORTANT]
-> Everything you see here runs on a single VPS we operate ourselves.
-> **No data leaves the box.**
+## Get started
 
-## 🚀 Get started
+### <img src="icons/jupyter.svg" alt="" width="28"> [Open JupyterLab →](/lab)
 
-|     | Destination | What it's for |
-| :-: | --- | --- |
-| <img src="icons/jupyter.svg" alt="JupyterLab" width="28"> | **[Open JupyterLab →](/lab)** | Shared notebooks for analysis and instrument control. Use the team password. |
-| <img src="icons/windows.svg" alt="Windows" width="28"> | **[Download the Windows agent →](/download/agent)** | Install on a lab PC to connect its instruments to lab-bridge. |
-| <img src="icons/grafana.svg" alt="Grafana" width="28"> | **[Device logs (Grafana) →](/grafana/)** | Live tail of every connected agent: errors, versions, traffic. |
-| <img src="icons/github.svg" alt="GitHub" width="28"> | **[`bioexperiment_suite` on GitHub →](https://github.com/khamitovdr/bio_tools)** | The Python package the notebooks import to talk to instruments. |
+Shared notebooks for analysis and instrument control — the team's main
+workspace. Log in with the shared password and pick up where someone else
+left off.
+
+> [!NOTE]
+> Notebooks drive instruments through
+> [`bioexperiment_suite`](https://github.com/khamitovdr/bio_tools), the Python
+> library pre-installed in this JupyterLab. Import it from any notebook;
+> no extra setup.
+
+### <img src="icons/windows.svg" alt="" width="28"> [Download the SerialHop agent →](/download/agent)
+
+Install on a lab PC to expose its instruments through lab-bridge. Once the
+agent is running, the PC's serial/TCP ports become reachable from any
+notebook on the team JupyterLab.
+
+Source, releases, and protocol notes on GitHub:
+[bioexperiment-lab-devices/serialhop](https://github.com/bioexperiment-lab-devices/serialhop).
 
 ## How it fits together
 
@@ -45,15 +56,20 @@ Three pieces, one stack:
 
 - **JupyterLab on the VPS** — the team writes analysis notebooks, hosted
   centrally so everyone shares the same Python environment.
-- **A Windows agent on each lab PC** — opens a reverse tunnel back to the
-  VPS, exposing the local instrument's TCP port to the notebook network.
-  Notebooks reach instruments as if they were local services.
+- **The SerialHop agent on each lab PC** — runs on Windows, opens a reverse
+  tunnel back to the VPS, and exposes the local instrument's TCP port to the
+  notebook network. Notebooks reach instruments as if they were local
+  services.
 - **Grafana + Loki** — the agent ships its logs through the same tunnel
   into Loki; Grafana renders a per-client dashboard so the operator can
   diagnose remote misbehaviour without needing lab access.
 
-## 🆘 Need help?
+## Need help?
 
-- 📊 Open the [device logs dashboard](/grafana/) and filter by your client
-  name to see what your agent is doing.
-- 💬 For everything else, reach out to the lab-bridge operator [@khamitov_denis](https://t.me/khamitov_denis)
+For everyday questions, reach out to the lab-bridge operator
+[@khamitov_denis](https://t.me/khamitov_denis).
+
+For operators and tech users: the
+<img src="icons/grafana.svg" alt="" width="16"> [device logs dashboard](/grafana/)
+shows a live tail of every connected agent (errors, versions, traffic) —
+filter by client name to see what a specific agent is doing.
