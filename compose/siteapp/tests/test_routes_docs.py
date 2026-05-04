@@ -135,7 +135,7 @@ def test_default_index_smoke(tmp_path: Path, monkeypatch) -> None:
 
     page = c.get("/docs/")
     assert page.status_code == 200
-    assert '<div class="alert alert-important">' in page.text
+    assert '<div class="alert alert-note">' in page.text
     assert '<pre class="mermaid">' in page.text
     assert 'src="icons/jupyter.svg"' in page.text
     assert "/_static/mermaid-init.js" in page.text

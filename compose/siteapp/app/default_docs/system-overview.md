@@ -8,7 +8,7 @@ The architecture has three components:
 
 - **[`lab-bridge`](https://github.com/bioexperiment-lab-devices/lab-bridge)** — a public web server that hosts the shared notebook environment.
 - **[`serialhop`](https://github.com/bioexperiment-lab-devices/serialhop)** — a small program installed on the lab PC that exposes the instruments to the outside world.
-- **[`bioexperiment_suite`](https://github.com/khamitovdr/bioexperiment_suite)** — the Python library used inside notebooks to drive experiments. It is currently being migrated from controlling instruments locally over a serial cable to controlling them remotely over the network. The migration plan is documented in the [HTTP client design spec](https://github.com/khamitovdr/bio_tools/blob/main/docs/superpowers/specs/2026-04-27-lab-devices-http-client-design.md).
+- **[`bioexperiment_suite`](https://github.com/khamitovdr/bioexperiment_suite)** — the Python library used inside notebooks to drive experiments. It now controls instruments remotely over the network, having been migrated from a direct-serial implementation. The contract is documented in the [HTTP client design spec](https://github.com/khamitovdr/bio_tools/blob/main/docs/superpowers/specs/2026-04-27-lab-devices-http-client-design.md).
 
 The system is currently deployed and running:
 
@@ -17,7 +17,10 @@ The system is currently deployed and running:
 
 ## How the components fit together
 
-A researcher opens the notebook environment in a browser, writes Python code using `bioexperiment_suite`, and that code transparently talks to the instruments back in the lab. The lab PC itself initiates an outbound connection to the public server, so the lab network does not need to expose any inbound ports or set up port-forwarding — a typical blocker in institutional networks.
+A researcher opens the notebook environment in a browser, writes Python code using `bioexperiment_suite`, and that code transparently talks to the instruments back in the lab.
+
+> [!TIP]
+> The lab PC itself initiates the outbound connection to the public server, so the lab network does not need to expose any inbound ports or set up port-forwarding — a typical blocker in institutional networks.
 
 ## 1. [`lab-bridge`](https://github.com/bioexperiment-lab-devices/lab-bridge) — the public server
 
@@ -57,6 +60,34 @@ density = devices.densitometers[0].measure_optical_density()
 ```
 
 ## End-to-end flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant N as Notebook
+    participant T as chisel tunnel
+    participant S as serialhop
+    participant I as Instrument
+    participant L as Loki + Grafana
+
+    Note over S: Boot — scan ports, dial VPS, open tunnels
+
+    N->>T: client.discover()
+    T->>S: POST /discover
+    S->>I: probe bytes
+    I-->>S: identity reply
+    S-->>T: JSON device list
+    T-->>N: DiscoveredDevices
+
+    N->>T: pump.pour_in_volume(5.0)
+    T->>S: POST /devices/{id}/command
+    S->>I: serial command
+    I-->>S: reply bytes
+    S-->>T: JSON response
+    T-->>N: result
+
+    S-->>L: stream logs (forward tunnel)
+```
 
 1. The lab PC boots. `serialhop` starts as a Windows service, scans for instruments, and opens the tunnel to `lab-bridge`.
 2. A researcher — anywhere with internet — opens the public URL, logs into JupyterLab with the shared team password, and runs a notebook.

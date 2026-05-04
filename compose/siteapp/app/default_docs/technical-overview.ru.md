@@ -12,16 +12,47 @@
 
 ## Топология
 
+```mermaid
+flowchart LR
+    subgraph LabNet["Лабораторная сеть · без входящих портов"]
+        Agent["serialhop на 127.0.0.1"]
+    end
+
+    subgraph VPSnet["VPS · labnet"]
+        Chisel["chisel"]
+        Jupyter["JupyterLab"]
+        Loki
+        Grafana
+        Loki --> Grafana
+    end
+
+    Agent <==>|исходящая chisel-сессия| Chisel
+    Chisel -.->|reverse tunnel| Jupyter
+    Agent -.->|forward tunnel :3100| Loki
+```
+
 Лабораторный ПК открывает исходящее chisel-соединение к VPS. Эта же chisel-сессия несёт:
 
 - **Reverse tunnels** — локальный REST API каждого lab-агента публикуется в docker-сеть `labnet`, доступен из среды notebooks как `http://chisel:<port>`.
 - **Forward tunnel** — `lab_pc:127.0.0.1:3100 → loki:3100`, используется для отправки логов агента в Loki.
 
-В лабораторной сети нет открытых входящих портов. Авторизация chisel — через allowlist пар user/password, по одной на клиента, управляется на VPS.
+> [!TIP]
+> В лабораторной сети не нужны входящие порты — агент дозванивается наружу, а chisel мультиплексирует и reverse-, и forward-потоки в одной сессии.
+
+Авторизация chisel — через allowlist пар user/password, по одной на клиента, управляется на VPS.
 
 ## `lab-bridge`
 
 Один Docker Compose стек в сети `labnet`:
+
+```mermaid
+flowchart LR
+    Net((Интернет)) -->|"80 / 443"| Caddy
+    Net -->|chisel listen-порт| Chisel["chisel"]
+    Caddy -->|/grafana/*| Grafana
+    Caddy -->|остальные пути| Jupyter["JupyterLab"]
+    Loki --> Grafana
+```
 
 - **caddy** — публичный на 80/443; TLS через Let's Encrypt; проксирует `/grafana/*` → grafana, всё остальное → jupyter.
 - **jupyter** — JupyterLab; cookie-based авторизация по общему паролю.
@@ -73,6 +104,9 @@ task deploy
 | `GET` | `/devices` | Кэшированный список устройств. |
 | `POST` | `/devices/{id}/command` | Отправить сырые байты; опциональное чтение ответа. Query-параметры: `wait_for_response`, `expected_response_bytes`, `timeout_ms`, `inter_byte_ms`. |
 
+> [!WARNING]
+> `POST /discover` деструктивен — он заново опрашивает все serial-порты и пересобирает кэш устройств с нуля, прерывая любое незавершённое измерение. Для получения списка предпочтительно использовать `GET /devices`.
+
 **Типы устройств**: `pump` (type code 10), `valve` (30), `densitometer` (70). Discovery опрашивает порты универсальным probe `[1, 2, 3, 4, 0]`.
 
 **Файлы** (рядом с `.exe`):
@@ -96,9 +130,12 @@ task deploy
 2. Запустить; отредактировать `SerialHop_config.yaml` (`chisel.remote_port`, `chisel.user`, `chisel.pass`).
 3. Нажать **Install** в панели; подтвердить UAC.
 
+> [!IMPORTANT]
+> Отредактируйте `SerialHop_config.yaml` **до** нажатия Install — service стартует с тем конфигом, который лежит на диске на момент установки, и неверные `user`/`pass` chisel будут молча писать auth-ошибки в лог, пока файл не будет исправлен и service перезапущен.
+
 ## `bioexperiment_suite`
 
-Python-пакет. Состояние после миграции — на ветке HTTP-транспорта; полный контракт описан в [HTTP client design spec](https://github.com/khamitovdr/bio_tools/blob/main/docs/superpowers/specs/2026-04-27-lab-devices-http-client-design.md). `main` всё ещё несёт легаси-реализацию с прямым serial; ветки расходятся, runtime-переключателя между ними нет.
+Python-пакет. Состояние после миграции: HTTP-транспорт через `LabDevicesClient` — это рабочая реализация. Полный контракт описан в [HTTP client design spec](https://github.com/khamitovdr/bio_tools/blob/main/docs/superpowers/specs/2026-04-27-lab-devices-http-client-design.md).
 
 **Структура**:
 

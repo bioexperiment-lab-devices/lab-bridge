@@ -12,16 +12,47 @@ Live endpoints: [JupyterLab](https://111.88.145.138/lab) · [Grafana](https://11
 
 ## Topology
 
+```mermaid
+flowchart LR
+    subgraph LabNet["Lab network · no inbound ports"]
+        Agent["serialhop on 127.0.0.1"]
+    end
+
+    subgraph VPSnet["VPS · labnet"]
+        Chisel["chisel"]
+        Jupyter["JupyterLab"]
+        Loki
+        Grafana
+        Loki --> Grafana
+    end
+
+    Agent <==>|outbound chisel session| Chisel
+    Chisel -.->|reverse tunnel| Jupyter
+    Agent -.->|forward tunnel :3100| Loki
+```
+
 The lab PC opens an outbound chisel connection to the VPS. The same chisel session carries:
 
 - **Reverse tunnels** — each lab agent's local REST API is published into the docker `labnet` network, reachable from the notebook environment as `http://chisel:<port>`.
 - **Forward tunnel** — `lab_pc:127.0.0.1:3100 → loki:3100`, used to push agent logs into Loki.
 
-No inbound ports on the lab network. Chisel auth uses a per-client user/password allowlist managed on the VPS.
+> [!TIP]
+> No inbound ports needed on the lab network — the agent dials out, and chisel multiplexes both reverse and forward streams over that single session.
+
+Chisel auth uses a per-client user/password allowlist managed on the VPS.
 
 ## `lab-bridge`
 
 Single Docker Compose stack on `labnet`:
+
+```mermaid
+flowchart LR
+    Net((Internet)) -->|"80 / 443"| Caddy
+    Net -->|chisel listen port| Chisel["chisel"]
+    Caddy -->|/grafana/*| Grafana
+    Caddy -->|all other paths| Jupyter["JupyterLab"]
+    Loki --> Grafana
+```
 
 - **caddy** — public on 80/443; TLS via Let's Encrypt; proxies `/grafana/*` → grafana, everything else → jupyter.
 - **jupyter** — JupyterLab; cookie-based shared-password auth.
@@ -73,6 +104,9 @@ Single static Go binary, default target Windows/amd64; output `dist/SerialHop.ex
 | `GET` | `/devices` | Cached device list. |
 | `POST` | `/devices/{id}/command` | Send raw bytes; optional reply read. Query params: `wait_for_response`, `expected_response_bytes`, `timeout_ms`, `inter_byte_ms`. |
 
+> [!WARNING]
+> `POST /discover` is destructive — it re-probes every serial port and rebuilds the device cache from scratch, interrupting any in-flight measurement. Prefer `GET /devices` for the cached list.
+
 **Device types**: `pump` (type code 10), `valve` (30), `densitometer` (70). Discovery probes ports with the universal probe `[1, 2, 3, 4, 0]`.
 
 **Files** (next to the `.exe`):
@@ -96,9 +130,12 @@ Single static Go binary, default target Windows/amd64; output `dist/SerialHop.ex
 2. Run; edit `SerialHop_config.yaml` (`chisel.remote_port`, `chisel.user`, `chisel.pass`).
 3. Click **Install** in the panel; approve UAC.
 
+> [!IMPORTANT]
+> Edit `SerialHop_config.yaml` **before** clicking Install — the service starts with whatever config is on disk at install time, and a wrong chisel `user`/`pass` will silently log auth-failures until the file is corrected and the service restarted.
+
 ## `bioexperiment_suite`
 
-Python package. Post-migration state on the HTTP-transport branch — see the [HTTP client design spec](https://github.com/khamitovdr/bio_tools/blob/main/docs/superpowers/specs/2026-04-27-lab-devices-http-client-design.md) for the full contract. `main` still carries the legacy direct-serial implementation; the two branches diverge with no runtime switch.
+Python package. Post-migration: HTTP transport via `LabDevicesClient` is the live implementation. See the [HTTP client design spec](https://github.com/khamitovdr/bio_tools/blob/main/docs/superpowers/specs/2026-04-27-lab-devices-http-client-design.md) for the full contract.
 
 **Layout**:
 

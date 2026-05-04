@@ -8,7 +8,7 @@
 
 - **[`lab-bridge`](https://github.com/bioexperiment-lab-devices/lab-bridge)** — публичный веб-сервер, на котором развёрнута общая среда для notebooks.
 - **[`serialhop`](https://github.com/bioexperiment-lab-devices/serialhop)** — небольшая программа, устанавливаемая на лабораторный ПК и предоставляющая доступ к приборам извне.
-- **[`bioexperiment_suite`](https://github.com/khamitovdr/bioexperiment_suite)** — Python-библиотека, которая используется в notebooks для управления экспериментами. Сейчас она мигрирует с локального управления приборами через serial-кабель на удалённое управление через сеть. План миграции описан в [HTTP client design spec](https://github.com/khamitovdr/bio_tools/blob/main/docs/superpowers/specs/2026-04-27-lab-devices-http-client-design.md).
+- **[`bioexperiment_suite`](https://github.com/khamitovdr/bioexperiment_suite)** — Python-библиотека, которая используется в notebooks для управления экспериментами. Теперь она управляет приборами удалённо через сеть — миграция с прямого serial-транспорта завершена. Контракт описан в [HTTP client design spec](https://github.com/khamitovdr/bio_tools/blob/main/docs/superpowers/specs/2026-04-27-lab-devices-http-client-design.md).
 
 Система уже развёрнута и работает:
 
@@ -17,7 +17,10 @@
 
 ## Как компоненты связаны между собой
 
-Исследователь открывает среду notebooks в браузере, пишет Python-код с использованием `bioexperiment_suite`, и этот код прозрачно общается с приборами в лаборатории. Лабораторный ПК сам инициирует исходящее соединение к публичному серверу, поэтому лабораторной сети не нужно открывать входящие порты или настраивать port-forwarding — типичное препятствие в институциональных сетях.
+Исследователь открывает среду notebooks в браузере, пишет Python-код с использованием `bioexperiment_suite`, и этот код прозрачно общается с приборами в лаборатории.
+
+> [!TIP]
+> Лабораторный ПК сам инициирует исходящее соединение к публичному серверу, поэтому лабораторной сети не нужно открывать входящие порты или настраивать port-forwarding — типичное препятствие в институциональных сетях.
 
 ## 1. [`lab-bridge`](https://github.com/bioexperiment-lab-devices/lab-bridge) — публичный сервер
 
@@ -57,6 +60,34 @@ density = devices.densitometers[0].measure_optical_density()
 ```
 
 ## End-to-end flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant N as Notebook
+    participant T as chisel-туннель
+    participant S as serialhop
+    participant I as Прибор
+    participant L as Loki + Grafana
+
+    Note over S: Загрузка — сканирует порты, дозванивается до VPS, открывает туннели
+
+    N->>T: client.discover()
+    T->>S: POST /discover
+    S->>I: probe-байты
+    I-->>S: ответ с идентификацией
+    S-->>T: JSON-список устройств
+    T-->>N: DiscoveredDevices
+
+    N->>T: pump.pour_in_volume(5.0)
+    T->>S: POST /devices/{id}/command
+    S->>I: serial-команда
+    I-->>S: ответ
+    S-->>T: JSON-ответ
+    T-->>N: результат
+
+    S-->>L: стрим логов (forward tunnel)
+```
 
 1. Лабораторный ПК загружается. `serialhop` стартует как Windows service, сканирует приборы и открывает туннель к `lab-bridge`.
 2. Исследователь — где угодно, лишь бы был интернет — открывает публичный URL, логинится в JupyterLab общим командным паролем и запускает notebook.
