@@ -103,7 +103,7 @@ def make_router(settings: Settings) -> APIRouter:
         return FileResponse(
             path,
             media_type="application/octet-stream",
-            filename=f"lab-bridge-agent-{info.version}.exe",
+            filename=f"SerialHop-v{info.version}.exe",
             headers={"Cache-Control": "no-store"},
         )
 

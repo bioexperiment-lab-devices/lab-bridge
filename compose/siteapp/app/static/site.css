@@ -148,6 +148,7 @@ footer { color: var(--muted); padding: 32px; text-align: center; font-size: 14px
 .agent-hero .lede { color: var(--muted); }
 .download-button { display: inline-block; margin-top: 24px; padding: 14px 24px; background: var(--accent); color: #fff; border-radius: 8px; font-weight: 600; border: 0; cursor: pointer; }
 .download-button:disabled { background: var(--muted); cursor: not-allowed; }
+.agent-source { color: var(--muted); font-size: 14px; margin: 16px 0 0; }
 .agent-body { max-width: var(--max-prose); margin: 0 auto; padding: 24px; }
 
 .agent-notice { max-width: var(--max-prose); margin: 24px auto 0; padding: 0 24px; }

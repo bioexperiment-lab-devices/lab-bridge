@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Lab Bridge Agent{% endblock %}
+{% block title %}SerialHop agent{% endblock %}
 {% block topbar_right %}
   {% if ru_exists %}
     <span class="lang-toggle">
@@ -10,8 +10,11 @@
 {% endblock %}
 {% block main %}
 <section class="agent-hero">
-  <h1>Lab Bridge Agent</h1>
-  <p class="lede">Windows service that connects a lab device to the lab-bridge VPS.</p>
+  <h1>SerialHop</h1>
+  <p class="lede">
+    Single-binary Windows service that exposes a lab PC's serial-port
+    instruments to lab-bridge through a chisel reverse tunnel.
+  </p>
   {% if info %}
     <a class="download-button"
        href="/download/agent/windows/agent.exe">
@@ -20,6 +23,10 @@
   {% else %}
     <button class="download-button" disabled>Not yet available — check back soon</button>
   {% endif %}
+  <p class="agent-source">
+    Source, releases, and protocol notes:
+    <a href="https://github.com/bioexperiment-lab-devices/serialhop">bioexperiment-lab-devices/serialhop</a>
+  </p>
 </section>
 
 {% if info %}
@@ -39,7 +46,7 @@
     <ol>
       <li>Откройте список загрузок (<code>Ctrl</code>+<code>J</code>).</li>
       <li>
-        Найдите <code>lab-bridge-agent-{{ info.version }}.exe</code>,
+        Найдите <code>SerialHop-v{{ info.version }}.exe</code>,
         нажмите <code>⋯</code> (или правой кнопкой) и выберите
         <strong>Сохранить</strong> / <strong>Keep</strong>.
       </li>
@@ -82,7 +89,7 @@
     <ol>
       <li>Open the downloads list (<code>Ctrl</code>+<code>J</code>).</li>
       <li>
-        Find <code>lab-bridge-agent-{{ info.version }}.exe</code>,
+        Find <code>SerialHop-v{{ info.version }}.exe</code>,
         click the <code>⋯</code> menu (or right-click) and choose
         <strong>Keep</strong>.
       </li>
