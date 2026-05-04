@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 
+from app.clients import load_roster
 from app.config import Settings
 
 VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.]+)?$")
@@ -93,5 +94,9 @@ def make_router(settings: Settings) -> APIRouter:
         return await upload_agent(
             settings, version=version, binary=binary, authorization=authorization
         )
+
+    @router.get("/api/clients/")
+    def list_clients() -> dict[str, dict[str, object]]:
+        return load_roster(settings.clients_file)
 
     return router

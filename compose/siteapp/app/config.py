@@ -10,6 +10,7 @@ from pathlib import Path
 class Settings:
     site_data: Path
     agent_upload_token: str
+    clients_file: Path
     max_upload_mb_doc: int = 10
     max_upload_mb_agent: int = 100
     csrf_secret: str = ""
@@ -31,6 +32,13 @@ def load_settings() -> Settings:
     (site_data / "docs").mkdir(parents=True, exist_ok=True)
     (site_data / "agent" / "windows").mkdir(parents=True, exist_ok=True)
     (site_data / "agent" / ".tmp").mkdir(parents=True, exist_ok=True)
+
+    clients_env = os.environ.get("SITEAPP_CLIENTS_FILE")
+    if not clients_env:
+        raise RuntimeError("SITEAPP_CLIENTS_FILE env var is required")
+    # Not .resolve()'d — this is a reference to an externally-mounted file,
+    # not a data root we own. The route reads it on each request.
+    clients_file = Path(clients_env)
 
     token_file = os.environ.get("SITEAPP_AGENT_UPLOAD_TOKEN__FILE")
     if token_file:
@@ -62,5 +70,6 @@ def load_settings() -> Settings:
     return Settings(
         site_data=site_data,
         agent_upload_token=token,
+        clients_file=clients_file,
         csrf_secret=csrf,
     )

@@ -69,3 +69,19 @@ def test_seeds_default_icons_when_missing(tmp_path: Path, monkeypatch: pytest.Mo
     seeded_icon = s.docs_root / "icons" / "jupyter.svg"
     assert seeded_icon.is_file()
     assert seeded_icon.read_bytes().startswith(b"<")  # SVG / XML opening
+
+
+def test_clients_file_required(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SITE_DATA", str(tmp_path))
+    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "tok")
+    monkeypatch.delenv("SITEAPP_CLIENTS_FILE", raising=False)
+    with pytest.raises(RuntimeError, match="SITEAPP_CLIENTS_FILE"):
+        load_settings()
+
+
+def test_clients_file_path_stored(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SITE_DATA", str(tmp_path))
+    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "tok")
+    monkeypatch.setenv("SITEAPP_CLIENTS_FILE", "/etc/siteapp/clients.json")
+    settings = load_settings()
+    assert settings.clients_file == Path("/etc/siteapp/clients.json")

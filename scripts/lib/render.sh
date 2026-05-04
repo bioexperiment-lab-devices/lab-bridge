@@ -48,6 +48,21 @@ render_chisel_users() {
     ' "${CONFIG_PATH:?}" > "$out"
 }
 
+# render_siteapp_clients <output_path>
+# Builds the siteapp clients.json from .chisel_clients in CONFIG_PATH.
+# Output is a flat name → reverse_port map. Passwords are deliberately
+# omitted: siteapp's clients endpoint is internal-only and never needs
+# to authenticate as a chisel client.
+render_siteapp_clients() {
+    local out="${1:?}"
+    yq -o=json e '
+        .chisel_clients
+        | map({(.name): .reverse_port})
+        | (. // [{}])
+        | .[] as $item ireduce ({}; . * $item)
+    ' "${CONFIG_PATH:?}" > "$out"
+}
+
 # render_loki_config <template_path> <output_path>
 # Substitutes __LOKI_RETENTION_HOURS__ (computed from LOKI_RETENTION_DAYS).
 render_loki_config() {

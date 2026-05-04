@@ -180,3 +180,103 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == "v13" ]]
 }
+
+@test "render_siteapp_clients: emits flat name→reverse_port map" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/fixtures/valid_config.yaml
+        render_siteapp_clients $TMPDIR/clients.json
+        cat $TMPDIR/clients.json
+    "
+    [ "$status" -eq 0 ]
+    echo "$output" | yq -p json e '.' >/dev/null
+
+    run yq -p json -o json e '."microscope-1"' "$TMPDIR/clients.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "9001" ]]
+
+    run yq -p json -o json e '."bench-2"' "$TMPDIR/clients.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "9002" ]]
+
+    # Verify exactly two keys (catches reduce-step regressions).
+    run yq -p json -o json e 'keys | length' "$TMPDIR/clients.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "2" ]]
+}
+
+@test "render_siteapp_clients: never leaks passwords" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/fixtures/valid_config.yaml
+        render_siteapp_clients $TMPDIR/clients.json
+        cat $TMPDIR/clients.json
+    "
+    [ "$status" -eq 0 ]
+    # The fixture's password is k7HfLpNqRsT3uVwX1yZ2aB3cD4eF5gH6
+    [[ "$output" != *"k7HfLpNqRsT3uVwX1yZ2aB3cD4eF5gH6"* ]]
+    [[ "$output" != *"password"* ]]
+}
+
+@test "render_siteapp_clients: empty chisel_clients yields empty object" {
+    cat > $TMPDIR/empty.yaml <<'EOF'
+vps: {host: 1.2.3.4, ssh_user: u, ssh_port: 22, remote_root: /srv/x, notebooks_path: /srv/y}
+caddy: {acme_email: o@x.io}
+jupyter:
+  image: quay.io/jupyter/scipy-notebook:2026-04-20
+  password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"
+chisel: {image: jpillora/chisel:1.10.1, listen_port: 8080}
+loki: {image: grafana/loki:3.2.1, retention_days: 30}
+grafana: {image: grafana/grafana:11.3.0}
+siteapp:
+  image: ghcr.io/test/lab-bridge-siteapp:0.0.1
+  admin_password_hash: "$2a$14$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
+chisel_clients: []
+EOF
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $TMPDIR/empty.yaml
+        render_siteapp_clients $TMPDIR/clients.json
+        cat $TMPDIR/clients.json
+    "
+    [ "$status" -eq 0 ]
+    [[ "$(echo "$output" | tr -d '[:space:]')" == "{}" ]]
+}
+
+@test "render_siteapp_clients: roster names mirror render_chisel_users" {
+    bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/fixtures/valid_config.yaml
+        render_chisel_users $TMPDIR/users.json
+        render_siteapp_clients $TMPDIR/clients.json
+    "
+    # Names from chisel users.json keys are 'name:password'; strip the suffix.
+    chisel_names="$(yq -p json -oy e 'keys | .[]' $TMPDIR/users.json | sed 's/:.*//' | sort)"
+    siteapp_names="$(yq -p json -oy e 'keys | .[]' $TMPDIR/clients.json | sort)"
+    [[ "$chisel_names" == "$siteapp_names" ]]
+}
+
+@test "render_compose: siteapp service mounts clients.json read-only and sets SITEAPP_CLIENTS_FILE" {
+    bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/fixtures/valid_config.yaml
+        render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
+    "
+    run yq e '.services.siteapp.volumes[]' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"./siteapp/clients.json:/etc/siteapp/clients.json:ro"* ]]
+
+    run yq e '.services.siteapp.environment.SITEAPP_CLIENTS_FILE' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "/etc/siteapp/clients.json" ]]
+}

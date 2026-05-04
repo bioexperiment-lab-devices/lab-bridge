@@ -20,7 +20,10 @@ def client(tmp_path: Path, monkeypatch) -> TestClient:
     import app.main
 
     reload(app.main)
-    return TestClient(app.main.app)
+    # raise_server_exceptions=False so the 500-path tests in this file see
+    # an HTTP 500 response (matching uvicorn's production behavior) instead
+    # of TestClient re-raising the underlying exception in-process.
+    return TestClient(app.main.app, raise_server_exceptions=False)
 
 
 def _post(client: TestClient, *, token: str | None, version: str, body: bytes) -> object:
@@ -81,3 +84,70 @@ def test_upload_too_large_rejected(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(api_mod, "MAX_AGENT_BYTES", 16)
     r = _post(client, token=TOKEN, version="1.0.0", body=b"x" * 100)
     assert r.status_code == 413
+
+
+@pytest.fixture
+def clients_file(_clients_file_default: Path) -> Path:
+    """Roster file the autouse fixture already created. Tests write to it."""
+    return _clients_file_default
+
+
+def test_clients_endpoint_happy_path(client: TestClient, clients_file: Path) -> None:
+    clients_file.write_text(
+        '{"khamit_desktop": 8089, "another_lab": 8090}', encoding="utf-8"
+    )
+
+    r = client.get("/api/clients/")
+    assert r.status_code == 200
+    assert r.json() == {
+        "khamit_desktop": {"host": "chisel", "port": 8089},
+        "another_lab":    {"host": "chisel", "port": 8090},
+    }
+
+
+def test_clients_endpoint_empty_roster(client: TestClient) -> None:
+    # autouse fixture wrote {} by default
+    r = client.get("/api/clients/")
+    assert r.status_code == 200
+    assert r.json() == {}
+
+
+def test_clients_endpoint_rereads_on_each_request(
+    client: TestClient, clients_file: Path
+) -> None:
+    clients_file.write_text('{"a": 1}', encoding="utf-8")
+    r1 = client.get("/api/clients/")
+    assert r1.status_code == 200
+    assert r1.json() == {"a": {"host": "chisel", "port": 1}}
+
+    clients_file.write_text('{"a": 1, "b": 2}', encoding="utf-8")
+    r2 = client.get("/api/clients/")
+    assert r2.status_code == 200
+    assert r2.json() == {
+        "a": {"host": "chisel", "port": 1},
+        "b": {"host": "chisel", "port": 2},
+    }
+
+
+def test_clients_endpoint_missing_file_returns_500(
+    client: TestClient, clients_file: Path
+) -> None:
+    clients_file.unlink()
+    r = client.get("/api/clients/")
+    assert r.status_code == 500
+
+
+def test_clients_endpoint_malformed_returns_500(
+    client: TestClient, clients_file: Path
+) -> None:
+    clients_file.write_text("not-json", encoding="utf-8")
+    r = client.get("/api/clients/")
+    assert r.status_code == 500
+
+
+def test_clients_endpoint_wrong_shape_returns_500(
+    client: TestClient, clients_file: Path
+) -> None:
+    clients_file.write_text("[1, 2, 3]", encoding="utf-8")
+    r = client.get("/api/clients/")
+    assert r.status_code == 500
