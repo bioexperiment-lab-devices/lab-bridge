@@ -149,6 +149,51 @@ footer { color: var(--muted); padding: 32px; text-align: center; font-size: 14px
 .download-button { display: inline-block; margin-top: 24px; padding: 14px 24px; background: var(--accent); color: #fff; border-radius: 8px; font-weight: 600; border: 0; cursor: pointer; }
 .download-button:disabled { background: var(--muted); cursor: not-allowed; }
 .agent-body { max-width: var(--max-prose); margin: 0 auto; padding: 24px; }
+
+.agent-notice { max-width: var(--max-prose); margin: 24px auto 0; padding: 0 24px; }
+.agent-notice details {
+  border-left: 4px solid var(--alert-accent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--alert-accent) 8%, var(--bg));
+  padding: 10px 16px;
+}
+.agent-notice--warning { --alert-accent: #d97706; }
+.agent-notice summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--alert-accent);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.agent-notice summary::-webkit-details-marker { display: none; }
+.agent-notice summary::before {
+  content: "⚠";
+  font-size: 1.1em;
+  line-height: 1;
+}
+.agent-notice summary::after {
+  content: "▸";
+  margin-left: auto;
+  transition: transform 150ms ease;
+  color: var(--muted);
+}
+.agent-notice details[open] summary::after { transform: rotate(90deg); }
+.agent-notice details[open] summary { margin-bottom: 8px; }
+.agent-notice p { margin: 8px 0; }
+.agent-notice ol { margin: 6px 0 12px; padding-left: 24px; }
+.agent-notice li { margin: 4px 0; }
+.agent-notice code {
+  background: var(--code-bg);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
 .agent-meta { max-width: var(--max-prose); margin: 0 auto; padding: 24px; color: var(--muted); }
 .agent-meta dt { font-weight: 600; color: var(--fg); }
 .agent-meta dd { margin: 0 0 12px; }

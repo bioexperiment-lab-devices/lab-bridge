@@ -22,6 +22,98 @@
   {% endif %}
 </section>
 
+{% if info %}
+<section class="agent-notice agent-notice--warning">
+  <details>
+    {% if lang == 'ru' %}
+    <summary>Браузер может заблокировать эту загрузку</summary>
+    <p>
+      Установщик агента — свежая Windows-программа, у которой пока нет
+      подписи доверенного издателя и накопленной репутации в Microsoft
+      Defender SmartScreen. Из-за этого браузер часто прячет скачанный
+      файл, а Windows отказывается запускать его при первом открытии.
+      Сам файл безопасен — при желании сверьте SHA-256 ниже с тем, что
+      прислал оператор lab-bridge.
+    </p>
+    <p><strong>Если браузер скрыл загрузку (Edge, Chrome, Brave):</strong></p>
+    <ol>
+      <li>Откройте список загрузок (<code>Ctrl</code>+<code>J</code>).</li>
+      <li>
+        Найдите <code>lab-bridge-agent-{{ info.version }}.exe</code>,
+        нажмите <code>⋯</code> (или правой кнопкой) и выберите
+        <strong>Сохранить</strong> / <strong>Keep</strong>.
+      </li>
+      <li>
+        Если появится «Этот файл может нанести вред компьютеру» —
+        выберите <strong>Сохранить опасный файл</strong> /
+        <strong>Keep dangerous file</strong>.
+      </li>
+    </ol>
+    <p>
+      <strong>Если при запуске Windows показывает
+      «Система Windows защитила ваш компьютер»:</strong>
+    </p>
+    <ol>
+      <li>
+        Нажмите <strong>Подробнее</strong> /
+        <strong>More info</strong> в окне SmartScreen.
+      </li>
+      <li>
+        Под текстом появится кнопка
+        <strong>Выполнить в любом случае</strong> /
+        <strong>Run anyway</strong> — нажмите её.
+      </li>
+      <li>
+        Этот выбор Windows запомнит, и при следующих запусках
+        предупреждение больше не появится.
+      </li>
+    </ol>
+    {% else %}
+    <summary>Your browser may block this download</summary>
+    <p>
+      The agent installer is a fresh Windows binary that doesn't yet
+      carry a trusted publisher signature or any reputation in Microsoft
+      Defender SmartScreen. As a result, browsers often hide the
+      downloaded file and Windows refuses to launch it on first run.
+      The file is safe — if you'd like to be sure, verify the SHA-256
+      below against the value the lab-bridge operator gave you.
+    </p>
+    <p><strong>If your browser hides the download (Edge, Chrome, Brave):</strong></p>
+    <ol>
+      <li>Open the downloads list (<code>Ctrl</code>+<code>J</code>).</li>
+      <li>
+        Find <code>lab-bridge-agent-{{ info.version }}.exe</code>,
+        click the <code>⋯</code> menu (or right-click) and choose
+        <strong>Keep</strong>.
+      </li>
+      <li>
+        If a second prompt warns "This file might harm your computer",
+        choose <strong>Keep dangerous file</strong>.
+      </li>
+    </ol>
+    <p>
+      <strong>When you double-click the .exe and Windows shows
+      "Windows protected your PC":</strong>
+    </p>
+    <ol>
+      <li>
+        Click <strong>More info</strong> in the SmartScreen dialog
+        (the "Run anyway" button is hidden until you do).
+      </li>
+      <li>
+        A <strong>Run anyway</strong> button appears beneath the text —
+        click it.
+      </li>
+      <li>
+        Windows remembers the choice on this PC, so the prompt won't
+        come back on later launches.
+      </li>
+    </ol>
+    {% endif %}
+  </details>
+</section>
+{% endif %}
+
 {% if body_html %}
 <section class="agent-body prose">{{ body_html|safe }}</section>
 {% endif %}
