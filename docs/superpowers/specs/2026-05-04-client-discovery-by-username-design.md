@@ -132,15 +132,15 @@ No change to `compose/Caddyfile.tmpl`. The Caddy config has no
 jupyter:8888` receives any public request and 404s. Internal
 containers on `labnet` reach `siteapp:8000` directly.
 
-`scripts/deploy.sh` adds `siteapp` to the explicit `docker compose
-restart` list (currently `caddy chisel`, becomes `caddy chisel
-siteapp`). Reasoning: single-file bind-mounts pin the host-side
-inode at mount time. When `task deploy` rsyncs a new
-`siteapp/clients.json`, it lands at a new inode; the original mount
-still resolves to the old inode, so the container would read stale
-content forever without an explicit restart. This is the same
-problem `chisel/users.json` solves with the existing restart, and the
-fix is symmetric.
+`scripts/deploy.sh` already restarts `siteapp` explicitly (the line
+is currently `docker compose restart caddy chisel siteapp`, added
+when the agent-upload feature shipped a single-file mount of
+`agent_upload_token`). Single-file bind-mounts pin the host-side
+inode at mount time, so without that restart, an rsync'd
+replacement file (new inode) is invisible to the container. The new
+`clients.json` mount has the same property and the same restart
+already covers it — no `deploy.sh` change is required for this
+feature.
 
 ### 3. Siteapp
 
@@ -369,7 +369,7 @@ rather than spawning a parallel file.
    entry under `chisel_clients` in `config.yaml`.
 2. Operator runs `task deploy` (existing) — re-renders both
    `chisel/users.json` and `siteapp/clients.json`, rsyncs them to
-   the VPS, runs `docker compose up -d` followed by an explicit
+   the VPS, runs `docker compose up -d` followed by the existing
    `docker compose restart caddy chisel siteapp`.
 3. siteapp restarts and serves the new roster on the next request.
    The restart is required because single-file bind mounts pin the
