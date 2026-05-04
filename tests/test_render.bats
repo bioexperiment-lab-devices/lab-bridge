@@ -263,3 +263,20 @@ EOF
     siteapp_names="$(yq -p json -oy e 'keys | .[]' $TMPDIR/clients.json | sort)"
     [[ "$chisel_names" == "$siteapp_names" ]]
 }
+
+@test "render_compose: siteapp service mounts clients.json read-only and sets SITEAPP_CLIENTS_FILE" {
+    bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/fixtures/valid_config.yaml
+        render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
+    "
+    run yq e '.services.siteapp.volumes[]' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"./siteapp/clients.json:/etc/siteapp/clients.json:ro"* ]]
+
+    run yq e '.services.siteapp.environment.SITEAPP_CLIENTS_FILE' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "/etc/siteapp/clients.json" ]]
+}

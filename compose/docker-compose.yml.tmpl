@@ -71,8 +71,10 @@ services:
     restart: unless-stopped
     environment:
       SITEAPP_AGENT_UPLOAD_TOKEN__FILE: /run/secrets/agent_upload_token
+      SITEAPP_CLIENTS_FILE: /etc/siteapp/clients.json
     volumes:
       - ./site_data:/data
+      - ./siteapp/clients.json:/etc/siteapp/clients.json:ro
     secrets:
       - agent_upload_token
     networks: [labnet]
