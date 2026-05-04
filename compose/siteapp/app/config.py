@@ -36,6 +36,8 @@ def load_settings() -> Settings:
     clients_env = os.environ.get("SITEAPP_CLIENTS_FILE")
     if not clients_env:
         raise RuntimeError("SITEAPP_CLIENTS_FILE env var is required")
+    # Not .resolve()'d — this is a reference to an externally-mounted file,
+    # not a data root we own. The route reads it on each request.
     clients_file = Path(clients_env)
 
     token_file = os.environ.get("SITEAPP_AGENT_UPLOAD_TOKEN__FILE")
