@@ -192,9 +192,19 @@ EOF
     "
     [ "$status" -eq 0 ]
     echo "$output" | yq -p json e '.' >/dev/null
+
     run yq -p json -o json e '."microscope-1"' "$TMPDIR/clients.json"
     [ "$status" -eq 0 ]
     [[ "$output" == "9001" ]]
+
+    run yq -p json -o json e '."bench-2"' "$TMPDIR/clients.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "9002" ]]
+
+    # Verify exactly two keys (catches reduce-step regressions).
+    run yq -p json -o json e 'keys | length' "$TMPDIR/clients.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "2" ]]
 }
 
 @test "render_siteapp_clients: never leaks passwords" {
@@ -249,7 +259,7 @@ EOF
         render_siteapp_clients $TMPDIR/clients.json
     "
     # Names from chisel users.json keys are 'name:password'; strip the suffix.
-    chisel_names="$(yq -p json e 'keys | .[]' $TMPDIR/users.json | sed 's/:.*//' | sort)"
-    siteapp_names="$(yq -p json e 'keys | .[]' $TMPDIR/clients.json | sort)"
+    chisel_names="$(yq -p json -oy e 'keys | .[]' $TMPDIR/users.json | sed 's/:.*//' | sort)"
+    siteapp_names="$(yq -p json -oy e 'keys | .[]' $TMPDIR/clients.json | sort)"
     [[ "$chisel_names" == "$siteapp_names" ]]
 }
