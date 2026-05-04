@@ -20,6 +20,9 @@ def client(tmp_path: Path, monkeypatch) -> TestClient:
     import app.main
 
     reload(app.main)
+    # raise_server_exceptions=False so the 500-path tests in this file see
+    # an HTTP 500 response (matching uvicorn's production behavior) instead
+    # of TestClient re-raising the underlying exception in-process.
     return TestClient(app.main.app, raise_server_exceptions=False)
 
 

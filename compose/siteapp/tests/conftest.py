@@ -21,6 +21,11 @@ def _clients_file_default(tmp_path: Path, monkeypatch) -> Path:
     fixture (in test_routes_api.py) and write to it directly. This
     autouse fixture only ensures load_settings() doesn't blow up when
     individual tests don't care about the clients endpoint.
+
+    Caveat: tests that *intentionally* assert the env var is absent
+    (e.g. test_clients_file_required) must call
+    ``monkeypatch.delenv("SITEAPP_CLIENTS_FILE", raising=False)``
+    themselves — this autouse fixture sets it on every test.
     """
     p = tmp_path / "clients.json"
     p.write_text("{}", encoding="utf-8")
