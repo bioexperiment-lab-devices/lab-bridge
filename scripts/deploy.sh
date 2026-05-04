@@ -22,10 +22,11 @@ main() {
     local stage="$_STAGE"
 
     log "rendering templates..."
-    mkdir -p "$stage/chisel" "$stage/loki" "$stage/grafana/provisioning"
+    mkdir -p "$stage/chisel" "$stage/loki" "$stage/grafana/provisioning" "$stage/siteapp"
     render_compose     "$REPO_ROOT/compose/docker-compose.yml.tmpl" "$stage/docker-compose.yml"
     render_caddyfile   "$REPO_ROOT/compose/Caddyfile.tmpl"           "$stage/Caddyfile"
     render_chisel_users "$stage/chisel/users.json"
+    render_siteapp_clients "$stage/siteapp/clients.json"
     render_loki_config  "$REPO_ROOT/compose/loki/config.yaml.tmpl"   "$stage/loki/config.yaml"
 
     # Static Grafana provisioning — datasource + dashboard provider + dashboard JSON.
