@@ -1,4 +1,4 @@
-# 🧪 lab-bridge
+# Добро пожаловать в lab-bridge 🧪
 
 lab-bridge — приватное рабочее пространство команды для проведения
 биоэкспериментов и анализа результатов. Открывайте общий JupyterLab в
@@ -71,7 +71,7 @@ flowchart LR
 [@khamitov_denis](https://t.me/khamitov_denis).
 
 Для операторов и технических пользователей:
-<img src="icons/grafana.svg" alt="" width="16"> [дашборд логов устройств](/grafana/)
+<img src="icons/grafana.svg" alt="" width="16"> [дашборд логов устройств](/grafana/d/lab-bridge-client-logs/lab-client-logs?from=now-12h&to=now&var-client=$__all&var-stream=$__all&var-version=$__all&refresh=10s&viewPanel=panel-1)
 показывает живой поток событий по каждому подключённому агенту (ошибки,
 версии, трафик) — фильтруйте по имени клиента, чтобы посмотреть, чем
 занят конкретный агент.

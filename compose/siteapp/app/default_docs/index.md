@@ -1,4 +1,4 @@
-# 🧪 lab-bridge
+# Welcome to lab-bridge 🧪
 
 lab-bridge is the team's private workspace for running bio-experiments and
 analyzing results. Open the shared JupyterLab in your browser, drive any
@@ -70,6 +70,6 @@ For everyday questions, reach out to the lab-bridge operator
 [@khamitov_denis](https://t.me/khamitov_denis).
 
 For operators and tech users: the
-<img src="icons/grafana.svg" alt="" width="16"> [device logs dashboard](/grafana/)
+<img src="icons/grafana.svg" alt="" width="16"> [device logs dashboard](/grafana/d/lab-bridge-client-logs/lab-client-logs?from=now-12h&to=now&var-client=$__all&var-stream=$__all&var-version=$__all&refresh=10s&viewPanel=panel-1)
 shows a live tail of every connected agent (errors, versions, traffic) —
 filter by client name to see what a specific agent is doing.
