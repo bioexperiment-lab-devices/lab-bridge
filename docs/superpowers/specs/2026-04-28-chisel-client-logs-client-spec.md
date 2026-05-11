@@ -4,6 +4,7 @@
 **Status:** Approved (server-side merged; client-side not yet implemented)
 **Audience:** Developers of `lab_devices_client` (separate repository).
 **Companion doc:** [2026-04-28-chisel-client-logs-design.md](./2026-04-28-chisel-client-logs-design.md) — server-side design and rationale. This file is the contract the client must honor.
+**See also:** [2026-05-11-server-info-client-spec.md](./2026-05-11-server-info-client-spec.md) — at startup, the agent now fetches `loki.push_url` and the forward-tunnel arg from `/api/public/server-info` instead of hardcoding them. The values match what this spec describes; the source of truth has moved.
 
 ## Purpose
 

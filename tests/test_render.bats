@@ -20,6 +20,9 @@ teardown() { teardown_tmpdir; }
     [[ "$output" == *"/srv/jupyterlab/work:/home/jovyan/work"* ]]
     [[ "$output" == *"--port=8080"* ]]
     [[ "$output" == *'"8080:8080"'* ]]
+    # grep (not [[ ]]) so a missing env var actually fails the test;
+    # bats does not reliably enforce mid-test [[ ]] failures (see bats-assert).
+    grep -q "SITEAPP_CHISEL_LISTEN_PORT: 8080" <<< "$output"
     [[ "$output" == *"--ServerApp.password=sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"* ]]
     # No leftover placeholders. Match `__NAME__` (bracketed both sides) to
     # avoid false positives on Docker secret env var suffixes like `__FILE`.
