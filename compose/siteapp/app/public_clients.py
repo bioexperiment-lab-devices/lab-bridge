@@ -3,9 +3,12 @@ from __future__ import annotations
 import hashlib
 import json
 import secrets as secrets_mod
+import socket
 from pathlib import Path
 
 DUMMY_HASH = b"\x00" * 32  # used for constant-time miss-branch compare
+CHISEL_HOST = "chisel"
+TCP_PROBE_TIMEOUT = 0.3  # seconds; per-request, sub-millisecond on a healthy labnet
 
 
 def _parse_bearer(authorization: str | None) -> str:
@@ -41,3 +44,16 @@ def _verify(username: str, bearer: str, roster: dict) -> dict | None:
     if not secrets_mod.compare_digest(expected, bearer_hash):
         return None
     return entry
+
+
+def _probe_tunnel(port: int) -> bool:
+    """Return True iff TCP dial to chisel:<port> succeeded within timeout.
+
+    chisel-server tears down the reverse listener when a client
+    disconnects, so a successful connect implies an active session.
+    """
+    try:
+        with socket.create_connection((CHISEL_HOST, port), TCP_PROBE_TIMEOUT):
+            return True
+    except OSError:
+        return False

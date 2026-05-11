@@ -102,3 +102,37 @@ def test_verify_entry_malformed_hash_returns_none() -> None:
     # Non-hex hash. Should fail closed without raising.
     roster = {"alice": {"port": 8089, "password_sha256": "not-hex!"}}
     assert _verify("alice", "anything", roster) is None
+
+
+# ----- _probe_tunnel ------------------------------------------------------
+
+import socket
+from unittest.mock import patch, MagicMock
+
+
+def test_probe_tunnel_open_port_returns_true() -> None:
+    from app.public_clients import _probe_tunnel
+
+    mock_sock = MagicMock()
+    mock_sock.__enter__ = MagicMock(return_value=mock_sock)
+    mock_sock.__exit__ = MagicMock(return_value=False)
+
+    with patch("app.public_clients.socket.create_connection", return_value=mock_sock) as m:
+        assert _probe_tunnel(8089) is True
+    m.assert_called_once()
+    args, kwargs = m.call_args
+    assert args[0] == ("chisel", 8089)
+
+
+def test_probe_tunnel_closed_port_returns_false() -> None:
+    from app.public_clients import _probe_tunnel
+
+    with patch("app.public_clients.socket.create_connection", side_effect=OSError("refused")):
+        assert _probe_tunnel(8089) is False
+
+
+def test_probe_tunnel_timeout_returns_false() -> None:
+    from app.public_clients import _probe_tunnel
+
+    with patch("app.public_clients.socket.create_connection", side_effect=socket.timeout):
+        assert _probe_tunnel(8089) is False
