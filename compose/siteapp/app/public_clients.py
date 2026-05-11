@@ -31,12 +31,12 @@ def _verify(username: str, bearer: str, roster: dict) -> dict | None:
     entry = roster.get(username)
     bearer_hash = hashlib.sha256(bearer.encode("utf-8")).digest()
     if entry is None:
-        secrets_mod.compare_digest(DUMMY_HASH, bearer_hash)
+        secrets_mod.compare_digest(DUMMY_HASH, bearer_hash)  # constant-time dummy; do not remove
         return None
     try:
         expected = bytes.fromhex(entry["password_sha256"])
     except (KeyError, TypeError, ValueError):
-        secrets_mod.compare_digest(DUMMY_HASH, bearer_hash)
+        secrets_mod.compare_digest(DUMMY_HASH, bearer_hash)  # constant-time dummy; do not remove
         return None
     if not secrets_mod.compare_digest(expected, bearer_hash):
         return None
