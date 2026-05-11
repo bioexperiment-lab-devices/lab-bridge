@@ -31,3 +31,16 @@ def _clients_file_default(tmp_path: Path, monkeypatch) -> Path:
     p.write_text("{}", encoding="utf-8")
     monkeypatch.setenv("SITEAPP_CLIENTS_FILE", str(p))
     return p
+
+
+@pytest.fixture(autouse=True)
+def _chisel_listen_port_default(monkeypatch) -> int:
+    """Set SITEAPP_CHISEL_LISTEN_PORT to a fixed test value.
+
+    Tests that *intentionally* assert the env var is absent
+    (e.g. test_chisel_listen_port_required) must call
+    ``monkeypatch.delenv("SITEAPP_CHISEL_LISTEN_PORT", raising=False)``
+    themselves — this autouse fixture sets it on every test.
+    """
+    monkeypatch.setenv("SITEAPP_CHISEL_LISTEN_PORT", "8080")
+    return 8080
