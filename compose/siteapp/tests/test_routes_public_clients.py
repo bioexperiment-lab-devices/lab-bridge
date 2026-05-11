@@ -239,3 +239,80 @@ def test_public_clients_malformed_roster_returns_500(app_client) -> None:
         headers={"Authorization": f"Bearer {PASSWORD}"},
     )
     assert r.status_code == 500
+
+
+# ----- /api/public/health -------------------------------------------------
+
+import httpx
+
+
+class _FakeResp:
+    def __init__(self, status_code: int) -> None:
+        self.status_code = status_code
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            req = httpx.Request("GET", "http://chisel:7000/health")
+            raise httpx.HTTPStatusError(
+                f"http {self.status_code}", request=req, response=httpx.Response(self.status_code, request=req)
+            )
+
+
+def test_health_ok_when_chisel_returns_200(app_client, monkeypatch) -> None:
+    client, _ = app_client
+    monkeypatch.setattr("app.public_clients.httpx.get", lambda *a, **kw: _FakeResp(200))
+
+    r = client.get("/api/public/health")
+    assert r.status_code == 200
+    assert r.json() == {"chisel": "ok"}
+
+
+def test_health_down_when_chisel_returns_5xx(app_client, monkeypatch) -> None:
+    client, _ = app_client
+    monkeypatch.setattr("app.public_clients.httpx.get", lambda *a, **kw: _FakeResp(502))
+
+    r = client.get("/api/public/health")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["chisel"] == "down"
+    assert body["error"] == "http 502"
+
+
+def test_health_down_on_timeout(app_client, monkeypatch) -> None:
+    def _raise(*a, **kw):
+        raise httpx.TimeoutException("slow")
+
+    client, _ = app_client
+    monkeypatch.setattr("app.public_clients.httpx.get", _raise)
+
+    r = client.get("/api/public/health")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["chisel"] == "down"
+    assert body["error"] == "timeout"
+
+
+def test_health_down_on_connect_error(app_client, monkeypatch) -> None:
+    def _raise(*a, **kw):
+        raise httpx.ConnectError("refused")
+
+    client, _ = app_client
+    monkeypatch.setattr("app.public_clients.httpx.get", _raise)
+
+    r = client.get("/api/public/health")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["chisel"] == "down"
+    assert body["error"] == "connecterror"
+
+
+def test_health_route_does_not_require_auth(app_client) -> None:
+    # No mocking — let the real httpx call fail (chisel is not running
+    # in the unit-test process). What we're asserting is that the lack
+    # of an Authorization header does NOT short-circuit the request.
+    client, _ = app_client
+    r = client.get("/api/public/health")
+    assert r.status_code == 200
+    # Either "ok" or "down" is fine; we're checking the route is reachable
+    # without credentials.
+    assert r.json()["chisel"] in {"ok", "down"}

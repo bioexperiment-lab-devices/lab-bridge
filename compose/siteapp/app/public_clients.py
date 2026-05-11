@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import httpx
 import json
 import secrets as secrets_mod
 import socket
@@ -12,6 +13,8 @@ from app.config import Settings
 
 DUMMY_HASH = b"\x00" * 32  # used for constant-time miss-branch compare
 CHISEL_HOST = "chisel"
+CHISEL_HEALTH_URL = "http://chisel:7000/health"
+HEALTH_PROBE_TIMEOUT = 1.0  # seconds
 TCP_PROBE_TIMEOUT = 0.3  # seconds; per-request, sub-millisecond on a healthy labnet
 
 
@@ -78,5 +81,18 @@ def make_router(settings: Settings) -> APIRouter:
             raise HTTPException(status_code=401, detail="unauthorized")
         port = int(entry["port"])
         return {"port": port, "connected": _probe_tunnel(port)}
+
+    @router.get("/api/public/health")
+    def get_health() -> dict:
+        try:
+            r = httpx.get(CHISEL_HEALTH_URL, timeout=HEALTH_PROBE_TIMEOUT)
+            r.raise_for_status()
+            return {"chisel": "ok"}
+        except httpx.HTTPStatusError as e:
+            return {"chisel": "down", "error": f"http {e.response.status_code}"}
+        except httpx.TimeoutException:
+            return {"chisel": "down", "error": "timeout"}
+        except httpx.HTTPError as e:
+            return {"chisel": "down", "error": type(e).__name__.lower()}
 
     return router
