@@ -94,7 +94,9 @@ def clients_file(_clients_file_default: Path) -> Path:
 
 def test_clients_endpoint_happy_path(client: TestClient, clients_file: Path) -> None:
     clients_file.write_text(
-        '{"khamit_desktop": 8089, "another_lab": 8090}', encoding="utf-8"
+        '{"khamit_desktop": {"port": 8089, "password_sha256": "aa"},'
+        ' "another_lab": {"port": 8090, "password_sha256": "bb"}}',
+        encoding="utf-8",
     )
 
     r = client.get("/api/clients/")
@@ -115,12 +117,18 @@ def test_clients_endpoint_empty_roster(client: TestClient) -> None:
 def test_clients_endpoint_rereads_on_each_request(
     client: TestClient, clients_file: Path
 ) -> None:
-    clients_file.write_text('{"a": 1}', encoding="utf-8")
+    clients_file.write_text(
+        '{"a": {"port": 1, "password_sha256": "aa"}}', encoding="utf-8"
+    )
     r1 = client.get("/api/clients/")
     assert r1.status_code == 200
     assert r1.json() == {"a": {"host": "chisel", "port": 1}}
 
-    clients_file.write_text('{"a": 1, "b": 2}', encoding="utf-8")
+    clients_file.write_text(
+        '{"a": {"port": 1, "password_sha256": "aa"},'
+        ' "b": {"port": 2, "password_sha256": "bb"}}',
+        encoding="utf-8",
+    )
     r2 = client.get("/api/clients/")
     assert r2.status_code == 200
     assert r2.json() == {

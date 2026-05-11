@@ -9,12 +9,50 @@ from app.clients import CHISEL_HOST, load_roster
 
 def test_happy_path(tmp_path: Path) -> None:
     f = tmp_path / "clients.json"
-    f.write_text('{"khamit_desktop": 8089, "another_lab": 8090}', encoding="utf-8")
+    f.write_text(
+        '{"khamit_desktop": {"port": 8089, "password_sha256": "aa"},'
+        ' "another_lab": {"port": 8090, "password_sha256": "bb"}}',
+        encoding="utf-8",
+    )
 
     assert load_roster(f) == {
         "khamit_desktop": {"host": CHISEL_HOST, "port": 8089},
         "another_lab": {"host": CHISEL_HOST, "port": 8090},
     }
+
+
+def test_rejects_old_flat_shape(tmp_path: Path) -> None:
+    # The flat {name: int} shape was the pre-2026-05-11 format. After the
+    # renderer change, an int value means a stale clients.json on the VPS.
+    f = tmp_path / "clients.json"
+    f.write_text('{"x": 8089}', encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        load_roster(f)
+
+
+def test_rejects_entry_missing_port(tmp_path: Path) -> None:
+    f = tmp_path / "clients.json"
+    f.write_text('{"x": {"password_sha256": "aa"}}', encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        load_roster(f)
+
+
+def test_rejects_non_int_port(tmp_path: Path) -> None:
+    f = tmp_path / "clients.json"
+    f.write_text('{"x": {"port": "not-a-port", "password_sha256": "aa"}}', encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        load_roster(f)
+
+
+def test_rejects_bool_port(tmp_path: Path) -> None:
+    f = tmp_path / "clients.json"
+    f.write_text('{"x": {"port": true, "password_sha256": "aa"}}', encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        load_roster(f)
 
 
 def test_empty_roster(tmp_path: Path) -> None:
@@ -45,19 +83,3 @@ def test_top_level_not_object_raises(tmp_path: Path) -> None:
         load_roster(f)
 
 
-def test_non_int_value_raises(tmp_path: Path) -> None:
-    f = tmp_path / "clients.json"
-    f.write_text('{"x": "not-a-port"}', encoding="utf-8")
-
-    with pytest.raises(ValueError):
-        load_roster(f)
-
-
-def test_bool_value_rejected(tmp_path: Path) -> None:
-    # YAML "yes"/"no" can render as true/false; reject those explicitly
-    # because isinstance(True, int) is True in Python.
-    f = tmp_path / "clients.json"
-    f.write_text('{"x": true}', encoding="utf-8")
-
-    with pytest.raises(ValueError):
-        load_roster(f)

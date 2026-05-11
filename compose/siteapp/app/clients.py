@@ -13,16 +13,21 @@ def load_roster(path: Path) -> dict[str, dict[str, object]]:
     Raises OSError on missing/unreadable file, ValueError on malformed
     JSON or wrong shape. The route layer lets these propagate so
     FastAPI returns a 500 and uvicorn logs the traceback.
+
+    Entry shape on disk is {"port": int, "password_sha256": str};
+    the hash is used by the public-clients endpoint and ignored here.
     """
     raw = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ValueError("clients.json must be a JSON object")
     out: dict[str, dict[str, object]] = {}
-    for name, port in raw.items():
+    for name, entry in raw.items():
         if not isinstance(name, str):
             raise ValueError(f"roster key must be string, got: {name!r}")
-        # bool is a subclass of int in Python; exclude it explicitly.
+        if not isinstance(entry, dict):
+            raise ValueError(f"roster value must be object, got: {name}={entry!r}")
+        port = entry.get("port")
         if isinstance(port, bool) or not isinstance(port, int):
-            raise ValueError(f"roster value must be int, got: {name}={port!r}")
+            raise ValueError(f"roster port must be int, got: {name}.port={port!r}")
         out[name] = {"host": CHISEL_HOST, "port": port}
     return out
