@@ -6,6 +6,10 @@ import secrets as secrets_mod
 import socket
 from pathlib import Path
 
+from fastapi import APIRouter, Header, HTTPException, Path as PathParam
+
+from app.config import Settings
+
 DUMMY_HASH = b"\x00" * 32  # used for constant-time miss-branch compare
 CHISEL_HOST = "chisel"
 TCP_PROBE_TIMEOUT = 0.3  # seconds; per-request, sub-millisecond on a healthy labnet
@@ -57,11 +61,6 @@ def _probe_tunnel(port: int) -> bool:
             return True
     except OSError:
         return False
-
-
-from fastapi import APIRouter, Header, HTTPException, Path as PathParam
-
-from app.config import Settings
 
 
 def make_router(settings: Settings) -> APIRouter:
