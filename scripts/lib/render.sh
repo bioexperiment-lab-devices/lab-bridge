@@ -75,8 +75,8 @@ render_siteapp_clients() {
         printf '{"%s":{"port":%s,"password_sha256":"%s"}}' \
             "$name" "$port" "$hash" >> "$tmp_entries"
         first=false
-    done < <(yq -o=tsv e '.chisel_clients[] | [.name, .reverse_port, .password] | @tsv' \
-                "${CONFIG_PATH:?}" 2>/dev/null || true)
+    done < <(yq -o=tsv e '(.chisel_clients // [])[] | [.name, .reverse_port, .password] | @tsv' \
+                "${CONFIG_PATH:?}")
     printf ']' >> "$tmp_entries"
 
     # Merge the array of single-key objects into one object (same as render_chisel_users).
