@@ -181,7 +181,7 @@ EOF
     [[ "$output" == "v13" ]]
 }
 
-@test "render_siteapp_clients: emits flat name→reverse_port map" {
+@test "render_siteapp_clients: emits {port, password_sha256} per entry" {
     run bash -c "
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
@@ -193,21 +193,39 @@ EOF
     [ "$status" -eq 0 ]
     echo "$output" | yq -p json e '.' >/dev/null
 
-    run yq -p json -o json e '."microscope-1"' "$TMPDIR/clients.json"
+    run yq -p json -o json e '."microscope-1".port' "$TMPDIR/clients.json"
     [ "$status" -eq 0 ]
     [[ "$output" == "9001" ]]
 
-    run yq -p json -o json e '."bench-2"' "$TMPDIR/clients.json"
+    run yq -p json -o json e '."bench-2".port' "$TMPDIR/clients.json"
     [ "$status" -eq 0 ]
     [[ "$output" == "9002" ]]
 
-    # Verify exactly two keys (catches reduce-step regressions).
+    # Hash is 64 lowercase hex chars
+    run yq -p json e '."microscope-1".password_sha256' "$TMPDIR/clients.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ ^[0-9a-f]{64}$ ]]
+
+    # Verify exactly two top-level keys
     run yq -p json -o json e 'keys | length' "$TMPDIR/clients.json"
     [ "$status" -eq 0 ]
     [[ "$output" == "2" ]]
 }
 
-@test "render_siteapp_clients: never leaks passwords" {
+@test "render_siteapp_clients: password_sha256 matches sha256(password)" {
+    bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/fixtures/valid_config.yaml
+        render_siteapp_clients $TMPDIR/clients.json
+    "
+    expected="$(printf '%s' 'k7HfLpNqRsT3uVwX1yZ2aB3cD4eF5gH6' | openssl dgst -sha256 -hex | awk '{print $NF}')"
+    actual="$(yq -p json e '."microscope-1".password_sha256' "$TMPDIR/clients.json")"
+    [[ "$expected" == "$actual" ]]
+}
+
+@test "render_siteapp_clients: never leaks passwords; hash field present" {
     run bash -c "
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
@@ -219,7 +237,8 @@ EOF
     [ "$status" -eq 0 ]
     # The fixture's password is k7HfLpNqRsT3uVwX1yZ2aB3cD4eF5gH6
     [[ "$output" != *"k7HfLpNqRsT3uVwX1yZ2aB3cD4eF5gH6"* ]]
-    [[ "$output" != *"password"* ]]
+    # Hash field IS expected — this is the positive shape check
+    [[ "$output" == *'"password_sha256"'* ]]
 }
 
 @test "render_siteapp_clients: empty chisel_clients yields empty object" {
