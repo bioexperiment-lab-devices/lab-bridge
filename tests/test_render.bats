@@ -299,3 +299,35 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == "/etc/siteapp/clients.json" ]]
 }
+
+@test "render_caddyfile: handles /api/public* by reverse-proxying to siteapp" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/fixtures/valid_config.yaml
+        render_caddyfile $ROOT/compose/Caddyfile.tmpl $TMPDIR/Caddyfile
+        cat $TMPDIR/Caddyfile
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"handle /api/public*"* ]]
+    # The handle block must reverse-proxy to siteapp (not jupyter).
+    # Grep for the line within ~5 lines after the handle directive.
+    [[ "$(grep -A 5 'handle /api/public\*' <<< "$output")" == *"reverse_proxy siteapp:8000"* ]]
+}
+
+@test "render_caddyfile: /api/clients/ has NO handle (stays internal)" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/fixtures/valid_config.yaml
+        render_caddyfile $ROOT/compose/Caddyfile.tmpl $TMPDIR/Caddyfile
+        cat $TMPDIR/Caddyfile
+    "
+    [ "$status" -eq 0 ]
+    # The internal endpoint at /api/clients/ must NOT have its own
+    # Caddy handle; it stays unreachable from the public side via the
+    # jupyter catch-all. (The /api/public* handle is unrelated.)
+    ! grep -qE 'handle /api/clients' <<< "$output"
+}
