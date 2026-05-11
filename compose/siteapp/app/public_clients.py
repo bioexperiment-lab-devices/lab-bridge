@@ -57,3 +57,27 @@ def _probe_tunnel(port: int) -> bool:
             return True
     except OSError:
         return False
+
+
+from fastapi import APIRouter, Header, HTTPException, Path as PathParam
+
+from app.config import Settings
+
+
+def make_router(settings: Settings) -> APIRouter:
+    router = APIRouter()
+
+    @router.get("/api/public/clients/{username}")
+    def get_client(
+        username: str = PathParam(..., min_length=1, max_length=128),
+        authorization: str | None = Header(default=None),
+    ) -> dict:
+        bearer = _parse_bearer(authorization)
+        roster = _load_roster(settings.clients_file)
+        entry = _verify(username, bearer, roster)
+        if entry is None:
+            raise HTTPException(status_code=401, detail="unauthorized")
+        port = int(entry["port"])
+        return {"port": port, "connected": _probe_tunnel(port)}
+
+    return router

@@ -136,3 +136,106 @@ def test_probe_tunnel_timeout_returns_false() -> None:
 
     with patch("app.public_clients.socket.create_connection", side_effect=socket.timeout):
         assert _probe_tunnel(8089) is False
+
+
+# ----- /api/public/clients/{username} -------------------------------------
+
+import hashlib as _hashlib_for_routes
+from fastapi.testclient import TestClient
+
+
+PASSWORD = "ccTMYfkmJmIQCg-ApvdjV5l4IBqZT0dD"
+USERNAME = "khamit_desktop"
+
+
+@pytest.fixture
+def app_client(tmp_path: Path, monkeypatch, _clients_file_default: Path):
+    monkeypatch.setenv("SITE_DATA", str(tmp_path))
+    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "irrelevant-for-this-suite")
+    from importlib import reload
+    import app.main
+    reload(app.main)
+    # raise_server_exceptions=False so 500-path tests see HTTP 500
+    return TestClient(app.main.app, raise_server_exceptions=False), _clients_file_default
+
+
+def _write_roster(path: Path, *, username: str = USERNAME, password: str = PASSWORD, port: int = 8089) -> None:
+    pwhash = _hashlib_for_routes.sha256(password.encode("utf-8")).hexdigest()
+    path.write_text(
+        '{"' + username + '": {"port": ' + str(port) + ', "password_sha256": "' + pwhash + '"}}',
+        encoding="utf-8",
+    )
+
+
+def test_public_clients_happy_path_returns_port_and_connected(app_client, monkeypatch) -> None:
+    client, roster_file = app_client
+    _write_roster(roster_file, port=8089)
+    monkeypatch.setattr("app.public_clients._probe_tunnel", lambda port: True)
+
+    r = client.get(
+        f"/api/public/clients/{USERNAME}",
+        headers={"Authorization": f"Bearer {PASSWORD}"},
+    )
+    assert r.status_code == 200
+    assert r.json() == {"port": 8089, "connected": True}
+
+
+def test_public_clients_returns_connected_false_when_probe_fails(app_client, monkeypatch) -> None:
+    client, roster_file = app_client
+    _write_roster(roster_file, port=8089)
+    monkeypatch.setattr("app.public_clients._probe_tunnel", lambda port: False)
+
+    r = client.get(
+        f"/api/public/clients/{USERNAME}",
+        headers={"Authorization": f"Bearer {PASSWORD}"},
+    )
+    assert r.status_code == 200
+    assert r.json() == {"port": 8089, "connected": False}
+
+
+def test_public_clients_401_responses_are_byte_identical(app_client) -> None:
+    client, roster_file = app_client
+    _write_roster(roster_file)
+
+    cases = {
+        "wrong_token": (USERNAME, {"Authorization": "Bearer wrong-password-zzz"}),
+        "unknown_user": ("does-not-exist", {"Authorization": f"Bearer {PASSWORD}"}),
+        "missing_header": (USERNAME, {}),
+        "wrong_scheme": (USERNAME, {"Authorization": f"Basic {PASSWORD}"}),
+    }
+
+    results = {}
+    for name, (username, headers) in cases.items():
+        r = client.get(f"/api/public/clients/{username}", headers=headers)
+        body = r.content
+        status = r.status_code
+        ignored = {"date", "server", "content-length"}
+        hdrs = {k.lower(): v for k, v in r.headers.items() if k.lower() not in ignored}
+        results[name] = (status, body, hdrs)
+
+    statuses = {v[0] for v in results.values()}
+    bodies = {v[1] for v in results.values()}
+    headerses = [v[2] for v in results.values()]
+    assert statuses == {401}, f"non-401 in {results}"
+    assert len(bodies) == 1, f"non-identical bodies: {bodies}"
+    assert all(h == headerses[0] for h in headerses), f"non-identical headers: {headerses}"
+
+
+def test_public_clients_missing_roster_returns_500(app_client) -> None:
+    client, roster_file = app_client
+    roster_file.unlink()
+    r = client.get(
+        f"/api/public/clients/{USERNAME}",
+        headers={"Authorization": f"Bearer {PASSWORD}"},
+    )
+    assert r.status_code == 500
+
+
+def test_public_clients_malformed_roster_returns_500(app_client) -> None:
+    client, roster_file = app_client
+    roster_file.write_text("not-json", encoding="utf-8")
+    r = client.get(
+        f"/api/public/clients/{USERNAME}",
+        headers={"Authorization": f"Bearer {PASSWORD}"},
+    )
+    assert r.status_code == 500
