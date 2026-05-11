@@ -8,6 +8,7 @@ from app.agent import make_router as make_agent_router
 from app.api import make_router as make_api_router
 from app.config import load_settings
 from app.docs import make_router as make_docs_router
+from app.public_clients import make_router as make_public_clients_router
 from app.templates import TEMPLATE_DIR
 
 settings = load_settings()
@@ -22,6 +23,7 @@ app.include_router(make_docs_router(settings))
 app.include_router(make_agent_router(settings))
 app.include_router(make_api_router(settings))
 app.include_router(make_admin_router(settings))
+app.include_router(make_public_clients_router(settings))
 
 
 @app.get("/healthz")

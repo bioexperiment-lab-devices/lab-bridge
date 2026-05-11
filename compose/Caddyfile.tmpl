@@ -44,6 +44,13 @@ https://__VPS_HOST__ {
         reverse_proxy siteapp:8000
     }
 
+    # Public agent API — port lookup, connected status, chisel health.
+    # Auth is enforced inside siteapp (bearer = chisel password);
+    # enumeration resistance and brute-force defense live there too.
+    handle /api/public* {
+        reverse_proxy siteapp:8000
+    }
+
     # Bare-root redirect: visitors hitting / land on the public docs portal
     # rather than the JupyterLab login. JupyterLab is still reachable at /lab,
     # /login, /tree, /api/*, etc. — only the exact path / is intercepted.

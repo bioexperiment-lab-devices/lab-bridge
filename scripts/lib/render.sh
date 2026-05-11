@@ -50,17 +50,42 @@ render_chisel_users() {
 
 # render_siteapp_clients <output_path>
 # Builds the siteapp clients.json from .chisel_clients in CONFIG_PATH.
-# Output is a flat name → reverse_port map. Passwords are deliberately
-# omitted: siteapp's clients endpoint is internal-only and never needs
-# to authenticate as a chisel client.
+# Output shape: {"<name>": {"port": <int>, "password_sha256": "<hex>"}, ...}
+# The password itself is never written — only its SHA-256 hash.
+# Why SHA-256 (not bcrypt): chisel passwords are 32-byte cryptographic
+# random tokens (~256 bits), so preimage resistance of SHA-256 is more
+# than enough. Bcrypt's cost factor exists to slow dictionary attacks
+# against low-entropy human passwords; that threat doesn't apply here.
+# Note: yq v4 lacks @sha256, so we build the JSON via a shell loop using
+# openssl for hashing, then merge the entries with yq.
 render_siteapp_clients() {
     local out="${1:?}"
-    yq -o=json e '
-        .chisel_clients
-        | map({(.name): .reverse_port})
-        | (. // [{}])
+    local tmp_entries
+    tmp_entries="$(mktemp)"
+
+    # Build one JSON object per client: {"name": {"port": N, "password_sha256": "hex"}}
+    printf '[' > "$tmp_entries"
+    local first=true
+    while IFS=$'\t' read -r name port password; do
+        # Skip empty lines (yq emits a bare newline for an empty array)
+        [[ -z "$name" ]] && continue
+        local hash
+        hash="$(printf '%s' "$password" | openssl dgst -sha256 -binary | xxd -p -c 64)"
+        "$first" || printf ',' >> "$tmp_entries"
+        printf '{"%s":{"port":%s,"password_sha256":"%s"}}' \
+            "$name" "$port" "$hash" >> "$tmp_entries"
+        first=false
+    done < <(yq -o=tsv e '(.chisel_clients // [])[] | [.name, .reverse_port, .password] | @tsv' \
+                "${CONFIG_PATH:?}")
+    printf ']' >> "$tmp_entries"
+
+    # Merge the array of single-key objects into one object (same as render_chisel_users).
+    yq -p=json -o=json e '
+        (. // [{}])
         | .[] as $item ireduce ({}; . * $item)
-    ' "${CONFIG_PATH:?}" > "$out"
+    ' "$tmp_entries" > "$out"
+
+    rm -f "$tmp_entries"
 }
 
 # render_loki_config <template_path> <output_path>
