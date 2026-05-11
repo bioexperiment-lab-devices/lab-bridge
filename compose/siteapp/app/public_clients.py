@@ -25,9 +25,24 @@ def _parse_bearer(authorization: str | None) -> str:
 
 
 def _load_roster(path: Path) -> dict[str, dict]:
+    """Read clients.json and validate the per-entry shape.
+
+    Returns the raw dict (entries include port + password_sha256).
+    Raises OSError on missing file; ValueError on malformed JSON or
+    bad entry shape. Hash-string validation is intentionally deferred
+    to _verify, which fails closed on a malformed or missing hash.
+    """
     raw = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ValueError("clients.json must be a JSON object")
+    for name, entry in raw.items():
+        if not isinstance(entry, dict):
+            raise ValueError(f"roster value must be object, got: {name}={entry!r}")
+        port = entry.get("port")
+        # bool is a subclass of int; reject it explicitly so a YAML
+        # `true` doesn't silently coerce to port 1 downstream.
+        if isinstance(port, bool) or not isinstance(port, int):
+            raise ValueError(f"roster port must be int, got: {name}.port={port!r}")
     return raw
 
 

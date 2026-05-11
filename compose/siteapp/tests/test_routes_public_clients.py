@@ -66,6 +66,29 @@ def test_load_roster_non_object_raises(tmp_path: Path) -> None:
         _load_roster(f)
 
 
+def test_load_roster_rejects_non_dict_entry(tmp_path: Path) -> None:
+    f = tmp_path / "r.json"
+    f.write_text('{"x": 8089}', encoding="utf-8")
+    with pytest.raises(ValueError):
+        _load_roster(f)
+
+
+def test_load_roster_rejects_bool_port(tmp_path: Path) -> None:
+    # bool is a subclass of int; without an explicit check it would
+    # silently coerce to port 0/1 in the route layer.
+    f = tmp_path / "r.json"
+    f.write_text('{"x": {"port": true, "password_sha256": "aa"}}', encoding="utf-8")
+    with pytest.raises(ValueError):
+        _load_roster(f)
+
+
+def test_load_roster_rejects_string_port(tmp_path: Path) -> None:
+    f = tmp_path / "r.json"
+    f.write_text('{"x": {"port": "8089", "password_sha256": "aa"}}', encoding="utf-8")
+    with pytest.raises(ValueError):
+        _load_roster(f)
+
+
 # ----- _verify ------------------------------------------------------------
 
 def _hash(s: str) -> str:
