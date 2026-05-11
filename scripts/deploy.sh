@@ -89,7 +89,7 @@ main() {
     # which 200-on-login does not.
     if [[ "${LDS_SKIP_HEALTHCHECK:-}" != "1" ]]; then
         log "waiting for HTTPS to respond..."
-        local i jupyter_status grafana_status docs_status download_status admin_status static_status
+        local i jupyter_status grafana_status docs_status download_status admin_status static_status public_status
         for ((i=0; i<60; i++)); do
             jupyter_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/" || true)"
             grafana_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/grafana/login" || true)"
@@ -99,19 +99,25 @@ main() {
             # /_static/site.css must reach siteapp (not the jupyter catchall) or
             # every siteapp page renders unstyled. Probe one known asset.
             static_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/_static/site.css" || true)"
+            # /api/public/health is unauthenticated and always returns 200; a
+            # non-200 means Caddy's /api/public* handle is misconfigured or
+            # siteapp didn't restart cleanly. Confirms the new public surface
+            # is wired before we declare the deploy successful.
+            public_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/api/public/health" || true)"
             # /admin/ MUST be 401 without creds. A 200 here is a security regression.
             if [[ "$jupyter_status" =~ ^[23][0-9][0-9]$ ]] \
                 && [[ "$grafana_status" == "200" ]] \
                 && [[ "$docs_status" == "200" ]] \
                 && [[ "$download_status" == "200" ]] \
                 && [[ "$admin_status" == "401" ]] \
-                && [[ "$static_status" == "200" ]]; then
-                log "deployed: jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, admin $admin_status, static $static_status"
+                && [[ "$static_status" == "200" ]] \
+                && [[ "$public_status" == "200" ]]; then
+                log "deployed: jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, admin $admin_status, static $static_status, public $public_status"
                 return 0
             fi
             sleep 1
         done
-        warn "health check timed out (jupyter:$jupyter_status grafana:$grafana_status docs:$docs_status download:$download_status admin:$admin_status static:$static_status). Check: task logs"
+        warn "health check timed out (jupyter:$jupyter_status grafana:$grafana_status docs:$docs_status download:$download_status admin:$admin_status static:$static_status public:$public_status). Check: task logs"
         return 1
     fi
     log "deployed (healthcheck skipped)"
