@@ -85,3 +85,27 @@ def test_clients_file_path_stored(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     monkeypatch.setenv("SITEAPP_CLIENTS_FILE", "/etc/siteapp/clients.json")
     settings = load_settings()
     assert settings.clients_file == Path("/etc/siteapp/clients.json")
+
+
+def test_chisel_listen_port_required(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SITE_DATA", str(tmp_path))
+    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "tok")
+    monkeypatch.delenv("SITEAPP_CHISEL_LISTEN_PORT", raising=False)
+    with pytest.raises(RuntimeError, match="SITEAPP_CHISEL_LISTEN_PORT"):
+        load_settings()
+
+
+def test_chisel_listen_port_stored(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SITE_DATA", str(tmp_path))
+    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "tok")
+    monkeypatch.setenv("SITEAPP_CHISEL_LISTEN_PORT", "9090")
+    settings = load_settings()
+    assert settings.chisel_listen_port == 9090
+
+
+def test_chisel_listen_port_non_integer_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SITE_DATA", str(tmp_path))
+    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "tok")
+    monkeypatch.setenv("SITEAPP_CHISEL_LISTEN_PORT", "not-a-number")
+    with pytest.raises(ValueError):
+        load_settings()

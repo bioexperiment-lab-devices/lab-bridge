@@ -11,6 +11,7 @@ class Settings:
     site_data: Path
     agent_upload_token: str
     clients_file: Path
+    chisel_listen_port: int
     max_upload_mb_doc: int = 10
     max_upload_mb_agent: int = 100
     csrf_secret: str = ""
@@ -39,6 +40,13 @@ def load_settings() -> Settings:
     # Not .resolve()'d — this is a reference to an externally-mounted file,
     # not a data root we own. The route reads it on each request.
     clients_file = Path(clients_env)
+
+    port_env = os.environ.get("SITEAPP_CHISEL_LISTEN_PORT")
+    if not port_env:
+        raise RuntimeError("SITEAPP_CHISEL_LISTEN_PORT env var is required")
+    # int() raises ValueError on garbage like "abc"; surface as a boot crash —
+    # a misrendered template should never produce a "port 0" runtime fallback.
+    chisel_listen_port = int(port_env)
 
     token_file = os.environ.get("SITEAPP_AGENT_UPLOAD_TOKEN__FILE")
     if token_file:
@@ -71,5 +79,6 @@ def load_settings() -> Settings:
         site_data=site_data,
         agent_upload_token=token,
         clients_file=clients_file,
+        chisel_listen_port=chisel_listen_port,
         csrf_secret=csrf,
     )
