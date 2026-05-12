@@ -23,6 +23,8 @@ Host: <vps-host>
 
 ```json
 {
+  "version": "0.4.2",
+  "git_sha": "abc1234",
   "chisel": {
     "listen_port": 8080
   },
@@ -39,6 +41,8 @@ Host: <vps-host>
 }
 ```
 
+- `version` (string): the server's semver string, e.g. `"0.4.2"`. The literal value `"dev"` when the server is running an unreleased build (Docker image built without `LAB_BRIDGE_VERSION` build-arg). Informational — log it on startup for support-ticket triage. Do **not** gate feature behavior on this value; use the structural keys (`chisel`, `loki`, `forward_tunnels`) for feature detection.
+- `git_sha` (string): short git SHA (7 chars) of the commit the server was built from, e.g. `"abc1234"`. The literal value `"unknown"` when the server is running an unreleased build. Informational — log it alongside `version`.
 - `chisel.listen_port` (int): the public TCP port `chisel server` listens on. Use as `<vps-host>:<chisel.listen_port>` in the `chisel client` invocation.
 - `loki.push_url` (string): the application-level URL the log shipper POSTs to. Replaces the previously-hardcoded `http://127.0.0.1:3100/loki/api/v1/push`.
 - `forward_tunnels` (list): one entry per chisel `-L` arg the agent should open. Today the list has exactly one entry (the loki forward tunnel). Construct the chisel arg as `<local>:<remote>` for each entry.

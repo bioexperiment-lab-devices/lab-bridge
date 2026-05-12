@@ -2,7 +2,10 @@
 
 load helpers
 
-setup() { setup_tmpdir; }
+setup() {
+    setup_tmpdir
+    export LDS_PINS_FILE="$ROOT/tests/fixtures/valid_pins.yaml"
+}
 teardown() { teardown_tmpdir; }
 
 @test "render_compose: substitutes image, paths, password_hash, and chisel port" {
@@ -44,7 +47,11 @@ teardown() { teardown_tmpdir; }
     [[ "$output" == *"profile shortlived"* ]]
     [[ "$output" == *"default_sni 192.0.2.10"* ]]
     [[ "$output" == *"reverse_proxy jupyter:8888"* ]]
-    [[ "$output" != *"basic_auth"* ]]
+    # basic_auth must ONLY appear inside the /admin* handle block (mobile WebSocket
+    # upgrades break under top-level basic_auth on JupyterLab). Verify that every
+    # basic_auth occurrence is preceded by "handle /admin" within a few lines.
+    grep -q 'basic_auth' <<< "$output" && \
+        grep -B 5 'basic_auth' <<< "$output" | grep -q '/admin'
     ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
 }
 
@@ -80,17 +87,9 @@ teardown() { teardown_tmpdir; }
 
 @test "render_chisel_users: empty chisel_clients yields empty object" {
     cat > $TMPDIR/empty.yaml <<'EOF'
-vps: {host: 1.2.3.4, ssh_user: u, ssh_port: 22, remote_root: /srv/x, notebooks_path: /srv/y}
-caddy: {acme_email: o@x.io}
-jupyter:
-  image: quay.io/jupyter/scipy-notebook:2026-04-20
-  password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"
-chisel: {image: jpillora/chisel:1.10.1, listen_port: 8080}
-loki: {image: grafana/loki:3.2.1, retention_days: 30}
-grafana: {image: grafana/grafana:11.3.0}
-siteapp:
-  image: ghcr.io/test/lab-bridge-siteapp:0.0.1
-  admin_password_hash: "$2a$14$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
+vps: {host: 1.2.3.4, ssh_user: u}
+jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
+siteapp: {admin_password_hash: "$2a$14$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345"}
 chisel_clients: []
 EOF
     run bash -c "
@@ -205,7 +204,9 @@ EOF
     [[ "$output" == "9002" ]]
 
     # Hash is 64 lowercase hex chars
-    run yq -p json e '."microscope-1".password_sha256' "$TMPDIR/clients.json"
+    # Suppress yq's compatibility warning (yq v4.50+ warns when -p json is
+    # used without an explicit -o flag because the default output changed).
+    run bash -c "yq -p json -o yaml e '.\"microscope-1\".password_sha256' '$TMPDIR/clients.json' 2>/dev/null"
     [ "$status" -eq 0 ]
     [[ "$output" =~ ^[0-9a-f]{64}$ ]]
 
@@ -246,17 +247,9 @@ EOF
 
 @test "render_siteapp_clients: empty chisel_clients yields empty object" {
     cat > $TMPDIR/empty.yaml <<'EOF'
-vps: {host: 1.2.3.4, ssh_user: u, ssh_port: 22, remote_root: /srv/x, notebooks_path: /srv/y}
-caddy: {acme_email: o@x.io}
-jupyter:
-  image: quay.io/jupyter/scipy-notebook:2026-04-20
-  password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"
-chisel: {image: jpillora/chisel:1.10.1, listen_port: 8080}
-loki: {image: grafana/loki:3.2.1, retention_days: 30}
-grafana: {image: grafana/grafana:11.3.0}
-siteapp:
-  image: ghcr.io/test/lab-bridge-siteapp:0.0.1
-  admin_password_hash: "$2a$14$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
+vps: {host: 1.2.3.4, ssh_user: u}
+jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
+siteapp: {admin_password_hash: "$2a$14$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345"}
 chisel_clients: []
 EOF
     run bash -c "
@@ -333,4 +326,45 @@ EOF
     # Caddy handle; it stays unreachable from the public side via the
     # jupyter catch-all. (The /api/public* handle is unrelated.)
     ! grep -qE 'handle /api/clients' <<< "$output"
+}
+
+@test "render_compose: SITEAPP_IMAGE is composed from pins.yaml + compose/siteapp/VERSION" {
+    mkdir -p "$BATS_TEST_TMPDIR/compose/siteapp"
+    cat > "$BATS_TEST_TMPDIR/compose/pins.yaml" <<'PINS'
+jupyter_image: jup:1
+chisel_image: chi:1
+chisel_listen_port: 8080
+loki_image: lok:1
+loki_retention_days: 30
+grafana_image: gra:1
+siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
+acme_email: x@example.com
+remote_root: /srv/lb
+notebooks_path: /srv/lb/nb
+ssh_port: 22
+PINS
+    echo "1.2.3 # x-release-please-version" > "$BATS_TEST_TMPDIR/compose/siteapp/VERSION"
+    cat > "$BATS_TEST_TMPDIR/config.yaml" <<'CFG'
+vps: { host: 1.2.3.4, ssh_user: deploy }
+jupyter: { password_hash: sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567 }
+siteapp: { admin_password_hash: $2a$14$DG5Aycl5h3ED0V1Qz50BfuZDxSle4cvw7sRFYCArNvB03eCpKSPxa }
+chisel_clients: []
+CFG
+    # Minimal compose template that references __SITEAPP_IMAGE__.
+    echo "image: __SITEAPP_IMAGE__" > "$BATS_TEST_TMPDIR/compose.tmpl"
+
+    # Use the LDS_SITEAPP_VERSION_FILE override so render.sh reads VERSION
+    # from the tmp tree, not from the real repo.
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        export LDS_PINS_FILE='$BATS_TEST_TMPDIR/compose/pins.yaml'
+        export LDS_SITEAPP_VERSION_FILE='$BATS_TEST_TMPDIR/compose/siteapp/VERSION'
+        load_config '$BATS_TEST_TMPDIR/config.yaml'
+        render_compose '$BATS_TEST_TMPDIR/compose.tmpl' '$BATS_TEST_TMPDIR/out'
+        cat '$BATS_TEST_TMPDIR/out'
+    "
+    [ "$status" -eq 0 ]
+    [ "$output" = "image: ghcr.io/example/lab-bridge-siteapp:1.2.3" ]
 }

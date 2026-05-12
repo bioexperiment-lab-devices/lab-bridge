@@ -12,6 +12,8 @@ class Settings:
     agent_upload_token: str
     clients_file: Path
     chisel_listen_port: int
+    version: str = "dev"
+    git_sha: str = "unknown"
     max_upload_mb_doc: int = 10
     max_upload_mb_agent: int = 100
     csrf_secret: str = ""
@@ -59,6 +61,9 @@ def load_settings() -> Settings:
 
     csrf = os.environ.get("SITEAPP_CSRF_SECRET", secrets.token_urlsafe(32))
 
+    version = os.environ.get("LAB_BRIDGE_VERSION", "dev").strip() or "dev"
+    git_sha = os.environ.get("LAB_BRIDGE_GIT_SHA", "unknown").strip() or "unknown"
+
     # Seed default_docs/ so the public /docs/ landing page returns 200
     # and any assets referenced by the seeded index (icons, etc.) resolve.
     # Per-file gating: each default file is copied iff its destination
@@ -81,4 +86,6 @@ def load_settings() -> Settings:
         clients_file=clients_file,
         chisel_listen_port=chisel_listen_port,
         csrf_secret=csrf,
+        version=version,
+        git_sha=git_sha,
     )

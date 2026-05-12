@@ -22,6 +22,11 @@ USER siteapp
 ENV SITE_DATA=/data \
     PYTHONPATH=/app
 
+ARG LAB_BRIDGE_VERSION=dev
+ARG LAB_BRIDGE_GIT_SHA=unknown
+ENV LAB_BRIDGE_VERSION=$LAB_BRIDGE_VERSION \
+    LAB_BRIDGE_GIT_SHA=$LAB_BRIDGE_GIT_SHA
+
 EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=3s --retries=5 \
     CMD python -c "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz').status==200 else 1)" || exit 1

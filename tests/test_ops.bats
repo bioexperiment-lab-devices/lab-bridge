@@ -4,22 +4,59 @@ load helpers
 
 setup_file() {
     bash "$ROOT/tests/fake_vps/start.sh"
-}
-teardown_file() {
-    docker rm -f lds-fake-vps >/dev/null 2>&1 || true
-}
-
-setup() {
+    # Run the one-time-per-file provisioning and image loading here so each
+    # per-test setup() doesn't repeat the expensive Docker install + image build.
+    # A shared tmpdir is used for secrets files (loaded into the test env below).
     setup_tmpdir
     cp "$ROOT/tests/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
-    yq -i ".vps.host = \"127.0.0.1\" | .vps.ssh_port = 2222" "$TMPDIR/config.yaml"
+    yq -i ".vps.host = \"127.0.0.1\"" "$TMPDIR/config.yaml"
+    cp "$ROOT/tests/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
+    yq -i ".ssh_port = 2222" "$TMPDIR/pins.yaml"
     export LDS_CONFIG="$TMPDIR/config.yaml"
+    export LDS_PINS_FILE="$TMPDIR/pins.yaml"
     export LDS_SSH_KEY="$ROOT/tests/fake_vps/id_test"
     export LDS_SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     export LDS_SKIP_HEALTHCHECK=1
     export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
     printf 'testpw' > "$LDS_GRAFANA_PASSWORD_FILE"
     chmod 600 "$LDS_GRAFANA_PASSWORD_FILE"
+    export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
+    printf 'testtok' > "$LDS_AGENT_TOKEN_FILE"
+    chmod 600 "$LDS_AGENT_TOKEN_FILE"
+    # provision.sh installs Docker inside the fake-VPS; must happen before
+    # load_siteapp_test_image (which uses `docker exec ... docker load`).
+    bash "$ROOT/scripts/provision.sh"
+    load_siteapp_test_image
+    preload_fake_vps_images
+    export _OPS_TMPDIR="$TMPDIR"
+}
+teardown_file() {
+    docker rm -f lds-fake-vps >/dev/null 2>&1 || true
+    if [[ -n "${_OPS_TMPDIR:-}" && -d "$_OPS_TMPDIR" ]]; then
+        rm -rf "$_OPS_TMPDIR"
+    fi
+}
+
+setup() {
+    setup_tmpdir
+    cp "$ROOT/tests/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
+    yq -i ".vps.host = \"127.0.0.1\"" "$TMPDIR/config.yaml"
+    # ssh_port is now a pins.yaml value; create a test-specific pins with port 2222.
+    cp "$ROOT/tests/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
+    yq -i ".ssh_port = 2222" "$TMPDIR/pins.yaml"
+    export LDS_CONFIG="$TMPDIR/config.yaml"
+    export LDS_PINS_FILE="$TMPDIR/pins.yaml"
+    export LDS_SSH_KEY="$ROOT/tests/fake_vps/id_test"
+    export LDS_SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    export LDS_SKIP_HEALTHCHECK=1
+    export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
+    printf 'testpw' > "$LDS_GRAFANA_PASSWORD_FILE"
+    chmod 600 "$LDS_GRAFANA_PASSWORD_FILE"
+    export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
+    printf 'testtok' > "$LDS_AGENT_TOKEN_FILE"
+    chmod 600 "$LDS_AGENT_TOKEN_FILE"
+    # Docker is already installed and siteapp image pre-loaded by setup_file().
+    # provision.sh is idempotent — this is fast on subsequent calls.
     bash "$ROOT/scripts/provision.sh"
     bash "$ROOT/scripts/deploy.sh"
 }

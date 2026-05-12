@@ -49,8 +49,8 @@ task secrets:rotate-agent-upload-token        # token CI uses to publish agent b
 task secrets:add-client -- microscope-1 9001  # add a lab device
 task provision                                # first-time VPS setup
 
-# Publish the siteapp image to GHCR (or your registry) and pin its tag in
-# config.yaml under siteapp.image — see "Publishing the siteapp image" below.
+# Publish the siteapp image to GHCR (or your registry) — see "Publishing the
+# siteapp image" below. The image tag is pinned in compose/siteapp/VERSION.
 
 task deploy                                   # render configs + bring up stack
 ```
@@ -128,30 +128,38 @@ persists in a cookie.
 
 ### Publishing the siteapp image
 
-The image lives at `ghcr.io/<owner>/lab-bridge-siteapp:<tag>` and is pinned
-by tag in `config.yaml` under `siteapp.image`. To publish a new version:
+Two files control the image reference — no `config.yaml` field is involved:
 
-**Recommended — tag-triggered GitHub Actions** (deterministic; uses the
-auto-provisioned `GITHUB_TOKEN`, no PAT needed):
+- **`compose/pins.yaml`** → `siteapp_image_repo` — the GHCR repository path
+  (e.g. `ghcr.io/<owner>/lab-bridge-siteapp`).
+- **`compose/siteapp/VERSION`** — the image tag (e.g. `0.2.0`).
+
+`task siteapp:build-and-push` reads both and builds
+`${siteapp_image_repo}:${VERSION}` — no environment variables needed.
+
+To publish a new version manually (requires a PAT with `write:packages` or
+an environment with a writable `GITHUB_TOKEN`):
 
 ```bash
-git tag siteapp-v0.2.0
-git push origin siteapp-v0.2.0
-# wait for the "Publish siteapp image" workflow run to finish
-yq -i '.siteapp.image = "ghcr.io/<owner>/lab-bridge-siteapp:0.2.0"' config.yaml
+# 1. Bump the version
+echo "0.2.0" > compose/siteapp/VERSION
+git add compose/siteapp/VERSION && git commit -m "chore(siteapp): bump version to 0.2.0"
+
+# 2. Build and push
+task siteapp:build-and-push
+
+# 3. Deploy
 task deploy
 ```
+
+CI publishing is being migrated to release-please (automated tag + image
+build on merge) — see
+`docs/superpowers/specs/2026-05-12-cicd-design.md`.
 
 The package on GHCR is private by default; flip its visibility to public
 once (Org → Packages → ⋯ → Package settings → Change visibility) so the
 VPS can pull anonymously. Otherwise you'll need to `docker login ghcr.io`
 on the VPS with a read-only token.
-
-**Local build & push** (legacy path, requires a PAT with `write:packages`):
-
-```bash
-SITEAPP_IMAGE=ghcr.io/<owner>/lab-bridge-siteapp:0.2.0 task siteapp:build-and-push
-```
 
 ## Repo layout
 
@@ -162,9 +170,7 @@ SITEAPP_IMAGE=ghcr.io/<owner>/lab-bridge-siteapp:0.2.0 task siteapp:build-and-pu
 - `compose/siteapp/` — Python source for the siteapp service (Dockerfile,
   pyproject.toml, app/, templates/, static/, tests/), plus `build.sh` for
   GHCR publish
-- `.github/workflows/siteapp-publish.yml` — GitHub Actions workflow that
-  publishes the siteapp image to GHCR on `siteapp-v*` tag push or manual
-  dispatch
+- `.github/workflows/` — CI: `pr.yml` (PR gate), `release-please.yml` (release + deploy), `ghcr-cleanup.yml` (monthly retention). See `docs/superpowers/specs/2026-05-12-cicd-design.md`.
 - `scripts/` — `provision.sh`, `deploy.sh`, `secrets.sh`, `ops.sh`,
   `doctor.sh`, plus `lib/` helpers and a `fake_vps/` test container
 - `tests/` — bats suites; `task test` runs them all (the integration

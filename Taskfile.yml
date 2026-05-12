@@ -24,6 +24,9 @@ tasks:
   deploy:
     desc: Render configs and bring up the stack on the VPS
     cmd: bash scripts/deploy.sh
+  "deploy:rollback":
+    desc: Trigger a CI rollback to a prior tag (e.g. task deploy:rollback -- v0.4.1)
+    cmd: gh workflow run release-please.yml -f rollback_to={{.CLI_ARGS}}
   restart:  { desc: "docker compose restart",                        cmd: "bash scripts/ops.sh restart" }
   down:     { desc: "docker compose down",                           cmd: "bash scripts/ops.sh down" }
   destroy:  { desc: "docker compose down -v (DANGEROUS)",            cmd: "bash scripts/ops.sh destroy" }
@@ -74,5 +77,5 @@ tasks:
 
   # --- Siteapp image ---
   "siteapp:build-and-push":
-    desc: Build and push the siteapp image. Set SITEAPP_IMAGE=ghcr.io/<owner>/lab-bridge-siteapp:<tag>.
+    desc: Build and push the siteapp image. Reads version from compose/siteapp/VERSION; reads SITEAPP_IMAGE_REPO from compose/pins.yaml (or env override).
     cmd: bash compose/siteapp/build.sh

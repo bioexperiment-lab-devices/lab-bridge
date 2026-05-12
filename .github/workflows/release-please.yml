@@ -1,0 +1,160 @@
+name: release-please
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      rollback_to:
+        description: 'Tag to redeploy (e.g. v0.4.1). Leave empty for a normal release-please run.'
+        required: false
+
+concurrency:
+  group: release-please-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+  attestations: write
+  packages: write
+
+jobs:
+  release-please:
+    name: release-please
+    if: github.event_name == 'push' || github.event.inputs.rollback_to == ''
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name:        ${{ steps.rp.outputs.tag_name }}
+    steps:
+      - id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_KEY }}
+
+      - id: rp
+        uses: googleapis/release-please-action@v5
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          token: ${{ steps.app-token.outputs.token }}
+
+  release-build:
+    name: release-build
+    needs: release-please
+    if: |
+      (github.event_name == 'push' && needs.release-please.outputs.release_created == 'true')
+      || (github.event_name == 'workflow_dispatch' && github.event.inputs.rollback_to != '')
+    runs-on: ubuntu-latest
+    steps:
+      - name: resolve deploy ref
+        id: ref
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            tag="${{ github.event.inputs.rollback_to }}"
+            mode=rollback
+          else
+            tag="${{ needs.release-please.outputs.tag_name }}"
+            mode=release
+          fi
+          version="${tag#v}"
+          echo "tag=$tag"           >> "$GITHUB_OUTPUT"
+          echo "version=$version"   >> "$GITHUB_OUTPUT"
+          echo "mode=$mode"         >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${{ github.repository_owner }}/lab-bridge-siteapp:$version" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.tag }}
+
+      - name: log in to GHCR
+        if: steps.ref.outputs.mode == 'release'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: set up buildx
+        if: steps.ref.outputs.mode == 'release'
+        uses: docker/setup-buildx-action@v3
+
+      - name: build & push siteapp image
+        if: steps.ref.outputs.mode == 'release'
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: compose/siteapp
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: |
+            ${{ steps.ref.outputs.image }}
+            ghcr.io/${{ github.repository_owner }}/lab-bridge-siteapp:latest
+          build-args: |
+            LAB_BRIDGE_VERSION=${{ steps.ref.outputs.version }}
+            LAB_BRIDGE_GIT_SHA=${{ github.sha }}
+
+      - name: attest build provenance
+        if: steps.ref.outputs.mode == 'release'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/lab-bridge-siteapp
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: install rsync, envsubst, yq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rsync gettext-base
+          sudo wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: load SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: render CI config.yaml
+        env:
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_SSH_USER: ${{ vars.VPS_SSH_USER }}
+          JUPYTER_PASSWORD_HASH: ${{ secrets.JUPYTER_PASSWORD_HASH }}
+          ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
+        run: |
+          mkdir -p compose/grafana compose/siteapp
+          envsubst < compose/config.ci.yaml.tmpl > config.ci.rendered.yaml
+          # Materialize secret files deploy.sh expects to find on disk.
+          printf '%s' "${{ secrets.GRAFANA_ADMIN_PASSWORD }}" > compose/grafana/admin_password
+          printf '%s' "${{ secrets.AGENT_UPLOAD_TOKEN }}"   > compose/siteapp/agent_upload_token
+          chmod 0600 compose/grafana/admin_password compose/siteapp/agent_upload_token
+
+      - name: deploy to VPS (stack-only)
+        env:
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_SSH_USER: ${{ vars.VPS_SSH_USER }}
+          LDS_CONFIG: ${{ github.workspace }}/config.ci.rendered.yaml
+          LDS_STACK_ONLY: '1'
+          LDS_REQUIRE_VAULT: '1'
+          LDS_SSH_OPTS: '-o StrictHostKeyChecking=accept-new'
+        run: bash scripts/deploy.sh
+
+      - name: verify deployed version
+        env:
+          VPS_HOST: ${{ vars.VPS_HOST }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            body="$(curl -sk "https://$VPS_HOST/api/public/server-info")" || true
+            if echo "$body" | jq -e --arg v "${{ steps.ref.outputs.version }}" '.version == $v' >/dev/null; then
+              echo "verified: server reports version ${{ steps.ref.outputs.version }}"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::server-info did not report expected version ${{ steps.ref.outputs.version }} after 60s"
+          echo "last body: $body"
+          exit 1

@@ -130,6 +130,7 @@ def test_default_index_smoke(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
     from importlib import reload
     import app.main
+
     reload(app.main)
     c = TestClient(app.main.app)
 

@@ -35,7 +35,7 @@ def test_iframe_is_stripped() -> None:
 def test_img_with_allowed_attrs_survives() -> None:
     src = '<img src="icons/jupyter.svg" alt="JupyterLab" width="28">\n'
     r = render_markdown(src)
-    assert '<img' in r.html
+    assert "<img" in r.html
     assert 'src="icons/jupyter.svg"' in r.html
     assert 'alt="JupyterLab"' in r.html
     assert 'width="28"' in r.html
@@ -125,7 +125,7 @@ def test_mermaid_block_renders_as_pre_mermaid() -> None:
 
 
 def test_mermaid_source_is_escaped() -> None:
-    src = "```mermaid\nA[\"<script>\"] --> B\n```\n"
+    src = '```mermaid\nA["<script>"] --> B\n```\n'
     r = render_markdown(src)
     assert "<script>" not in r.html
     assert "&lt;script&gt;" in r.html

@@ -1,6 +1,32 @@
 # Source from the repo root regardless of where bats was invoked.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# Create a fake rsync shim that logs its arguments to a file and exits 0.
+# Also creates a fake ssh shim that exits 0 (for the compose up step).
+# Usage: setup_fake_rsync_spy <logfile>
+# After calling this, prepend "$BATS_TEST_TMPDIR/spy_bin" to PATH.
+setup_fake_rsync_spy() {
+    local logfile="$1"
+    local spy_bin="$BATS_TEST_TMPDIR/spy_bin"
+    mkdir -p "$spy_bin"
+
+    # rsync spy: log all args to logfile, exit 0
+    cat > "$spy_bin/rsync" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$@" >> "$logfile"
+EOF
+    chmod +x "$spy_bin/rsync"
+
+    # ssh spy: exit 0 silently (swallows docker compose up/restart calls)
+    cat > "$spy_bin/ssh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+    chmod +x "$spy_bin/ssh"
+
+    export PATH="$spy_bin:$PATH"
+}
+
 setup_tmpdir() {
     TMPDIR="$(mktemp -d)"
     export TMPDIR
@@ -23,7 +49,10 @@ fixture() {
 # nested dockerd isn't installed yet).
 load_siteapp_test_image() {
     local fixture_tag
-    fixture_tag="$(yq -e '.siteapp.image' "$ROOT/tests/fixtures/valid_config.yaml")"
+    local repo version
+    repo="$(yq -e '.siteapp_image_repo' "$ROOT/tests/fixtures/valid_pins.yaml")"
+    version="$(awk 'NF { print $1; exit }' "$ROOT/compose/siteapp/VERSION")"
+    fixture_tag="${repo}:${version}"
     docker build --load -q -t "$fixture_tag" "$ROOT/compose/siteapp" >&2 || return 1
     _save_and_load_into_fake_vps "$fixture_tag"
 }
@@ -119,8 +148,16 @@ patch_caddyfile_tls_internal() {
 # Returns non-zero on timeout.
 wait_siteapp_ready() {
     local i
+    # Hard wallclock cap: the bats step in pr.yml has a 12-min timeout, but a
+    # per-helper cap gives faster diagnostic failure and prevents the job from
+    # hanging until cancellation.
+    local deadline=$(( $(date +%s) + 120 ))
     # Gate 1: siteapp's own /healthz inside the container.
     for i in $(seq 1 60); do
+        if [[ $(date +%s) -ge $deadline ]]; then
+            echo "wait_siteapp_ready: gate 1 timed out after 120s" >&2
+            return 1
+        fi
         if docker exec lds-fake-vps bash -c '
             cd /srv/lab-bridge && docker compose exec -T siteapp \
                 python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(\"http://127.0.0.1:8000/healthz\").status==200 else 1)" \
@@ -134,6 +171,10 @@ wait_siteapp_ready() {
     # restarts caddy, the caddy→siteapp upstream resolution races test probes; this loop
     # waits until /docs/ and /download/agent both return 200 through HTTPS.
     for i in $(seq 1 30); do
+        if [[ $(date +%s) -ge $deadline ]]; then
+            echo "wait_siteapp_ready: gate 2 timed out after 120s" >&2
+            return 1
+        fi
         if docker exec lds-fake-vps bash -c '
             cd /srv/lab-bridge && docker compose exec -T caddy sh -c "
                 wget --no-check-certificate -q -O /dev/null https://127.0.0.1/docs/ &&

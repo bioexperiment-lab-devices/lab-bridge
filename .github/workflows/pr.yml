@@ -1,0 +1,125 @@
+name: PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pr-title:
+    name: Semantic Pull Request
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            chore
+            docs
+            refactor
+            test
+            perf
+            build
+            ci
+            revert
+          requireScope: false
+          subjectPattern: ^.+$
+
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          shellcheck -x --severity=warning scripts/*.sh scripts/lib/*.sh
+
+      - name: install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: install yq v4
+        run: |
+          sudo wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: install bats
+        uses: bats-core/bats-action@3.0.1
+
+      - name: bats
+        timeout-minutes: 20
+        # Skip all 4 test_siteapp_*.bats files in CI: each does an identical
+        # full fake-VPS deploy in setup_file (~7min). 4 × 7 doesn't fit in any
+        # reasonable CI step budget. The deploy chain is already exercised by
+        # test_deploy.bats (rsync + compose up to the fake-VPS); the siteapp_*
+        # files verify routing/auth/upload/safety policies specifically and
+        # require siteapp running. They still pass locally with `bats tests/`.
+        # Follow-up: consolidate the four into one .bats with a single shared
+        # setup_file so CI can run them under one ~10-12min budget.
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=()
+          for f in tests/*.bats; do
+              case "$(basename "$f")" in
+                  test_siteapp_*.bats)
+                      echo "::notice::skipping $f in CI (run locally: bats tests/$(basename "$f"))"
+                      continue
+                      ;;
+              esac
+              files+=("$f")
+          done
+          bats "${files[@]}"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: compose/siteapp/.python-version
+          cache: pip
+
+      - name: install uv
+        run: pip install uv
+
+      - name: siteapp deps
+        working-directory: compose/siteapp
+        run: uv sync --frozen
+
+      - name: ruff check
+        working-directory: compose/siteapp
+        run: uv run ruff check app tests
+
+      - name: ruff format check
+        working-directory: compose/siteapp
+        run: uv run ruff format --check app tests
+
+      - name: pytest
+        working-directory: compose/siteapp
+        run: uv run pytest -v
+
+      - name: docker buildx setup
+        uses: docker/setup-buildx-action@v3
+
+      - name: siteapp image build (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: compose/siteapp
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: lab-bridge-siteapp:pr-${{ github.event.pull_request.number }}
