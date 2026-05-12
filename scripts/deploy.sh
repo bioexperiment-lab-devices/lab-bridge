@@ -86,14 +86,15 @@ main() {
     fi
     rsync -az --delete "${rsync_excludes[@]}" -e "$rsync_e" "$stage/" "$target:$VPS_REMOTE_ROOT/"
 
-    # 4. docker compose up. Always restart caddy and siteapp. In full mode,
-    # also restart chisel because its bind-mounted config file (chisel/users.json)
-    # may have been replaced by rsync (atomic rename → new inode → the already-
-    # loaded reference inside the container goes stale; `up -d` doesn't recreate
-    # containers whose compose-config didn't change, and a single-file bind
-    # mount pins the original inode so even fsnotify-based auto-reload
-    # re-reads the same stale contents). In stack-only mode, chisel is excluded
-    # from restart because its roster files are managed by the operator, not CI.
+    # Always restart caddy, siteapp, and (in full mode) chisel because their
+    # bind-mounted config files (Caddyfile, siteapp/agent_upload_token,
+    # chisel/users.json) may have been replaced by rsync (atomic rename →
+    # new inode → the already-loaded reference inside the container goes
+    # stale; `up -d` doesn't recreate containers whose compose-config didn't
+    # change, and a single-file bind mount pins the original inode so even
+    # fsnotify-based auto-reload re-reads the same stale contents).
+    # In stack-only mode chisel is excluded because its roster files are
+    # managed by the operator, not CI.
     log "bringing up the stack..."
     local restart_services="caddy siteapp"
     if [[ "${LDS_STACK_ONLY:-}" != "1" ]]; then

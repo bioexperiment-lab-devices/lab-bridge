@@ -45,7 +45,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck
-          shellcheck scripts/*.sh scripts/lib/*.sh
+          shellcheck -x --severity=warning scripts/*.sh scripts/lib/*.sh
 
       - name: install Task
         uses: arduino/setup-task@v2

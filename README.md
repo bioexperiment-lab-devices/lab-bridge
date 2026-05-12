@@ -170,9 +170,7 @@ on the VPS with a read-only token.
 - `compose/siteapp/` — Python source for the siteapp service (Dockerfile,
   pyproject.toml, app/, templates/, static/, tests/), plus `build.sh` for
   GHCR publish
-- `.github/workflows/siteapp-publish.yml` — GitHub Actions workflow that
-  publishes the siteapp image to GHCR on `siteapp-v*` tag push or manual
-  dispatch
+- `.github/workflows/` — CI: `pr.yml` (PR gate), `release-please.yml` (release + deploy), `ghcr-cleanup.yml` (monthly retention). See `docs/superpowers/specs/2026-05-12-cicd-design.md`.
 - `scripts/` — `provision.sh`, `deploy.sh`, `secrets.sh`, `ops.sh`,
   `doctor.sh`, plus `lib/` helpers and a `fake_vps/` test container
 - `tests/` — bats suites; `task test` runs them all (the integration
