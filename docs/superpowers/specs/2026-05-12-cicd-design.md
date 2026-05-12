@@ -1,132 +1,163 @@
-# CI/CD: protected main, release-please-driven VPS deploys
+# CI/CD: protected `main`, release-please, automated VPS deploys
 
 **Date:** 2026-05-12
-**Status:** Draft (pending review)
-**Audience:** Maintainers of `lab-bridge` (this repo). Operators who currently run `task deploy` from their laptop.
-**Reference:** `bioexperiment-lab-devices/serialhop` repo, whose `pr.yml` / `release-please.yml` patterns we inherit for cross-repo consistency.
+**Status:** Approved (design phase complete; implementation plan pending)
+**Audience:** Maintainers of `lab-bridge` (this repo). Inherits conventions from `bioexperiment-lab-devices/serialhop` so the two repos feel identical to operate.
 
 ## Purpose
 
-Today the only automation in this repo is `siteapp-publish.yml`, which builds the siteapp image to GHCR on `siteapp-v*` tag pushes. Everything else — rendering configs, restoring secrets, rsyncing to the VPS, `docker compose up`, post-deploy health-checks — runs from an operator laptop via `task deploy`. There is no PR gating, no semantic PR titles, no on-push CI, no automated release, no auto-deploy.
+Today, every change to this repo ships in two manual steps performed from the operator's laptop:
 
-This design replaces the laptop-as-CI loop with three GitHub Actions workflows that together:
+1. Edit, commit, push to `main` (no automated checks; nothing prevents a broken script landing on `main`).
+2. Run `task deploy`, which renders configs, rsyncs to the VPS over SSH, and runs `docker compose up -d`. The operator's laptop holds every secret and is the only place a deploy can originate.
 
-- Gate every PR with semantic-title and verify checks (shellcheck, bats, ruff, pytest, siteapp `docker build` pre-flight).
-- Cut releases via `release-please` driven by conventional-commit PR titles, using a dedicated GitHub App so release PRs trigger the verify workflow.
-- On each created release, build & push the siteapp image to GHCR, Sigstore-attest the build provenance, and SSH-deploy the stack to the VPS — without removing the operator's existing local `task deploy` path.
+Only one CI workflow exists (`siteapp-publish.yml`) and it does just the GHCR image push for siteapp on `siteapp-v*` tag pushes. After a publish, the operator still has to manually edit `config.yaml`'s `siteapp.image` pin and re-run `task deploy`.
 
-Adding or removing a lab device (the **chisel device roster**) remains a laptop-only operation. CI never touches `chisel/users.json` or `siteapp/clients.json`. This is the "hybrid" state model: GitHub owns *the stack* (compose, caddy, siteapp, grafana, loki, the four passwords, SSH access); the operator's laptop owns *the roster*.
+This design replaces that flow end-to-end:
+
+- `main` is protected; changes land via PRs with squash-merge, gated on automated checks.
+- PR titles follow conventional-commit conventions; merges drive a `release-please` changelog and tag.
+- On a release tag, CI builds the siteapp image to GHCR with Sigstore provenance, then deploys the stack to the VPS over SSH, and verifies the post-deploy version surface.
+- The chisel-client roster (lab-device passwords) remains a laptop-managed concern — CI never touches `chisel/users.json` or `siteapp/clients.json` on the VPS.
 
 ## Goals
 
-- Protected `main`; all changes via squash-merged PRs with conventional-commit titles.
-- Required PR checks that prevent merging broken bash, broken Python, or broken siteapp Docker builds into `main`.
-- One `vX.Y.Z` tag per repo release; siteapp image tag matches; both reconstructible from any tagged commit.
-- Releases auto-deploy to the VPS from GitHub Actions with no operator intervention beyond merging the release PR.
-- Deployed version is queryable from outside the VPS via `/api/public/server-info`.
-- Rollback to a prior tag is a one-command operator action that re-runs the deploy job in CI, not a laptop SSH session.
-- Operator's existing `task deploy` workflow continues to work unchanged for roster maintenance.
+- Branch protection on `main`: no direct pushes, squash-merge only, required checks must pass.
+- Semantic PR titles drive a `release-please` automated changelog + version bump.
+- Releases trigger an automated VPS deploy from CI — no SSH from the operator's laptop required for stack changes.
+- Siteapp image and "the stack" share **one** version number. At any tag `vX.Y.Z`, the running system is fully reconstructible.
+- Deployed version is observable via `GET /api/public/server-info`.
+- Image pins, paths, and other stack-level config live in tracked files (PR-reviewed, Renovate-bumpable), not in GitHub Actions variables.
+- One-command rollback to any prior released tag, runnable from any operator's laptop without SSH.
 
 ## Non-goals
 
-- Migrating the chisel device roster to GitHub-stored state. The roster stays operator-managed via `task secrets:add-client` and is deployed by the operator's `task deploy`.
-- Multi-environment deploys (staging / canary). There is one VPS.
-- CodeQL or other heavy static analysis. The Python surface is small; `ruff` + a future `bandit` step is more than enough.
-- Automated dependency *merging* (Renovate proposes monthly PRs; merging is manual).
-- Decoupling siteapp version from stack version. They are the same number.
+- Continuous deployment on every merge to `main`. Deploys happen only when a `release-please` release PR is squash-merged. This keeps the "ready to ship" decision a deliberate human action.
+- Migrating the chisel-client roster (`task secrets:add-client`) into CI. The roster stays under operator-laptop ops. CI deploys are roster-preserving by construction.
+- Multi-environment (staging/prod) support. One VPS, one deploy target.
+- Per-PR siteapp preview images. PRs build the siteapp image (no push) as a pre-flight; they don't publish a `pr-<n>` tag to GHCR.
+- Notifications, drift checks, and CodeQL — deferred (see "Deferred"). Renovate is in scope but on a monthly cron.
 
-## Architecture
+## Architecture overview
 
-### Workflow files
+Three workflows under `.github/workflows/`:
 
-| File | Trigger | Purpose |
-|------|---------|---------|
-| `.github/workflows/pr.yml` | `pull_request` | Semantic-title check + `verify` job (shellcheck, bats, ruff, pytest, siteapp docker build). |
-| `.github/workflows/release-please.yml` | `push` to `main`; `workflow_dispatch` for rollback | release-please job + `release-build` job (build & push siteapp image, attest, deploy to VPS, version smoke test). |
-| `.github/workflows/ghcr-cleanup.yml` | monthly cron, manual | Prune old siteapp image tags, keep latest 10. |
+- **`pr.yml`** — runs on every PR. Jobs: `pr-title` (semantic-PR check) and `verify` (shellcheck, bats, ruff, pytest, `docker build` of siteapp). Concurrency: per-PR, cancel-in-progress.
+- **`release-please.yml`** — runs on push to `main` and on manual `workflow_dispatch` (for rollback). Jobs: `release-please` (creates/updates release PR; cuts tags via a dedicated GitHub App) and `release-build` (gated on `release_created == 'true'`, or on manual dispatch with a `rollback_to` input). `release-build` builds & pushes the siteapp image, attests provenance, SSH-deploys the stack to the VPS, and verifies `/api/public/server-info` reports the freshly-released version.
+- **`ghcr-cleanup.yml`** — monthly cron, prunes old `lab-bridge-siteapp` image versions, keeps the most recent 10.
 
-`siteapp-publish.yml` is **deleted**; its image-build responsibility folds into `release-build`.
+One configuration file: **`renovate.json`** with a monthly schedule (requires the Renovate App installed on the org; no workflow file needed).
 
-### Single source of truth for version
+The existing `siteapp-publish.yml` is **deleted** — its responsibility is folded into `release-build`. The `siteapp-v*` tag convention is retired.
 
-`compose/siteapp/VERSION` is a one-line file containing the current semver (e.g. `0.4.2`). It is:
+### Single-version model
 
-- Updated by release-please via `extra-files`, the same way SerialHop rewrites `assets/version.json`.
-- Read by `compose/siteapp/build.sh` to set the image tag and `LAB_BRIDGE_VERSION` build-arg.
-- Read by the deploy step to construct `SITEAPP_IMAGE=ghcr.io/<owner>/lab-bridge-siteapp:$(cat compose/siteapp/VERSION)`.
-- Baked into the siteapp image as an env var, so `/api/public/server-info` can report it.
+`release-please` drives one tag `vX.Y.Z` for the entire repo. Each release:
 
-At any tag `vX.Y.Z`, the deployed system is reconstructible: image `:X.Y.Z` plus the configs in the repo at that ref.
+- Rebuilds the siteapp image, pushed to `ghcr.io/<owner>/lab-bridge-siteapp:X.Y.Z` and `:latest`, with build-args carrying the version and short SHA so siteapp's `/api/public/server-info` can advertise them.
+- Updates a tracked file `compose/siteapp/VERSION` via `release-please`'s `extra-files` mechanism so the laptop `task deploy` path and CI deploy path read the same version.
+- Deploys the rendered stack to the VPS in **stack-only** mode (see "Stack-only deploy mode").
 
-### State model (hybrid)
+Image rebuilds run unconditionally per release. Buildx cache makes this cheap; the alternative (skipping the rebuild when siteapp source didn't change) introduces ambiguity about which image is actually attested at this tag.
 
-| What | Source of truth | Reaches the VPS via |
-|------|-----------------|---------------------|
-| Stack templates (`compose/`, `Caddyfile.tmpl`, grafana provisioning, loki config) | repo (git) | release-build deploy job |
-| siteapp image | GHCR | release-build builds it; deploy job pulls it |
-| `config.yaml` (stack portion) | GH vars + secrets, assembled on runner | release-build deploy job |
-| The four stack secrets (Jupyter password hash, Grafana admin password, /admin/ basic-auth hash, agent upload token) | GH `secrets.*` | release-build deploy job |
-| SSH key + known_hosts | GH `secrets.*` | release-build deploy job |
-| Chisel device roster (`chisel_clients` in `config.yaml`) and its rendered artifacts (`chisel/users.json`, `siteapp/clients.json`) | operator laptop | `task deploy` from laptop, untouched by CI |
+### Source-of-truth split
 
-The two-track ops are kept apart by a single new flag — `LDS_STACK_ONLY=1` — that tells `scripts/deploy.sh` to skip roster-derived renders and exclude roster files from rsync.
+| Lives in | What |
+|---|---|
+| Tracked in git | Image pins, paths, retention, ACME email, port, chisel listen port — i.e. anything that's non-sensitive and benefits from PR review |
+| GitHub vars (3) | `RELEASE_PLEASE_APP_ID`, `VPS_HOST`, `VPS_SSH_USER` |
+| GitHub secrets (6) | `RELEASE_PLEASE_APP_KEY`, `VPS_SSH_KEY`, `JUPYTER_PASSWORD_HASH`, `ADMIN_PASSWORD_HASH`, `GRAFANA_ADMIN_PASSWORD`, `AGENT_UPLOAD_TOKEN` |
+| Operator laptop (gitignored `config.yaml`) | Roster only: `chisel_clients[]` |
+| Operator laptop (gitignored files) | The same password hashes/tokens as GH secrets, used by `task deploy` when run locally |
 
-## Branch protection (GitHub UI; not in code)
+The "everything that isn't sensitive lives in git" rule deliberately keeps the GH Actions configuration small (3 vars + 6 secrets). Bumping a base image becomes a one-line PR with a visible diff, runs through `verify`, and lands as a release-please release — never an opaque click in the GH UI.
 
-Apply on `main` after the workflows ship and have run once green:
+## Branch protection & PR conventions
 
-- Require pull request before merging; **squash-merge only** (disable merge commits and rebase).
-- Required status checks (must pass + branch must be up to date with base):
-  - `pr-title` (from `pr.yml`)
-  - `verify` (from `pr.yml`)
+Applied in GitHub UI on `main` (these settings live outside code; record them here for posterity):
+
+- Require a PR before merging.
+- **Squash-merge only.** No merge commits, no rebase-merge. The PR title becomes the commit subject on `main` — that's what `release-please` scans.
+- Required status checks: `pr-title`, `verify`. (Branches do **not** need to be up to date before merging — required checks must pass on the PR head, but PRs aren't forced to rebase on every concurrent merge to `main`. No merge conflicts is enough.)
 - Require linear history.
 - Require conversation resolution before merging.
-- Disallow force-push to `main`; disallow direct branch deletion.
-- **Include administrators**: on. (Guards the sole operator against accidental `git push origin main`.)
-- No required reviewers — single-operator repo.
+- Disallow force-push to `main`.
+- Disallow direct deletion of `main`.
+- Include administrators in the restrictions (guards against accidental `git push origin main`).
+- No required reviewers (single-operator project).
 
-## PR workflow (`.github/workflows/pr.yml`)
+### Semantic PR titles
 
-```yaml
-name: PR
-on:
-  pull_request:
-    types: [opened, synchronize, reopened, edited]
-concurrency:
-  group: pr-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-permissions:
-  contents: read
-  pull-requests: read
-```
-
-### Job 1 — `pr-title`
-
-Uses `amannn/action-semantic-pull-request@v6`. Type list mirrors SerialHop exactly:
+`pr-title` uses `amannn/action-semantic-pull-request@v6` with the SerialHop type list:
 
 ```
 feat, fix, chore, docs, refactor, test, perf, build, ci, revert
 ```
 
-`requireScope: false`, `subjectPattern: ^.+$`.
+`requireScope: false`, `subjectPattern: ^.+$`. Optional scopes (used freely, never enforced) match the project subsystems: `siteapp`, `caddy`, `chisel`, `grafana`, `loki`, `deploy`, `render`, `secrets`.
 
-PR titles are load-bearing: under squash-merge they become the commit subject on `main`, which release-please scans for conventional-commit prefixes to decide the next version bump and changelog content.
+### Changelog sections
 
-### Job 2 — `verify`
+Mirrors SerialHop:
 
-Single `ubuntu-latest` job, fastest-fail first:
+| Type | Section | Hidden |
+|---|---|---|
+| `feat` | Features | no |
+| `fix` | Bug Fixes | no |
+| `perf` | Performance | no |
+| `revert` | Reverts | no |
+| `chore` | Chores | yes |
+| `docs` | Documentation | yes |
+| `refactor` | Refactoring | yes |
+| `test` | Tests | yes |
+| `build` | Build | yes |
+| `ci` | CI | yes |
 
-1. **shellcheck** against `scripts/**/*.sh` and `scripts/lib/*.sh`. Existing `# shellcheck source=...` directives are honored.
-2. **bats** via `task test`. The integration suites that build the fake-VPS container skip cleanly when Docker Hub anonymous-pull is rate-limited (already implemented per `README.md`); they stay in CI.
-3. **Siteapp Python**:
-   - `ruff check compose/siteapp/`
-   - `ruff format --check compose/siteapp/`
-   - `pytest compose/siteapp/tests/` with pip cache keyed on `compose/siteapp/pyproject.toml`.
-4. **Siteapp Docker pre-flight**: `docker buildx build compose/siteapp --load` with `LAB_BRIDGE_VERSION=pr-${{ github.event.pull_request.number }}`, no push, no extra platforms. Prevents `release-build` failing *after* release-please has already tagged.
+## `pr.yml` — PR verify
 
-CodeQL is intentionally omitted (low signal on a small FastAPI service). A future `bandit -r compose/siteapp/app/` step can be added if light security scanning is wanted.
+### Triggers
 
-## Release flow (`.github/workflows/release-please.yml`)
+```yaml
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+```
+
+`edited` is required so `pr-title` re-runs when a maintainer fixes a non-conforming title.
+
+### Concurrency
+
+```yaml
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+```
+
+### Permissions
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: read
+```
+
+### Jobs
+
+**`pr-title`** — `ubuntu-latest`, runs `amannn/action-semantic-pull-request@v6` with the type list above.
+
+**`verify`** — `ubuntu-latest`, single job, steps in fastest-fail order:
+
+1. Checkout.
+2. `shellcheck` against `scripts/**/*.sh` and `scripts/lib/*.sh`. Existing `# shellcheck source=…` directives are honored.
+3. Install Task (`arduino/setup-task@v2`), Python (`actions/setup-python@v5`, version from `compose/siteapp/pyproject.toml`), and bats (`bats-core/bats-action`).
+4. `task test` — runs the full `tests/` suite. The integration suites that build the fake-VPS container already skip cleanly when Docker Hub anonymous-pull is rate-limited (per README), so they're safe to keep in CI.
+5. siteapp lint: `ruff check compose/siteapp/app compose/siteapp/tests` and `ruff format --check ...`.
+6. siteapp tests: `pytest compose/siteapp/tests/`.
+7. siteapp image build (no push): `docker buildx build compose/siteapp --load`. This is the pre-flight that prevents `release-build` failing *after* `release-please` has cut a tag.
+
+No CodeQL. If lightweight Python security scanning is wanted later, add `bandit -r compose/siteapp/app/` as a one-line step — cheap, no additional infrastructure.
+
+## `release-please.yml` — release-please + release-build
 
 ### Triggers
 
@@ -137,114 +168,55 @@ on:
   workflow_dispatch:
     inputs:
       rollback_to:
-        description: 'Tag to redeploy (e.g. v0.4.1). Leave empty for normal release-please run.'
+        description: 'Tag to redeploy (e.g. v0.4.1). Leave empty for a normal release-please run.'
         required: false
 ```
 
-Concurrency: `release-please-main`, `cancel-in-progress: false`.
+### Concurrency
 
-Permissions (job-scoped where possible):
+```yaml
+concurrency:
+  group: release-please-main
+  cancel-in-progress: false
+```
+
+`cancel-in-progress: false` is deliberate — never kill a mid-tag-cut.
+
+### Permissions
 
 ```yaml
 permissions:
-  contents: write       # release-please creates tags/releases
-  pull-requests: write  # release-please opens PRs
+  contents: write       # release-please tags/releases
+  pull-requests: write  # release-please opens release PRs
   id-token: write       # Sigstore
   attestations: write   # build provenance
   packages: write       # GHCR push
 ```
 
-### Job 1 — `release-please`
+These permissions are scoped to this workflow file only. `pr.yml` stays read-only.
 
-Runs on every trigger; its release-please action step is gated on `inputs.rollback_to == ''` so a rollback dispatch passes through the job without opening a release PR or producing tag outputs. Keeping the job in the graph (rather than skipping it) lets `release-build` declare a clean `needs: release-please` without `if: always()` gymnastics.
+### Job 1: `release-please`
 
-```yaml
-release-please:
-  runs-on: ubuntu-latest
-  outputs:
-    release_created: ${{ steps.rp.outputs.release_created }}
-    tag_name:        ${{ steps.rp.outputs.tag_name }}
-  steps:
-    - id: app-token
-      if: inputs.rollback_to == ''
-      uses: actions/create-github-app-token@v3
-      with:
-        app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
-        private-key: ${{ secrets.RELEASE_PLEASE_APP_KEY }}
-    - id: rp
-      if: inputs.rollback_to == ''
-      uses: googleapis/release-please-action@v5
-      with:
-        config-file: release-please-config.json
-        manifest-file: .release-please-manifest.json
-        token: ${{ steps.app-token.outputs.token }}
-```
+Skipped entirely on `workflow_dispatch` with a non-empty `rollback_to`. Otherwise:
 
-A dedicated GitHub App is required (not the default `GITHUB_TOKEN`) because PRs opened with `GITHUB_TOKEN` do not fire `pull_request` events — every release PR would otherwise sit without `verify` checks until manually closed-and-reopened. This is the same App pattern SerialHop uses.
+1. Mint an installation access token from a dedicated **GitHub App** — `vars.RELEASE_PLEASE_APP_ID` + `secrets.RELEASE_PLEASE_APP_KEY`. The default `GITHUB_TOKEN` would create PRs that don't fire downstream `pull_request` events (GitHub's anti-recursion safeguard), so every release PR would sit without `verify` checks until manually closed-and-reopened. App-minted tokens bypass that restriction.
+2. Run `googleapis/release-please-action@v5` with `release-please-config.json` and `.release-please-manifest.json`.
+3. Outputs `release_created` and `tag_name` for the next job.
 
-Outputs:
-- `release_created` — boolean
-- `tag_name` — `vX.Y.Z`
+### GitHub App
 
-### Job 2 — `release-build`
+Reuses the existing SerialHop `release-please` App, renamed to a neutral identifier (e.g. `bel-release-please`). Renaming a GitHub App does not invalidate the App ID or private key. Setup:
 
-```yaml
-needs: release-please
-if: |
-  inputs.rollback_to != '' ||
-  needs.release-please.outputs.release_created == 'true'
-runs-on: ubuntu-latest
-```
+1. Rename the existing App on github.com → Settings → Developer settings → GitHub Apps.
+2. App settings → Install App → grant access to `lab_devices_server` in the `bioexperiment-lab-devices` org.
+3. Verify permissions are still `Contents: read & write` and `Pull requests: read & write`.
+4. Store the same App ID and `.pem` contents either as **org-level** variable/secret (cleanest — both repos share one source of truth, future repos inherit them) or duplicate as repo-level vars/secrets.
 
-Resolves the operative tag and image-tag string at the top:
+Rate limits are per-App-installation. The two repos share the (very generous) release-please quota; no practical impact.
 
-```bash
-if [[ -n "${{ inputs.rollback_to }}" ]]; then
-  TAG="${{ inputs.rollback_to }}"
-else
-  TAG="${{ needs.release-please.outputs.tag_name }}"
-fi
-VERSION="${TAG#v}"
-echo "tag=$TAG"        >> "$GITHUB_OUTPUT"
-echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-```
+### release-please config
 
-Steps (in order):
-
-1. **Checkout at the operative tag.**
-2. **Build & push siteapp image** — skipped on rollback (image already in GHCR, attested).
-   - `docker/login-action@v3` to `ghcr.io` with `GITHUB_TOKEN`.
-   - `docker/setup-buildx-action@v3`.
-   - `docker/build-push-action@v6`:
-     - `context: compose/siteapp`
-     - `platforms: linux/amd64`
-     - `push: true`
-     - `tags: ghcr.io/${{ github.repository_owner }}/lab-bridge-siteapp:${{ steps.resolve.outputs.version }}`
-     - `build-args`: `LAB_BRIDGE_VERSION=${{ steps.resolve.outputs.version }}`, `LAB_BRIDGE_GIT_SHA=${{ github.sha }}`
-     - `provenance: false` (attestation done explicitly next).
-3. **Sigstore attest** — skipped on rollback.
-   - `actions/attest-build-provenance@v4` with `subject-name: ghcr.io/<owner>/lab-bridge-siteapp` and `subject-digest` from the build-push step output.
-4. **Install deploy prerequisites on runner**: `rsync`, `yq` (mikefarah). `apt-get install -y rsync; curl-install yq` — the official binary, *not* the Python `yq`.
-5. **Load SSH** — `webfactory/ssh-agent@v0.9` with `secrets.VPS_SSH_KEY`; write `secrets.VPS_SSH_KNOWN_HOSTS` to `~/.ssh/known_hosts`. No `StrictHostKeyChecking=no`.
-6. **Assemble `config.yaml` on runner** — render `compose/config.ci.yaml.tmpl` (a tracked file, see below) via `envsubst`, with `SITEAPP_IMAGE=ghcr.io/<owner>/lab-bridge-siteapp:${VERSION}`.
-7. **Write secret files** (consumed by `deploy.sh` from these exact paths):
-   - `compose/grafana/admin_password` ← `${{ secrets.GRAFANA_ADMIN_PASSWORD }}`. `deploy.sh` already re-modes this to 0644 in the staging dir before rsync (Grafana inside the container runs as uid 472).
-   - `compose/siteapp/agent_upload_token` ← `${{ secrets.AGENT_UPLOAD_TOKEN }}`.
-8. **Deploy**:
-   ```bash
-   LDS_CONFIG="$GITHUB_WORKSPACE/config.ci.yaml" \
-   LDS_STACK_ONLY=1 \
-   bash scripts/deploy.sh
-   ```
-   The existing health-check inside `deploy.sh` runs; deploy fails if any of `/`, `/grafana/login`, `/docs/`, `/download/agent`, `/admin/` (must be `401`), `/_static/site.css`, `/api/public/health`, `/api/public/server-info` is unhealthy.
-9. **Version smoke test**:
-   ```bash
-   curl -fsSL "https://${{ vars.VPS_HOST }}/api/public/server-info" \
-     | jq -e --arg v "${{ steps.resolve.outputs.version }}" '.version == $v'
-   ```
-   Fails the deploy if the deployed siteapp doesn't self-report the version we just released. Closes the loop.
-
-### `release-please-config.json`
+**`release-please-config.json`:**
 
 ```json
 {
@@ -273,113 +245,109 @@ Steps (in order):
 }
 ```
 
-`compose/siteapp/VERSION` is wrapped in release-please annotations:
+**`.release-please-manifest.json`** is seeded with the starting version (e.g. `{".": "0.4.0"}` to reflect current history — exact value chosen at implementation time).
 
-```
-# x-release-please-start-version
-0.4.2
-# x-release-please-end
-```
+**`compose/siteapp/VERSION`** is a one-line tracked file containing the current semver (no leading `v`). It is the single source of truth for the siteapp image tag and the `LAB_BRIDGE_VERSION` build arg. release-please rewrites it on every release; both laptop and CI deploys read it.
 
-`.release-please-manifest.json` is seeded with the chosen starting version — `0.1.0` if starting fresh, or a higher number to reflect the current state of the deployed siteapp. Recommendation: seed with the current pinned siteapp version (read from your local `config.yaml`).
-
-## Deploy mechanics — `scripts/deploy.sh` refactor
-
-Existing `scripts/deploy.sh` does five things: (1) renders templates into a staging dir, (2) prepares secret files, (3) rsyncs to VPS, (4) `docker compose up -d` + selective restarts, (5) HTTPS health-check.
-
-The refactor adds one mode flag, `LDS_STACK_ONLY`. When set to `1`:
-
-| Step | Behavior change |
-|------|-----------------|
-| `render_chisel_users` | **Skipped**. CI's `config.yaml` carries `chisel_clients: []`, but skipping is belt-and-braces. |
-| `render_siteapp_clients` | **Skipped** for the same reason. |
-| rsync | Adds `--exclude='chisel/users.json' --exclude='siteapp/clients.json'` so the operator's roster on the VPS is preserved across CI deploys. |
-| `docker compose restart …` | Drops `chisel` from the restart list (its bind-mount config did not change). `caddy` and `siteapp` still restart. |
-
-Plus one guardrail: if `LDS_STACK_ONLY=1` and `chisel_clients` is non-empty in the supplied config, exit with a clear error ("CI deploy cannot manage the device roster"). Catches operator confusion.
-
-Laptop deploys (no env var set) keep their existing behavior — render & rsync the roster, restart all three services.
-
-### `compose/config.ci.yaml.tmpl` (new tracked file)
-
-A copy of `config.example.yaml` with every value templated and the roster stubbed:
+### Job 2: `release-build`
 
 ```yaml
-vps:
-  host: ${VPS_HOST}
-  ssh_user: ${VPS_SSH_USER}
-  ssh_port: ${VPS_SSH_PORT}
-  remote_root: ${VPS_REMOTE_ROOT}
-  notebooks_path: ${VPS_NOTEBOOKS_PATH}
-
-caddy:
-  acme_email: ${ACME_EMAIL}
-
-jupyter:
-  image: ${JUPYTER_IMAGE}
-  password_hash: "${JUPYTER_PASSWORD_HASH}"
-
-chisel:
-  image: ${CHISEL_IMAGE}
-  listen_port: ${CHISEL_LISTEN_PORT}
-
-loki:
-  image: ${LOKI_IMAGE}
-  retention_days: ${LOKI_RETENTION_DAYS}
-
-grafana:
-  image: ${GRAFANA_IMAGE}
-
-chisel_clients: []
-
-siteapp:
-  image: ${SITEAPP_IMAGE}
-  admin_password_hash: "${ADMIN_PASSWORD_HASH}"
+needs: release-please
+if: |
+  (github.event_name == 'push' && needs.release-please.outputs.release_created == 'true')
+  || (github.event_name == 'workflow_dispatch' && github.event.inputs.rollback_to != '')
 ```
 
-The workflow exports every `${VAR}` from `vars.*` / `secrets.*` / the resolved tag, then `envsubst < compose/config.ci.yaml.tmpl > config.ci.yaml` before invoking deploy.
+Runs on `ubuntu-latest`. The deploy target ref is `${{ needs.release-please.outputs.tag_name }}` on a normal release, or `${{ github.event.inputs.rollback_to }}` on a manual dispatch.
 
-## GitHub vars and secrets — final inventory
+Steps:
 
-### Vars (`vars.*`)
+1. Checkout at the deploy ref.
+2. **Build & push siteapp image** (skipped on rollback — image already exists in GHCR for that tag):
+   - `docker/login-action@v3` to `ghcr.io` with `GITHUB_TOKEN`.
+   - `docker/setup-buildx-action@v3`.
+   - `docker/build-push-action@v6` with `context: compose/siteapp`, `platforms: linux/amd64`, `provenance: false`, build-args `LAB_BRIDGE_VERSION=<tag-without-v>` and `LAB_BRIDGE_GIT_SHA=${{ github.sha }}`, tags `ghcr.io/<owner>/lab-bridge-siteapp:<tag-without-v>` and `…:latest`.
+3. **Attest provenance** (skipped on rollback): `actions/attest-build-provenance@v4` with the built image's digest.
+4. **Set up SSH** on the runner:
+   - Install `rsync` and `yq v4` (the runner's defaults are missing or wrong-version).
+   - `webfactory/ssh-agent@v0.9` loads `secrets.VPS_SSH_KEY`.
+   - Pass `LDS_SSH_OPTS='-o StrictHostKeyChecking=accept-new'` so the first SSH per job accepts the VPS host key without TOFU prompts; subsequent calls within the same job verify against it. (No `known_hosts` file is tracked — see "Why no `known_hosts` pin" in "Decisions".)
+5. **Assemble runtime config on the runner.** A new tracked template `compose/config.ci.yaml.tmpl` carries the schema with `${VAR}` placeholders for the instance-specific values. The workflow renders it via `envsubst` using `vars.VPS_HOST`, `vars.VPS_SSH_USER`, and the three password-hash secrets (`JUPYTER_PASSWORD_HASH`, `ADMIN_PASSWORD_HASH`). Image pins, paths, retention, ACME email, ports come from `compose/pins.yaml` (see "Source-of-truth files"). The rendered file is written to a runner-local path that `deploy.sh` consumes via `LDS_CONFIG`. `chisel_clients` is hardcoded to `[]` in the template; an `LDS_REQUIRE_VAULT=1` guard in `deploy.sh` asserts it stays empty in stack-only mode.
+6. **Assemble secret files** under `compose/grafana/admin_password` and `compose/siteapp/agent_upload_token` from `secrets.GRAFANA_ADMIN_PASSWORD` and `secrets.AGENT_UPLOAD_TOKEN` respectively (matches `deploy.sh`'s current expectations).
+7. **Deploy:**
+   ```bash
+   LDS_CONFIG="$PWD/config.ci.rendered.yaml" \
+   LDS_STACK_ONLY=1 \
+   LDS_REQUIRE_VAULT=1 \
+   bash scripts/deploy.sh
+   ```
+   (`LDS_SSH_OPTS` was already exported in step 4.)
+   The existing health-check in `deploy.sh` (lines 90–127 of current `scripts/deploy.sh`) probes `/`, `/grafana/login`, `/docs/`, `/download/agent`, `/admin/` (asserted `401`), `/_static/site.css`, `/api/public/health`, `/api/public/server-info` — all already covered.
+8. **Verify deployed version**: `curl https://${VPS_HOST}/api/public/server-info | jq -e --arg v "<expected>" '.version == $v'`. This closes the loop that the freshly-built image is the one actually running.
 
-| Name | Example value | Source |
-|------|---------------|--------|
-| `RELEASE_PLEASE_APP_ID` | `1234567` | GitHub App page |
-| `VPS_HOST` | `lab.example.com` | operator's `config.yaml` |
-| `VPS_SSH_USER` | `khamit` | operator's `config.yaml` |
-| `VPS_SSH_PORT` | `22` | operator's `config.yaml` |
-| `VPS_REMOTE_ROOT` | `/srv/lab-bridge` | operator's `config.yaml` |
-| `VPS_NOTEBOOKS_PATH` | `/srv/jupyterlab/work` | operator's `config.yaml` |
-| `ACME_EMAIL` | `you@example.com` | operator's `config.yaml` |
-| `JUPYTER_IMAGE` | `quay.io/jupyter/scipy-notebook:2026-04-20` | operator's `config.yaml` |
-| `CHISEL_IMAGE` | `jpillora/chisel:1.10.1` | operator's `config.yaml` |
-| `CHISEL_LISTEN_PORT` | `8080` | operator's `config.yaml` |
-| `LOKI_IMAGE` | `grafana/loki:3.2.1` | operator's `config.yaml` |
-| `LOKI_RETENTION_DAYS` | `30` | operator's `config.yaml` |
-| `GRAFANA_IMAGE` | `grafana/grafana:11.3.0` | operator's `config.yaml` |
+## Source-of-truth files
 
-`SITEAPP_IMAGE` is **not** a var — it is constructed in the workflow from the resolved tag.
+This design introduces two new tracked files plus a refactor of `config.yaml`'s schema.
 
-### Secrets (`secrets.*`)
+### `compose/pins.yaml` (new, tracked)
 
-| Name | Format | Source |
-|------|--------|--------|
-| `RELEASE_PLEASE_APP_KEY` | PEM private key | GitHub App page |
-| `VPS_SSH_KEY` | OpenSSH private key | operator |
-| `VPS_SSH_KNOWN_HOSTS` | Single line, output of `ssh-keyscan -p <port> <host>` | operator |
-| `JUPYTER_PASSWORD_HASH` | `sha1:<salt>:<digest>` | `jupyter.password_hash` field in laptop `config.yaml` (set via `task secrets:set-jupyter-password`) |
-| `ADMIN_PASSWORD_HASH` | bcrypt | `siteapp.admin_password_hash` field in laptop `config.yaml` (set via `task secrets:set-admin-password`) |
-| `GRAFANA_ADMIN_PASSWORD` | plaintext | `compose/grafana/admin_password` on laptop |
-| `AGENT_UPLOAD_TOKEN` | opaque token | `compose/siteapp/agent_upload_token` on laptop |
+Single source of truth for stack-level pins and stable infrastructure paths. Read by **both** laptop `task deploy` and CI `release-build`. Renovate targets this file.
 
-The first-time migration is: operator reads each value from the corresponding local file (or via `task secrets:set-*` outputs), pastes into the GH UI, then keeps the local files for the laptop's `task deploy` of the roster.
+Shape (final fields determined at implementation time; canonical example):
 
-## Server-version surface
+```yaml
+jupyter_image: quay.io/jupyter/scipy-notebook:2026-04-20
+chisel_image: jpillora/chisel:1.10.1
+chisel_listen_port: 8080
+loki_image: grafana/loki:3.2.1
+loki_retention_days: 30
+grafana_image: grafana/grafana:11.3.0
+siteapp_image_repo: ghcr.io/<owner>/lab-bridge-siteapp   # owner is tracked here, not derived
+acme_email: you@example.com
+remote_root: /srv/lab-bridge
+notebooks_path: /srv/jupyterlab/work
+ssh_port: 22
+```
 
-### Dockerfile (`compose/siteapp/Dockerfile`)
+### `compose/siteapp/VERSION` (new, tracked)
 
-Adds:
+One-line file. Holds the current siteapp semver (no leading `v`). release-please's `extra-files` rewrites it on every release. Both `task deploy` (laptop, via `scripts/lib/config.sh`) and CI's deploy step read it to determine the siteapp image tag.
+
+The existing operator-managed `siteapp.image` field in `config.yaml` is removed by this refactor — the image reference is now fully derived from `compose/pins.yaml`'s `siteapp_image_repo` plus the version in `compose/siteapp/VERSION`. Both laptop and CI read from the same tracked source.
+
+### `config.yaml` schema change (gitignored, operator-side)
+
+Image pins, paths, ACME email, ports, retention — **removed** (moved to `compose/pins.yaml`).
+
+`config.yaml` now carries only:
+
+- `vps.host`, `vps.ssh_user`
+- `jupyter.password_hash`, `siteapp.admin_password_hash` (sensitive — stay on laptop)
+- `chisel_clients[]` — the roster, laptop-managed
+
+`config.example.yaml` is updated to match the new minimal schema, with a comment pointing operators to `compose/pins.yaml` for stack pins.
+
+`scripts/lib/config.sh` is updated to load `compose/pins.yaml` alongside `config.yaml`, with `pins.yaml` providing infrastructure-level values and `config.yaml` providing instance-level values + roster.
+
+### `compose/config.ci.yaml.tmpl` (new, tracked)
+
+CI-only template, rendered via `envsubst` on the runner. Carries the same minimal schema as the post-refactor `config.yaml` (host/user/password hashes/roster) with `${VAR}` placeholders for the instance values and `chisel_clients: []` hardcoded.
+
+## Stack-only deploy mode
+
+`scripts/deploy.sh` is refactored to support `LDS_STACK_ONLY=1` (env var, defaults to unset → original full-deploy behavior). When set:
+
+- `render_chisel_users` and `render_siteapp_clients` calls are skipped.
+- The rsync gains `--exclude='chisel/users.json' --exclude='siteapp/clients.json'`.
+- The post-rsync `docker compose restart` list drops `chisel` (its bind-mounted `users.json` didn't change; restarting would kick live lab clients off their tunnels for no reason). `caddy` and `siteapp` continue to restart.
+
+Additionally, `LDS_REQUIRE_VAULT=1` (set together with `LDS_STACK_ONLY=1` in CI) asserts that the loaded `config.yaml` has an empty `chisel_clients[]`. If not, `deploy.sh` fails fast with a clear error — guards against an operator accidentally letting roster data leak into the CI config template.
+
+The laptop `task deploy` path is unaffected (neither env var is set by default), continues to render and rsync the roster files and restart chisel.
+
+## Server-versioning surface
+
+`compose/siteapp/Dockerfile` adds:
 
 ```dockerfile
 ARG LAB_BRIDGE_VERSION=dev
@@ -388,33 +356,30 @@ ENV LAB_BRIDGE_VERSION=$LAB_BRIDGE_VERSION
 ENV LAB_BRIDGE_GIT_SHA=$LAB_BRIDGE_GIT_SHA
 ```
 
-PR `verify` builds get `dev` / `unknown`; release builds get real values; local laptop `compose/siteapp/build.sh` is updated to pass `git describe --always --dirty` and the content of `VERSION`.
+PR `verify` builds with the defaults (image labelled `dev`/`unknown`). `release-build` passes real values. Local `compose/siteapp/build.sh` is updated to pass values derived from `git describe`.
 
-### Siteapp
-
-New module `compose/siteapp/app/version.py`:
-
-```python
-import os
-LAB_BRIDGE_VERSION = os.environ.get("LAB_BRIDGE_VERSION", "dev")
-LAB_BRIDGE_GIT_SHA = os.environ.get("LAB_BRIDGE_GIT_SHA", "unknown")
-```
-
-`/api/public/server-info` response gains two fields:
+A small siteapp module (e.g. `compose/siteapp/app/version.py`) reads the two env vars with safe fallbacks. The existing `/api/public/server-info` handler (per `2026-05-11-server-info-design.md`) gains two additive fields:
 
 ```json
 {
-  "chisel": { "listen_port": 8080 },
-  "loki": { ... existing ... },
-  "forward_tunnels": [ ... existing ... ],
+  "chisel_listen_port": 8080,
+  "loki": { "...": "..." },
   "version": "0.4.2",
   "git_sha": "abc1234"
 }
 ```
 
-The contract change is additive. The matching client-spec update lands in a follow-up edit to `docs/superpowers/specs/2026-05-11-server-info-client-spec.md` and is **not** part of this CI/CD design's scope.
+The contract change is additive — existing clients keep working. The matching client-spec update lands in a separate PR amending `2026-05-11-server-info-client-spec.md`.
+
+Surface in the docs portal footer is deferred.
 
 ## Rollback
+
+`release-please.yml` accepts a `workflow_dispatch` input `rollback_to`. When set:
+
+- The `release-please` job is skipped.
+- The `release-build` job runs against the supplied tag.
+- The image-build & attestation steps are skipped (image already in GHCR; attestation already attached). Deploy step runs unconditionally with the supplied tag's SITEAPP version.
 
 `Taskfile.yml` gains:
 
@@ -424,19 +389,19 @@ The contract change is additive. The matching client-spec update lands in a foll
   cmd: gh workflow run release-please.yml -f rollback_to={{.CLI_ARGS}}
 ```
 
-Mechanism: `workflow_dispatch` on `release-please.yml` with the `rollback_to` input populated. The `release-please` job is skipped; `release-build` runs with the operative tag set to `inputs.rollback_to`, skipping its build/attest steps (the image already exists in GHCR with attestation) and going straight to deploy.
+Rollback runs from any operator's laptop with `gh` installed and authenticated — no SSH from the laptop. The roster on the VPS is preserved (stack-only mode).
 
-If a rollback is needed before the new flow has produced any tags, the operator's laptop `task deploy` against `git checkout <tag>` remains a working escape hatch.
-
-## GHCR retention (`.github/workflows/ghcr-cleanup.yml`)
+## `ghcr-cleanup.yml` — image retention
 
 ```yaml
 on:
   schedule:
-    - cron: '0 6 1 * *'   # 06:00 UTC on the 1st of every month
+    - cron: '0 6 1 * *'      # 06:00 UTC on the 1st of every month
   workflow_dispatch:
+
 permissions:
   packages: write
+
 jobs:
   prune:
     runs-on: ubuntu-latest
@@ -447,12 +412,12 @@ jobs:
           package-type: container
           min-versions-to-keep: 10
           delete-only-untagged-versions: false
-          dry-run: true   # flip to false after one cycle of clean logs
+          dry-run: true   # flipped to false after one cycle's logs look correct
 ```
 
-## Renovate (`renovate.json`)
+The dry-run flag is flipped to `false` after the first scheduled run produces a sensible-looking delete list in the workflow logs.
 
-Requires the Renovate App installed on the org (one-time UI action; no workflow file).
+## `renovate.json` — monthly dependency PRs
 
 ```json
 {
@@ -462,40 +427,95 @@ Requires the Renovate App installed on the org (one-time UI action; no workflow 
   "timezone": "Etc/UTC",
   "labels": ["renovate"],
   "packageRules": [
-    { "matchManagers": ["dockerfile", "docker-compose"], "groupName": "container images" },
+    { "matchManagers": ["dockerfile", "docker-compose", "regex"], "groupName": "container images" },
     { "matchManagers": ["pip_requirements", "pep621"], "groupName": "siteapp python deps" }
   ]
 }
 ```
 
-Monthly cadence keeps PR noise low. Merging is manual.
+Requires the Renovate App installed on the `bioexperiment-lab-devices` org. The `regex` manager (configured via additional `customManagers` if needed at implementation time) is what targets `compose/pins.yaml`'s image-pin lines; out-of-box `dockerfile`/`docker-compose` managers cover `compose/siteapp/Dockerfile` and the compose template.
 
-## Failure modes and recovery
+## GitHub vars & secrets inventory
 
-| Failure | What happens | Recovery |
-|---------|--------------|----------|
-| `verify` fails on a PR | Branch protection blocks merge. | Fix code; push. |
-| release-please opens a release PR but `verify` fails on it | Release is blocked. | Fix the issue in a follow-up PR; release-please's PR rebases on merge. |
-| `release-build` fails *after* siteapp image push but *before* deploy | Image is in GHCR with a tag that has no deployed instance. | Re-run the workflow (`gh workflow run release-please.yml`) — the deploy is idempotent; nothing to clean up. |
-| `release-build` deploy succeeds but health-check fails | Workflow fails red; rollback via `task deploy:rollback -- v<previous>`. | Same. |
-| VPS unreachable | SSH step fails before any state change on the VPS. | Investigate VPS; re-run workflow. |
-| Operator pushes a roster change via `task deploy` while a CI deploy is mid-flight | Last-write-wins on the affected files. CI excludes the roster files; the operator's deploy restarts all three services. | Conflict is rare in practice (single operator). If it happens, re-run the laptop deploy. |
-| GHCR cleanup deletes a tag still referenced on the VPS | Re-pulling that exact tag would fail. | `min-versions-to-keep: 10` and the cron's monthly cadence make this extremely unlikely. If it happens, `task deploy:rollback -- v<later>` to a tag that *is* still present. |
+**Variables (3):**
 
-## Migration plan (one-time)
+| Name | Purpose |
+|---|---|
+| `RELEASE_PLEASE_APP_ID` | Numeric App ID for the shared `release-please` GitHub App. Org-level recommended. |
+| `VPS_HOST` | Public hostname or IPv4 of the VPS. |
+| `VPS_SSH_USER` | Deploy user on the VPS (must already exist with passwordless sudo, per `provision.sh`). |
 
-1. Create the dedicated GitHub App for release-please; install on the repo; record `App ID` as `vars.RELEASE_PLEASE_APP_ID` and the PEM as `secrets.RELEASE_PLEASE_APP_KEY`.
-2. Populate the rest of `vars.*` and `secrets.*` from the operator's local state.
-3. Add `VERSION` file, `release-please-config.json`, `.release-please-manifest.json`, the three workflow files, `renovate.json`, `compose/config.ci.yaml.tmpl`, and the deploy.sh refactor in **one PR**, with the existing `siteapp-publish.yml` deleted in the same PR.
-4. Merge after `verify` passes. release-please will open its first release PR on the next push to `main`. Merge that to cut `v<initial>` and exercise the deploy job end-to-end.
-5. After the first green release-build, enable branch protection with `pr-title` and `verify` as required checks.
-6. After one clean cycle of `ghcr-cleanup` in dry-run, flip its `dry-run: false`.
+**Secrets (6):**
 
-## Open questions
+| Name | Purpose |
+|---|---|
+| `RELEASE_PLEASE_APP_KEY` | PEM private key for the App. Org-level recommended. |
+| `VPS_SSH_KEY` | SSH private key for the deploy user. |
+| `JUPYTER_PASSWORD_HASH` | `sha1:salt:digest` for the shared JupyterLab password. |
+| `ADMIN_PASSWORD_HASH` | bcrypt hash for the `/admin/` basic-auth user. |
+| `GRAFANA_ADMIN_PASSWORD` | Plaintext; written to `compose/grafana/admin_password` on the runner. |
+| `AGENT_UPLOAD_TOKEN` | Bearer for `POST /api/agent/upload`; written to `compose/siteapp/agent_upload_token` on the runner. |
 
-None at draft time. Implementation will surface details that do not change the design:
+The siteapp image reference (`ghcr.io/<owner>/lab-bridge-siteapp:<tag>`) is **computed** at deploy time from the release tag + repo owner, not stored.
 
-- Exact action SHAs to pin to (we will pin all third-party actions at SHA, not tag, per the same hardening posture SerialHop uses).
-- The precise `ssh-keyscan` invocation for seeding `VPS_SSH_KNOWN_HOSTS`.
-- Whether `yq` (mikefarah) is fetched per-run or installed via a setup action.
-- Whether the laptop `task deploy` path should be taught about `VERSION` (so a roster-only laptop deploy doesn't accidentally pin an old siteapp tag from a stale local `config.yaml`) — likely yes, but the change is small and contained to `Taskfile.yml` + a tiny render helper.
+## First-run migration
+
+One-time setup performed by the operator:
+
+1. **GitHub App.** Rename SerialHop's `release-please` GitHub App to a neutral identifier; install on `lab_devices_server`. Store `RELEASE_PLEASE_APP_ID` and `RELEASE_PLEASE_APP_KEY` at org level (recommended) or repo level.
+2. **GH vars/secrets.** Populate the three vars and six secrets above. Source values: laptop's current `config.yaml` (jupyter/admin password hashes), `compose/grafana/admin_password` (grafana password plaintext), `compose/siteapp/agent_upload_token` (agent token plaintext), `~/.ssh/<key>` (VPS SSH key).
+3. **Branch protection.** Apply the rules listed in "Branch protection & PR conventions" via the GitHub UI.
+4. **Renovate App.** Install on the org if not already; grant access to this repo.
+5. **Seed `.release-please-manifest.json`.** Initial version chosen to reflect current state (e.g. `0.4.0`).
+6. **Seed `compose/pins.yaml`** from current `config.yaml` values.
+7. **Seed `compose/siteapp/VERSION`** with the currently-deployed siteapp version.
+8. **First merge to `main`** with the new workflows triggers `release-please`; review and merge the resulting release PR to cut the first automated release.
+
+## Decisions
+
+### Why no `known_hosts` pin?
+
+A tracked `compose/.known_hosts` file would protect the runner-to-VPS SSH path against MITM and against silent VPS replacement at the same DNS name. The cost is one tracked line plus a one-line PR after any host-key rotation. For a small private project where the deploy window is a few minutes per release and the attacker capability required is roughly "owns Azure egress to your VPS provider", the marginal protection isn't worth the maintenance touch. The runner uses `StrictHostKeyChecking=accept-new`: first SSH per job accepts whatever DNS returns, subsequent SSH calls within the same job verify against it. Effectively per-job TOFU. If the threat model ever changes, dropping in a `compose/.known_hosts` is a single non-breaking PR.
+
+### Why one version for stack + siteapp instead of release-please multi-package?
+
+Two reasons. First, "what version is deployed" should be one unambiguous number an operator can read off `/api/public/server-info` and `git tag`. Second, the multi-package config is meaningfully more YAML for very little benefit: the siteapp is a leaf component of "the stack", not an independently versioned product, and image rebuilds with buildx cache are essentially free. The cost — image rebuilt on releases that don't touch siteapp source — is invisible.
+
+### Why image rebuilds run unconditionally per release (rather than skipping when siteapp didn't change)
+
+A conditional skip introduces ambiguity: "this release's image is the previous release's image, retagged." That breaks the invariant that the attestation at tag `vX.Y.Z` is the build that ran for `vX.Y.Z`. Cheaper to rebuild from cache than to reason about which image is authoritative.
+
+### Why CI deploy doesn't manage the chisel roster
+
+The roster grows over time, one device at a time, with per-device passwords generated locally by `task secrets:add-client`. Moving it into GH secrets would mean either one secret per device (operator chore for every add/remove) or one JSON blob secret (no diff visibility, easy to corrupt). Neither is better than the current laptop-managed flow. The cost is a known limitation (see below); the benefit is that adding a lab device remains a single laptop command and CI releases never accidentally regenerate auth that live clients depend on.
+
+## Known limitations
+
+- **Roster lives only on the operator's laptop and the VPS.** If the laptop is lost, the roster can be reconstructed by SSHing to the VPS and reading back `chisel/users.json` and `siteapp/clients.json`, then reassembling the `chisel_clients[]` section in a fresh `config.yaml`. Not automated. Worth being aware of; not worth solving until it becomes a real problem.
+- **Single-VPS only.** Adding a staging environment would mean another `VPS_HOST`/`VPS_SSH_USER`/`VPS_SSH_KEY` triplet and a matrix on `release-build`. Out of scope here; the design doesn't preclude it.
+- **Rate-limited Docker Hub pulls on CI runners.** The bats integration suites that build the fake-VPS container already skip cleanly when anonymous-pull is rate-limited. This is documented in the README; no CI-specific mitigation needed.
+
+## Deferred
+
+- **CodeQL / bandit** for siteapp Python. Low signal-to-noise on a small FastAPI service; trivially addable later.
+- **Deploy notifications** to Slack/Telegram/Discord. No channel exists today; revisit if/when one is provisioned.
+- **Weekly drift check** comparing `/api/public/server-info` to the latest GitHub Release tag. Useful but not load-bearing; add later if drift turns out to be a real problem.
+- **PR preview image** for siteapp (push `pr-<n>` tag to GHCR). Defer until the operator actually `docker run`s preview builds.
+- **Docs-portal footer version surface.** Reading from `/api/public/server-info` is sufficient for now.
+
+## Implementation order
+
+This list is descriptive, not the implementation plan (the plan lives in a separate document via the `writing-plans` skill).
+
+1. Extract image pins / paths / numeric config into `compose/pins.yaml`; update `scripts/lib/config.sh` and `config.example.yaml`; verify `task deploy` still works locally.
+2. Add `compose/siteapp/VERSION`; teach the laptop deploy path and `compose/siteapp/build.sh` to consume it; add `LAB_BRIDGE_VERSION` / `LAB_BRIDGE_GIT_SHA` build-args to siteapp's Dockerfile; extend `/api/public/server-info` and update the client-spec doc.
+3. Refactor `scripts/deploy.sh` for `LDS_STACK_ONLY=1` and `LDS_REQUIRE_VAULT=1`. Update bats coverage.
+4. Add `compose/config.ci.yaml.tmpl`.
+5. Set up the GitHub App (rename, install, populate vars/secrets).
+6. Land `.github/workflows/pr.yml`. Verify on a no-op PR.
+7. Land `release-please-config.json`, `.release-please-manifest.json`, `.github/workflows/release-please.yml`. Apply branch protection.
+8. Cut the first release; verify image push, attestation, deploy, `/api/public/server-info` version assertion.
+9. Land `.github/workflows/ghcr-cleanup.yml` (dry-run). After one cycle, flip to live.
+10. Land `renovate.json`; ensure the Renovate App is installed.
+11. Delete the legacy `.github/workflows/siteapp-publish.yml`.
+12. Add `task deploy:rollback`; test against the freshly-cut release.
