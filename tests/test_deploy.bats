@@ -4,9 +4,35 @@ load helpers
 
 setup_file() {
     bash "$ROOT/tests/fake_vps/start.sh"
+    # Run the one-time-per-file provisioning and image loading here so each
+    # per-test setup() doesn't rebuild/reload the siteapp image for every test.
+    # provision.sh installs Docker in the fake-VPS; must run before image ops.
+    setup_tmpdir
+    cp "$ROOT/tests/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
+    yq -i ".vps.host = \"127.0.0.1\"" "$TMPDIR/config.yaml"
+    cp "$ROOT/tests/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
+    yq -i ".ssh_port = 2222" "$TMPDIR/pins.yaml"
+    export LDS_CONFIG="$TMPDIR/config.yaml"
+    export LDS_PINS_FILE="$TMPDIR/pins.yaml"
+    export LDS_SSH_KEY="$ROOT/tests/fake_vps/id_test"
+    export LDS_SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    export LDS_SKIP_HEALTHCHECK=1
+    export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
+    printf 'testpw' > "$LDS_GRAFANA_PASSWORD_FILE"
+    chmod 600 "$LDS_GRAFANA_PASSWORD_FILE"
+    export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
+    printf 'testtok' > "$LDS_AGENT_TOKEN_FILE"
+    chmod 600 "$LDS_AGENT_TOKEN_FILE"
+    bash "$ROOT/scripts/provision.sh"
+    load_siteapp_test_image
+    preload_fake_vps_images
+    export _DEPLOY_TMPDIR="$TMPDIR"
 }
 teardown_file() {
     docker rm -f lds-fake-vps >/dev/null 2>&1 || true
+    if [[ -n "${_DEPLOY_TMPDIR:-}" && -d "$_DEPLOY_TMPDIR" ]]; then
+        rm -rf "$_DEPLOY_TMPDIR"
+    fi
 }
 
 setup() {
@@ -27,9 +53,9 @@ setup() {
     export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
     printf 'testtok' > "$LDS_AGENT_TOKEN_FILE"
     chmod 600 "$LDS_AGENT_TOKEN_FILE"
+    # Docker is already installed and siteapp image pre-loaded by setup_file().
+    # provision.sh is idempotent — this is fast on subsequent calls.
     bash "$ROOT/scripts/provision.sh"
-    load_siteapp_test_image
-    preload_fake_vps_images
 }
 teardown() { teardown_tmpdir; }
 
