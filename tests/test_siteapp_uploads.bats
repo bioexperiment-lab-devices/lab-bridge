@@ -20,8 +20,12 @@ setup_file() {
     bash "$ROOT/tests/fake_vps/start.sh"
     setup_tmpdir
     cp "$ROOT/tests/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
-    yq -i ".vps.host = \"127.0.0.1\" | .vps.ssh_port = 2222" "$TMPDIR/config.yaml"
+    yq -i ".vps.host = \"127.0.0.1\"" "$TMPDIR/config.yaml"
+    # ssh_port is now a pins.yaml value; create a test-specific pins with port 2222.
+    cp "$ROOT/tests/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
+    yq -i ".ssh_port = 2222" "$TMPDIR/pins.yaml"
     export LDS_CONFIG="$TMPDIR/config.yaml"
+    export LDS_PINS_FILE="$TMPDIR/pins.yaml"
     export LDS_SSH_KEY="$ROOT/tests/fake_vps/id_test"
     export LDS_SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     export LDS_SKIP_HEALTHCHECK=1
