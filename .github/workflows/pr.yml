@@ -63,20 +63,6 @@ jobs:
       - name: install bats
         uses: bats-core/bats-action@3.0.1
 
-      - name: pre-pull compose-stack images
-        # The fake-VPS tests' helpers.bash preload_fake_vps_images() seeds the
-        # nested fake-VPS Docker daemon with images already cached on the host,
-        # short-circuiting docker compose pull inside the fake-VPS (which would
-        # otherwise re-pull each image per test file). Pulling them once on the
-        # runner before bats runs cuts ~3-4 minutes off the siteapp_auth setup.
-        run: |
-          docker pull caddy:2 &
-          docker pull jpillora/chisel:1.10.1 &
-          docker pull grafana/loki:3.2.1 &
-          docker pull grafana/grafana:11.3.0 &
-          docker pull quay.io/jupyter/scipy-notebook:2026-04-20 &
-          wait
-
       - name: bats
         timeout-minutes: 25
         # Skip 3 of 4 test_siteapp_*.bats files: each does an identical full
