@@ -103,7 +103,7 @@ def test_clients_endpoint_happy_path(client: TestClient, clients_file: Path) -> 
     assert r.status_code == 200
     assert r.json() == {
         "khamit_desktop": {"host": "chisel", "port": 8089},
-        "another_lab":    {"host": "chisel", "port": 8090},
+        "another_lab": {"host": "chisel", "port": 8090},
     }
 
 
@@ -114,19 +114,14 @@ def test_clients_endpoint_empty_roster(client: TestClient) -> None:
     assert r.json() == {}
 
 
-def test_clients_endpoint_rereads_on_each_request(
-    client: TestClient, clients_file: Path
-) -> None:
-    clients_file.write_text(
-        '{"a": {"port": 1, "password_sha256": "aa"}}', encoding="utf-8"
-    )
+def test_clients_endpoint_rereads_on_each_request(client: TestClient, clients_file: Path) -> None:
+    clients_file.write_text('{"a": {"port": 1, "password_sha256": "aa"}}', encoding="utf-8")
     r1 = client.get("/api/clients/")
     assert r1.status_code == 200
     assert r1.json() == {"a": {"host": "chisel", "port": 1}}
 
     clients_file.write_text(
-        '{"a": {"port": 1, "password_sha256": "aa"},'
-        ' "b": {"port": 2, "password_sha256": "bb"}}',
+        '{"a": {"port": 1, "password_sha256": "aa"}, "b": {"port": 2, "password_sha256": "bb"}}',
         encoding="utf-8",
     )
     r2 = client.get("/api/clients/")
@@ -137,25 +132,19 @@ def test_clients_endpoint_rereads_on_each_request(
     }
 
 
-def test_clients_endpoint_missing_file_returns_500(
-    client: TestClient, clients_file: Path
-) -> None:
+def test_clients_endpoint_missing_file_returns_500(client: TestClient, clients_file: Path) -> None:
     clients_file.unlink()
     r = client.get("/api/clients/")
     assert r.status_code == 500
 
 
-def test_clients_endpoint_malformed_returns_500(
-    client: TestClient, clients_file: Path
-) -> None:
+def test_clients_endpoint_malformed_returns_500(client: TestClient, clients_file: Path) -> None:
     clients_file.write_text("not-json", encoding="utf-8")
     r = client.get("/api/clients/")
     assert r.status_code == 500
 
 
-def test_clients_endpoint_wrong_shape_returns_500(
-    client: TestClient, clients_file: Path
-) -> None:
+def test_clients_endpoint_wrong_shape_returns_500(client: TestClient, clients_file: Path) -> None:
     clients_file.write_text("[1, 2, 3]", encoding="utf-8")
     r = client.get("/api/clients/")
     assert r.status_code == 500

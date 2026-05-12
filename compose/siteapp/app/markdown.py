@@ -19,31 +19,66 @@ from pygments.util import ClassNotFound
 # --- bleach allow-list ------------------------------------------------------
 # Tags markdown-it produces (kept) plus a small set of inline HTML we want
 # authors to be able to use directly.
-ALLOWED_TAGS: frozenset[str] = frozenset({
-    # markdown-produced
-    "h1", "h2", "h3", "h4", "h5", "h6",
-    "p", "a", "ul", "ol", "li", "blockquote",
-    "pre", "code", "table", "thead", "tbody", "tr", "th", "td",
-    "hr", "strong", "em", "del", "img", "input", "span", "div",
-    "section",
-    # author-allowed inline HTML
-    "kbd", "sub", "sup", "br", "details", "summary",
-})
+ALLOWED_TAGS: frozenset[str] = frozenset(
+    {
+        # markdown-produced
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "p",
+        "a",
+        "ul",
+        "ol",
+        "li",
+        "blockquote",
+        "pre",
+        "code",
+        "table",
+        "thead",
+        "tbody",
+        "tr",
+        "th",
+        "td",
+        "hr",
+        "strong",
+        "em",
+        "del",
+        "img",
+        "input",
+        "span",
+        "div",
+        "section",
+        # author-allowed inline HTML
+        "kbd",
+        "sub",
+        "sup",
+        "br",
+        "details",
+        "summary",
+    }
+)
 ALLOWED_ATTRS: dict[str, set[str]] = {
     "a": {"href", "title", "rel", "target"},
     "img": {"src", "alt", "width", "height", "title", "loading"},
     "input": {"type", "disabled", "checked", "class"},  # tasklists
-    "li": {"class"},                                     # tasklists
-    "code": {"class"},                                   # highlighted code
-    "pre": {"class"},                                    # highlighter + mermaid
-    "div": {"class"},                                    # alerts
-    "span": {"class"},                                   # anchors
-    "h1": {"id"}, "h2": {"id"}, "h3": {"id"},
-    "h4": {"id"}, "h5": {"id"}, "h6": {"id"},
-    "th": {"style"},                                     # column alignment
-    "td": {"style"},                                     # column alignment
-    "section": {"class"},                                # footnotes
-    "sup": {"class"},                                    # footnote-ref
+    "li": {"class"},  # tasklists
+    "code": {"class"},  # highlighted code
+    "pre": {"class"},  # highlighter + mermaid
+    "div": {"class"},  # alerts
+    "span": {"class"},  # anchors
+    "h1": {"id"},
+    "h2": {"id"},
+    "h3": {"id"},
+    "h4": {"id"},
+    "h5": {"id"},
+    "h6": {"id"},
+    "th": {"style"},  # column alignment
+    "td": {"style"},  # column alignment
+    "section": {"class"},  # footnotes
+    "sup": {"class"},  # footnote-ref
 }
 ALLOWED_PROTOCOLS: frozenset[str] = frozenset({"http", "https"})  # plus relative
 
@@ -170,9 +205,7 @@ def _sanitize(html: str) -> str:
 
 
 _ALERT_TYPES: frozenset[str] = frozenset({"NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION"})
-_ALERT_MARKER_RE = re.compile(
-    r"^\[!(?P<type>NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*(?:\n|$)"
-)
+_ALERT_MARKER_RE = re.compile(r"^\[!(?P<type>NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*(?:\n|$)")
 
 
 def _apply_alerts(tokens) -> None:
@@ -227,7 +260,7 @@ def _apply_alerts(tokens) -> None:
         alert_type = m.group("type").lower()
 
         # Strip the marker from the inline source.
-        inline.content = inline.content[m.end():]
+        inline.content = inline.content[m.end() :]
 
         # Strip the matching leading children: the marker `text` token, plus
         # any `softbreak` / `hardbreak` directly after it. The surviving

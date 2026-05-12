@@ -204,6 +204,7 @@ def test_rotate_token_returns_value(client: TestClient) -> None:
     assert r.status_code == 200
     assert "new_token" in r.text
     import re as _re
+
     assert _re.search(r"[A-Za-z0-9_-]{40,}", r.text)
 
 

@@ -103,7 +103,9 @@ def test_chisel_listen_port_stored(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert settings.chisel_listen_port == 9090
 
 
-def test_chisel_listen_port_non_integer_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_chisel_listen_port_non_integer_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("SITE_DATA", str(tmp_path))
     monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "tok")
     monkeypatch.setenv("SITEAPP_CHISEL_LISTEN_PORT", "not-a-number")

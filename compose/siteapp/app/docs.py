@@ -15,9 +15,16 @@ from app.templates import templates
 from app.translations import find_doc, resolve_lang_file
 
 
-DOC_STATIC_EXTS: frozenset[str] = frozenset({
-    ".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp",
-})
+DOC_STATIC_EXTS: frozenset[str] = frozenset(
+    {
+        ".svg",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+    }
+)
 
 
 def _pick_lang(query: str | None, cookie: str | None) -> Literal["en", "ru"]:
@@ -54,9 +61,7 @@ def make_router(settings: Settings) -> APIRouter:
         # Trailing-slash semantics: a directory URL must end with `/` so relative
         # links inside index.md resolve correctly in the browser.
         if path and not path.endswith("/") and candidate is not None and candidate.is_dir():
-            return RedirectResponse(
-                url=f"/docs/{path}/", status_code=HTTP_308_PERMANENT_REDIRECT
-            )
+            return RedirectResponse(url=f"/docs/{path}/", status_code=HTTP_308_PERMANENT_REDIRECT)
 
         # Doc-relative static asset (e.g., icons/jupyter.svg next to a .md):
         # serve the file directly when its extension is in the allow-list.

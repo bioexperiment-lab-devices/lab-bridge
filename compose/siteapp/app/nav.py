@@ -18,9 +18,7 @@ def _first_h1(text: str) -> str | None:
 
 def _read_titles(en_path: Path, ru_path: Path, fallback: str) -> tuple[str, str | None]:
     title_en = _first_h1(en_path.read_text(encoding="utf-8")) or fallback
-    title_ru = (
-        _first_h1(ru_path.read_text(encoding="utf-8")) if ru_path.is_file() else None
-    )
+    title_ru = _first_h1(ru_path.read_text(encoding="utf-8")) if ru_path.is_file() else None
     return title_en, title_ru
 
 
@@ -60,9 +58,7 @@ def _walk(directory: Path, url_prefix: str) -> list[NavEntry]:
                         )
                     )
                 continue
-            title_en, title_ru = _read_titles(
-                index, child / "index.ru.md", child.name
-            )
+            title_en, title_ru = _read_titles(index, child / "index.ru.md", child.name)
             dirs.append(
                 NavEntry(
                     title_en=title_en,
@@ -78,16 +74,10 @@ def _walk(directory: Path, url_prefix: str) -> list[NavEntry]:
                 # For sub-directory index.md files, the section's NavEntry already represents
                 # the index — don't duplicate it here.
                 if url_prefix == "/docs/":
-                    title_en, title_ru = _read_titles(
-                        child, child.with_name("index.ru.md"), "Home"
-                    )
-                    home_entry = NavEntry(
-                        title_en=title_en, title_ru=title_ru, url=url_prefix
-                    )
+                    title_en, title_ru = _read_titles(child, child.with_name("index.ru.md"), "Home")
+                    home_entry = NavEntry(title_en=title_en, title_ru=title_ru, url=url_prefix)
                 continue
-            title_en, title_ru = _read_titles(
-                child, child.with_name(stem + ".ru.md"), stem
-            )
+            title_en, title_ru = _read_titles(child, child.with_name(stem + ".ru.md"), stem)
             files.append(
                 NavEntry(
                     title_en=title_en,

@@ -188,9 +188,7 @@ def make_router(settings: Settings) -> APIRouter:
         return RedirectResponse(url=f"/admin/docs?target={target}", status_code=303)
 
     @router.post("/docs/new-folder")
-    def new_folder(
-        target: str = Form(""), csrf: str = Form(""), name: str = Form(...)
-    ) -> Response:
+    def new_folder(target: str = Form(""), csrf: str = Form(""), name: str = Form(...)) -> Response:
         _check_csrf(serializer, csrf)
         target_path = _resolve_target(settings.docs_root, target)
         clean = sanitize_filename(name)
@@ -226,9 +224,7 @@ def make_router(settings: Settings) -> APIRouter:
         from app.api import upload_agent
 
         synthetic = f"Bearer {settings.agent_upload_token}"
-        await upload_agent(
-            settings, version=version, binary=binary, authorization=synthetic
-        )
+        await upload_agent(settings, version=version, binary=binary, authorization=synthetic)
         return RedirectResponse(url="/admin/agent", status_code=303)
 
     @router.post("/agent/rotate-token")

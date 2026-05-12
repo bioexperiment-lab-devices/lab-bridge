@@ -81,5 +81,3 @@ def test_top_level_not_object_raises(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError):
         load_roster(f)
-
-

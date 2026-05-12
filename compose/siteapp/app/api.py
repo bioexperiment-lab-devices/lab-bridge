@@ -73,9 +73,7 @@ async def upload_agent(
         "uploaded_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "size": size,
     }
-    fd2, meta_tmp = tempfile.mkstemp(
-        dir=str(settings.agent_root), prefix="meta-", suffix=".json"
-    )
+    fd2, meta_tmp = tempfile.mkstemp(dir=str(settings.agent_root), prefix="meta-", suffix=".json")
     with os.fdopen(fd2, "w") as f:
         json.dump(meta, f)
     os.replace(meta_tmp, settings.agent_root / "meta.json")

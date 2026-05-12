@@ -17,6 +17,7 @@ def app_client(tmp_path: Path, monkeypatch) -> TestClient:
     from importlib import reload
 
     import app.main
+
     reload(app.main)
     return TestClient(app.main.app)
 
@@ -28,9 +29,7 @@ def test_server_info_returns_expected_shape(app_client: TestClient) -> None:
     assert body == {
         "chisel": {"listen_port": 8080},
         "loki": {"push_url": "http://127.0.0.1:3100/loki/api/v1/push"},
-        "forward_tunnels": [
-            {"name": "loki", "local": "127.0.0.1:3100", "remote": "loki:3100"}
-        ],
+        "forward_tunnels": [{"name": "loki", "local": "127.0.0.1:3100", "remote": "loki:3100"}],
         "version": "test-version",
         "git_sha": "test-sha",
     }
@@ -46,6 +45,7 @@ def test_server_info_reflects_configured_port(
     from importlib import reload
 
     import app.main
+
     reload(app.main)
     client = TestClient(app.main.app)
 
@@ -71,6 +71,7 @@ def test_server_info_version_falls_back_to_dev_when_env_unset(
     from importlib import reload
 
     import app.main
+
     reload(app.main)
     client = TestClient(app.main.app)
 

@@ -14,6 +14,7 @@ from app.public_clients import (
 
 # ----- _parse_bearer ------------------------------------------------------
 
+
 def test_parse_bearer_returns_token() -> None:
     assert _parse_bearer("Bearer abc123") == "abc123"
 
@@ -40,6 +41,7 @@ def test_parse_bearer_empty_string_returns_empty() -> None:
 
 
 # ----- _load_roster -------------------------------------------------------
+
 
 def test_load_roster_returns_raw_dict(tmp_path: Path) -> None:
     f = tmp_path / "r.json"
@@ -91,6 +93,7 @@ def test_load_roster_rejects_string_port(tmp_path: Path) -> None:
 
 # ----- _verify ------------------------------------------------------------
 
+
 def _hash(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
@@ -129,8 +132,8 @@ def test_verify_entry_malformed_hash_returns_none() -> None:
 
 # ----- _probe_tunnel ------------------------------------------------------
 
-import socket
-from unittest.mock import patch, MagicMock
+import socket  # noqa: E402
+from unittest.mock import patch, MagicMock  # noqa: E402
 
 
 def test_probe_tunnel_open_port_returns_true() -> None:
@@ -163,8 +166,8 @@ def test_probe_tunnel_timeout_returns_false() -> None:
 
 # ----- /api/public/clients/{username} -------------------------------------
 
-import hashlib as _hashlib_for_routes
-from fastapi.testclient import TestClient
+import hashlib as _hashlib_for_routes  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
 
 
 PASSWORD = "ccTMYfkmJmIQCg-ApvdjV5l4IBqZT0dD"
@@ -177,12 +180,15 @@ def app_client(tmp_path: Path, monkeypatch, _clients_file_default: Path):
     monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "irrelevant-for-this-suite")
     from importlib import reload
     import app.main
+
     reload(app.main)
     # raise_server_exceptions=False so 500-path tests see HTTP 500
     return TestClient(app.main.app, raise_server_exceptions=False), _clients_file_default
 
 
-def _write_roster(path: Path, *, username: str = USERNAME, password: str = PASSWORD, port: int = 8089) -> None:
+def _write_roster(
+    path: Path, *, username: str = USERNAME, password: str = PASSWORD, port: int = 8089
+) -> None:
     pwhash = _hashlib_for_routes.sha256(password.encode("utf-8")).hexdigest()
     path.write_text(
         '{"' + username + '": {"port": ' + str(port) + ', "password_sha256": "' + pwhash + '"}}',
@@ -266,7 +272,7 @@ def test_public_clients_malformed_roster_returns_500(app_client) -> None:
 
 # ----- /api/public/health -------------------------------------------------
 
-import httpx
+import httpx  # noqa: E402
 
 
 class _FakeResp:
@@ -277,7 +283,9 @@ class _FakeResp:
         if self.status_code >= 400:
             req = httpx.Request("GET", "http://chisel:7000/health")
             raise httpx.HTTPStatusError(
-                f"http {self.status_code}", request=req, response=httpx.Response(self.status_code, request=req)
+                f"http {self.status_code}",
+                request=req,
+                response=httpx.Response(self.status_code, request=req),
             )
 
 
