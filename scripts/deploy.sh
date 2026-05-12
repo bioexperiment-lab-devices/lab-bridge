@@ -16,6 +16,16 @@ main() {
     [[ -f "$CONFIG" ]] || die "config not found: $CONFIG (cp config.example.yaml config.yaml)"
     load_config "$CONFIG"
 
+    # Stack-only mode: CI deploys do not touch the chisel/siteapp client roster.
+    # Guard against roster data leaking into a stack-only config.
+    if [[ "${LDS_STACK_ONLY:-}" == "1" && "${LDS_REQUIRE_VAULT:-}" == "1" ]]; then
+        local roster_count
+        roster_count="$(yq e '.chisel_clients | length' "$CONFIG")"
+        if [[ "$roster_count" != "0" ]]; then
+            die "LDS_REQUIRE_VAULT=1: chisel_clients must be empty in stack-only mode (got $roster_count entries)"
+        fi
+    fi
+
     # 1. Render to a staging dir.
     _STAGE="$(mktemp -d)"
     trap 'rm -rf "$_STAGE"' EXIT
@@ -25,8 +35,10 @@ main() {
     mkdir -p "$stage/chisel" "$stage/loki" "$stage/grafana/provisioning" "$stage/siteapp"
     render_compose     "$REPO_ROOT/compose/docker-compose.yml.tmpl" "$stage/docker-compose.yml"
     render_caddyfile   "$REPO_ROOT/compose/Caddyfile.tmpl"           "$stage/Caddyfile"
-    render_chisel_users "$stage/chisel/users.json"
-    render_siteapp_clients "$stage/siteapp/clients.json"
+    if [[ "${LDS_STACK_ONLY:-}" != "1" ]]; then
+        render_chisel_users "$stage/chisel/users.json"
+        render_siteapp_clients "$stage/siteapp/clients.json"
+    fi
     render_loki_config  "$REPO_ROOT/compose/loki/config.yaml.tmpl"   "$stage/loki/config.yaml"
 
     # Static Grafana provisioning — datasource + dashboard provider + dashboard JSON.
@@ -62,24 +74,32 @@ main() {
     # in caddy_data/ and adapter cache in caddy_config/, both owned by root
     # inside the container).
     log "rsyncing to $target:$VPS_REMOTE_ROOT/ ..."
-    rsync -az --delete \
-        --exclude='caddy_data/' \
-        --exclude='caddy_config/' \
-        --exclude='loki_data/' \
-        --exclude='grafana_data/' \
-        --exclude='site_data/' \
-        -e "$rsync_e" \
-        "$stage/" "$target:$VPS_REMOTE_ROOT/"
+    local rsync_excludes=(
+        --exclude='caddy_data/'
+        --exclude='caddy_config/'
+        --exclude='loki_data/'
+        --exclude='grafana_data/'
+        --exclude='site_data/'
+    )
+    if [[ "${LDS_STACK_ONLY:-}" == "1" ]]; then
+        rsync_excludes+=(--exclude='chisel/users.json' --exclude='siteapp/clients.json')
+    fi
+    rsync -az --delete "${rsync_excludes[@]}" -e "$rsync_e" "$stage/" "$target:$VPS_REMOTE_ROOT/"
 
-    # 4. docker compose up. Always restart caddy and chisel because their
-    # bind-mounted config files (Caddyfile, chisel/users.json) may have been
-    # replaced by rsync (atomic rename → new inode → the already-loaded
-    # reference inside the container goes stale; `up -d` doesn't recreate
+    # 4. docker compose up. Always restart caddy and siteapp. In full mode,
+    # also restart chisel because its bind-mounted config file (chisel/users.json)
+    # may have been replaced by rsync (atomic rename → new inode → the already-
+    # loaded reference inside the container goes stale; `up -d` doesn't recreate
     # containers whose compose-config didn't change, and a single-file bind
     # mount pins the original inode so even fsnotify-based auto-reload
-    # re-reads the same stale contents).
+    # re-reads the same stale contents). In stack-only mode, chisel is excluded
+    # from restart because its roster files are managed by the operator, not CI.
     log "bringing up the stack..."
-    $ssh_base "$target" "cd $VPS_REMOTE_ROOT && (docker compose pull --ignore-pull-failures || true) && docker compose up -d --remove-orphans && docker compose restart caddy chisel siteapp"
+    local restart_services="caddy siteapp"
+    if [[ "${LDS_STACK_ONLY:-}" != "1" ]]; then
+        restart_services="caddy chisel siteapp"
+    fi
+    $ssh_base "$target" "cd $VPS_REMOTE_ROOT && (docker compose pull --ignore-pull-failures || true) && docker compose up -d --remove-orphans && docker compose restart $restart_services"
 
     # 5. Health check (skippable for tests). Probe both routed paths:
     # `/` (JupyterLab → 200/302) and `/grafana/login` (Grafana → 200, terminal,

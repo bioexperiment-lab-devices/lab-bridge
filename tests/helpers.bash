@@ -1,6 +1,32 @@
 # Source from the repo root regardless of where bats was invoked.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# Create a fake rsync shim that logs its arguments to a file and exits 0.
+# Also creates a fake ssh shim that exits 0 (for the compose up step).
+# Usage: setup_fake_rsync_spy <logfile>
+# After calling this, prepend "$BATS_TEST_TMPDIR/spy_bin" to PATH.
+setup_fake_rsync_spy() {
+    local logfile="$1"
+    local spy_bin="$BATS_TEST_TMPDIR/spy_bin"
+    mkdir -p "$spy_bin"
+
+    # rsync spy: log all args to logfile, exit 0
+    cat > "$spy_bin/rsync" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$@" >> "$logfile"
+EOF
+    chmod +x "$spy_bin/rsync"
+
+    # ssh spy: exit 0 silently (swallows docker compose up/restart calls)
+    cat > "$spy_bin/ssh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+    chmod +x "$spy_bin/ssh"
+
+    export PATH="$spy_bin:$PATH"
+}
+
 setup_tmpdir() {
     TMPDIR="$(mktemp -d)"
     export TMPDIR
