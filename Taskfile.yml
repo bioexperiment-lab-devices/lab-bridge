@@ -74,5 +74,5 @@ tasks:
 
   # --- Siteapp image ---
   "siteapp:build-and-push":
-    desc: Build and push the siteapp image. Set SITEAPP_IMAGE=ghcr.io/<owner>/lab-bridge-siteapp:<tag>.
+    desc: Build and push the siteapp image. Reads version from compose/siteapp/VERSION; reads SITEAPP_IMAGE_REPO from compose/pins.yaml (or env override).
     cmd: bash compose/siteapp/build.sh
