@@ -3,10 +3,32 @@
 # Sourced, not executed. Depends on common.sh + config.sh being sourced and
 # load_config having been called.
 
+# _siteapp_image — print ghcr.io/<owner>/lab-bridge-siteapp:<version>
+# Reads compose/siteapp/VERSION (override via LDS_SITEAPP_VERSION_FILE for tests).
+# VERSION path is resolved REPO-ROOT-RELATIVE via this script's location,
+# not relative to the pins file location.
+_siteapp_image() {
+    local repo="${SITEAPP_IMAGE_REPO:?SITEAPP_IMAGE_REPO not set — did load_config run?}"
+    local version_file="${LDS_SITEAPP_VERSION_FILE:-}"
+    if [[ -z "$version_file" ]]; then
+        # scripts/lib/render.sh → repo root is two levels up.
+        local script_dir
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        version_file="$script_dir/../../compose/siteapp/VERSION"
+    fi
+    [[ -f "$version_file" ]] || die "siteapp VERSION file not found: $version_file"
+    local version
+    version="$(tr -d '[:space:]' < "$version_file")"
+    [[ -n "$version" ]] || die "siteapp VERSION file is empty: $version_file"
+    printf '%s:%s' "$repo" "$version"
+}
+
 # render_compose <template_path> <output_path>
 render_compose() {
     local tmpl="${1:?}" out="${2:?}"
     [[ -f "$tmpl" ]] || die "template not found: $tmpl"
+    local siteapp_image
+    siteapp_image="$(_siteapp_image)"
     # The password_hash contains $ and : characters but no | (sha1:hex:hex),
     # so | as the sed delimiter is safe.
     sed \
@@ -18,7 +40,7 @@ render_compose() {
         -e "s|__LOKI_IMAGE__|${LOKI_IMAGE:?}|g" \
         -e "s|__GRAFANA_IMAGE__|${GRAFANA_IMAGE:?}|g" \
         -e "s|__VPS_HOST__|${VPS_HOST:?}|g" \
-        -e "s|__SITEAPP_IMAGE__|${SITEAPP_IMAGE:?}|g" \
+        -e "s|__SITEAPP_IMAGE__|${siteapp_image}|g" \
         "$tmpl" > "$out"
 }
 

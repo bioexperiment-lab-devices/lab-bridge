@@ -150,21 +150,4 @@ load_config() {
     export LOKI_RETENTION_DAYS   ; LOKI_RETENTION_DAYS="$(_yq e '.loki_retention_days' "$pins_path")"
     export GRAFANA_IMAGE         ; GRAFANA_IMAGE="$(_yq e '.grafana_image' "$pins_path")"
     export SITEAPP_IMAGE_REPO    ; SITEAPP_IMAGE_REPO="$(_yq e '.siteapp_image_repo' "$pins_path")"
-    # SITEAPP_IMAGE is assembled from SITEAPP_IMAGE_REPO + compose/siteapp/VERSION.
-    # Read VERSION relative to pins_path (which lives at compose/pins.yaml) so that
-    # this works whether invoked from the repo root, a scripts/ subdir, or a test tmpdir.
-    local _version_file
-    _version_file="$(dirname "$pins_path")/../compose/siteapp/VERSION"
-    # Fall back: if pins_path IS compose/pins.yaml, VERSION is a sibling of pins.yaml's parent.
-    # Handle the common case where pins_path is $REPO_ROOT/compose/pins.yaml.
-    local _pins_dir
-    _pins_dir="$(dirname "$pins_path")"
-    _version_file="${_pins_dir}/siteapp/VERSION"
-    local _version
-    _version="$(cat "$_version_file" 2>/dev/null | tr -d '[:space:]')"
-    if [[ -n "$_version" ]]; then
-        export SITEAPP_IMAGE="${SITEAPP_IMAGE_REPO}:${_version}"
-    else
-        export SITEAPP_IMAGE="${SITEAPP_IMAGE_REPO}"
-    fi
 }

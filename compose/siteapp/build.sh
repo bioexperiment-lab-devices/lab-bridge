@@ -3,14 +3,20 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-: "${SITEAPP_IMAGE:?set SITEAPP_IMAGE=ghcr.io/<owner>/lab-bridge-siteapp:<tag>}"
+VERSION="$(tr -d '[:space:]' < "$SCRIPT_DIR/VERSION")"
+GIT_SHA="$(git -C "$REPO_ROOT" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)"
+
+: "${SITEAPP_IMAGE_REPO:=$(yq e '.siteapp_image_repo' "$REPO_ROOT/compose/pins.yaml")}"
+SITEAPP_IMAGE="${SITEAPP_IMAGE_REPO}:${VERSION}"
 
 cd "$SCRIPT_DIR"
 docker buildx build \
     --platform linux/amd64 \
+    --build-arg "LAB_BRIDGE_VERSION=${VERSION}" \
+    --build-arg "LAB_BRIDGE_GIT_SHA=${GIT_SHA}" \
     --tag "$SITEAPP_IMAGE" \
     --push \
     .
 echo
 echo "Pushed $SITEAPP_IMAGE"
-echo "Now pin in config.yaml: siteapp.image: $SITEAPP_IMAGE"
+echo "Bump compose/siteapp/VERSION and commit to pin this tag."

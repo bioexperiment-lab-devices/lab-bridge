@@ -321,3 +321,44 @@ EOF
     # jupyter catch-all. (The /api/public* handle is unrelated.)
     ! grep -qE 'handle /api/clients' <<< "$output"
 }
+
+@test "render_compose: SITEAPP_IMAGE is composed from pins.yaml + compose/siteapp/VERSION" {
+    mkdir -p "$BATS_TEST_TMPDIR/compose/siteapp"
+    cat > "$BATS_TEST_TMPDIR/compose/pins.yaml" <<'PINS'
+jupyter_image: jup:1
+chisel_image: chi:1
+chisel_listen_port: 8080
+loki_image: lok:1
+loki_retention_days: 30
+grafana_image: gra:1
+siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
+acme_email: x@example.com
+remote_root: /srv/lb
+notebooks_path: /srv/lb/nb
+ssh_port: 22
+PINS
+    echo "1.2.3" > "$BATS_TEST_TMPDIR/compose/siteapp/VERSION"
+    cat > "$BATS_TEST_TMPDIR/config.yaml" <<'CFG'
+vps: { host: 1.2.3.4, ssh_user: deploy }
+jupyter: { password_hash: sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567 }
+siteapp: { admin_password_hash: $2a$14$DG5Aycl5h3ED0V1Qz50BfuZDxSle4cvw7sRFYCArNvB03eCpKSPxa }
+chisel_clients: []
+CFG
+    # Minimal compose template that references __SITEAPP_IMAGE__.
+    echo "image: __SITEAPP_IMAGE__" > "$BATS_TEST_TMPDIR/compose.tmpl"
+
+    # Use the LDS_SITEAPP_VERSION_FILE override so render.sh reads VERSION
+    # from the tmp tree, not from the real repo.
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        export LDS_PINS_FILE='$BATS_TEST_TMPDIR/compose/pins.yaml'
+        export LDS_SITEAPP_VERSION_FILE='$BATS_TEST_TMPDIR/compose/siteapp/VERSION'
+        load_config '$BATS_TEST_TMPDIR/config.yaml'
+        render_compose '$BATS_TEST_TMPDIR/compose.tmpl' '$BATS_TEST_TMPDIR/out'
+        cat '$BATS_TEST_TMPDIR/out'
+    "
+    [ "$status" -eq 0 ]
+    [ "$output" = "image: ghcr.io/example/lab-bridge-siteapp:1.2.3" ]
+}
