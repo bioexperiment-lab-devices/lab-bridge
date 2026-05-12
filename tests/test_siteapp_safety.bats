@@ -83,12 +83,13 @@ setup() {
     [[ "$output" == *"400"* ]]
 }
 
-@test "siteapp: raw HTML in markdown upload renders escaped on /docs" {
-    # Markdown renderer must escape any raw HTML in uploaded .md (otherwise
+@test "siteapp: raw HTML in markdown upload is neutralised on /docs" {
+    # Markdown renderer must neutralise any raw HTML in uploaded .md (otherwise
     # an admin uploading attacker-supplied content could inject a live
     # <script> into the public docs page). We upload a file containing a
-    # <script> tag, then fetch the rendered page and assert the tag appears
-    # only in escaped form.
+    # <script> tag, then fetch the rendered page and assert the tag cannot
+    # execute (bleach strips disallowed tags rather than escaping them, so
+    # the rendered page contains neither the raw tag nor the escaped form).
     local creds
     creds="$(printf 'admin:admin-fixture' | base64)"
 
@@ -108,8 +109,10 @@ setup() {
         curl -sk https://127.0.0.1/docs/evil
     "
     [ "$status" -eq 0 ]
-    # Escaped form must be present...
-    [[ "$output" == *"&lt;script&gt;"* ]]
-    # ...and the raw tag must not appear in the rendered output.
+    # The raw <script> tag must NOT appear in the rendered output — bleach
+    # strips it (html=True in markdown-it lets raw HTML through, then bleach
+    # removes the <script> tag entirely because it is not in ALLOWED_TAGS).
     [[ "$output" != *"<script>alert(1)</script>"* ]]
+    # Confirm the page response is non-empty (upload + render succeeded).
+    [[ -n "$output" ]]
 }

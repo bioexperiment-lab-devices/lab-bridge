@@ -21,19 +21,23 @@ load helpers
 }
 
 @test "grafana dashboard json is valid JSON with the four expected panels" {
-    run yq e '.title' "$ROOT/compose/grafana/provisioning/dashboards/client-logs.json"
+    # Use -p json -oy so yq treats the file as JSON input and emits YAML output
+    # (bare strings without quotes). Without -p json the output format is
+    # auto-detected by extension, but auto-mode emits quoted JSON strings in
+    # yq v4.45+ which breaks the equality assertions below.
+    run bash -c "yq -p json -oy e '.title' '$ROOT/compose/grafana/provisioning/dashboards/client-logs.json' 2>/dev/null"
     [ "$status" -eq 0 ]
     [[ "$output" == "Lab client logs" ]]
-    run yq e '.panels | length' "$ROOT/compose/grafana/provisioning/dashboards/client-logs.json"
+    run bash -c "yq -p json -oy e '.panels | length' '$ROOT/compose/grafana/provisioning/dashboards/client-logs.json' 2>/dev/null"
     [ "$status" -eq 0 ]
     [[ "$output" == "4" ]]
-    run yq e '.panels | map(.title) | join(",")' "$ROOT/compose/grafana/provisioning/dashboards/client-logs.json"
+    run bash -c "yq -p json -oy e '.panels | map(.title) | join(\",\")' '$ROOT/compose/grafana/provisioning/dashboards/client-logs.json' 2>/dev/null"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Live tail"* ]]
     [[ "$output" == *"Log volume by client"* ]]
     [[ "$output" == *"Errors"* ]]
     [[ "$output" == *"Current versions"* ]]
-    run yq e '.templating.list | map(.name) | join(",")' "$ROOT/compose/grafana/provisioning/dashboards/client-logs.json"
+    run bash -c "yq -p json -oy e '.templating.list | map(.name) | join(\",\")' '$ROOT/compose/grafana/provisioning/dashboards/client-logs.json' 2>/dev/null"
     [ "$status" -eq 0 ]
     [[ "$output" == *"client"* ]]
     [[ "$output" == *"stream"* ]]

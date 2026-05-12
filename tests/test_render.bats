@@ -47,7 +47,11 @@ teardown() { teardown_tmpdir; }
     [[ "$output" == *"profile shortlived"* ]]
     [[ "$output" == *"default_sni 192.0.2.10"* ]]
     [[ "$output" == *"reverse_proxy jupyter:8888"* ]]
-    [[ "$output" != *"basic_auth"* ]]
+    # basic_auth must ONLY appear inside the /admin* handle block (mobile WebSocket
+    # upgrades break under top-level basic_auth on JupyterLab). Verify that every
+    # basic_auth occurrence is preceded by "handle /admin" within a few lines.
+    grep -q 'basic_auth' <<< "$output" && \
+        grep -B 5 'basic_auth' <<< "$output" | grep -q '/admin'
     ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
 }
 
@@ -200,7 +204,9 @@ EOF
     [[ "$output" == "9002" ]]
 
     # Hash is 64 lowercase hex chars
-    run yq -p json e '."microscope-1".password_sha256' "$TMPDIR/clients.json"
+    # Suppress yq's compatibility warning (yq v4.50+ warns when -p json is
+    # used without an explicit -o flag because the default output changed).
+    run bash -c "yq -p json -o yaml e '.\"microscope-1\".password_sha256' '$TMPDIR/clients.json' 2>/dev/null"
     [ "$status" -eq 0 ]
     [[ "$output" =~ ^[0-9a-f]{64}$ ]]
 

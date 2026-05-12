@@ -28,6 +28,8 @@ setup() {
     printf 'testtok' > "$LDS_AGENT_TOKEN_FILE"
     chmod 600 "$LDS_AGENT_TOKEN_FILE"
     bash "$ROOT/scripts/provision.sh"
+    load_siteapp_test_image
+    preload_fake_vps_images
 }
 teardown() { teardown_tmpdir; }
 

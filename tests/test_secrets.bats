@@ -126,6 +126,6 @@ EOS
     run bash "$ROOT/scripts/secrets.sh" rotate-agent-upload-token
     [ "$status" -eq 0 ]
     [ -f "$LDS_AGENT_TOKEN_FILE" ]
-    [ "$(stat -f '%Lp' "$LDS_AGENT_TOKEN_FILE" 2>/dev/null || stat -c '%a' "$LDS_AGENT_TOKEN_FILE")" = "600" ]
+    [ "$(stat -c '%a' "$LDS_AGENT_TOKEN_FILE" 2>/dev/null || stat -f '%Lp' "$LDS_AGENT_TOKEN_FILE")" = "600" ]
     [ "$(wc -c < "$LDS_AGENT_TOKEN_FILE")" -ge 40 ]
 }

@@ -24,7 +24,12 @@ setup() {
     export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
     printf 'testpw' > "$LDS_GRAFANA_PASSWORD_FILE"
     chmod 600 "$LDS_GRAFANA_PASSWORD_FILE"
+    export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
+    printf 'testtok' > "$LDS_AGENT_TOKEN_FILE"
+    chmod 600 "$LDS_AGENT_TOKEN_FILE"
     bash "$ROOT/scripts/provision.sh"
+    load_siteapp_test_image
+    preload_fake_vps_images
     bash "$ROOT/scripts/deploy.sh"
 }
 teardown() { teardown_tmpdir; }

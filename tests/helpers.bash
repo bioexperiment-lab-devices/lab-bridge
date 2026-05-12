@@ -148,8 +148,16 @@ patch_caddyfile_tls_internal() {
 # Returns non-zero on timeout.
 wait_siteapp_ready() {
     local i
+    # Hard wallclock cap: the bats step in pr.yml has a 12-min timeout, but a
+    # per-helper cap gives faster diagnostic failure and prevents the job from
+    # hanging until cancellation.
+    local deadline=$(( $(date +%s) + 120 ))
     # Gate 1: siteapp's own /healthz inside the container.
     for i in $(seq 1 60); do
+        if [[ $(date +%s) -ge $deadline ]]; then
+            echo "wait_siteapp_ready: gate 1 timed out after 120s" >&2
+            return 1
+        fi
         if docker exec lds-fake-vps bash -c '
             cd /srv/lab-bridge && docker compose exec -T siteapp \
                 python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(\"http://127.0.0.1:8000/healthz\").status==200 else 1)" \
@@ -163,6 +171,10 @@ wait_siteapp_ready() {
     # restarts caddy, the caddy→siteapp upstream resolution races test probes; this loop
     # waits until /docs/ and /download/agent both return 200 through HTTPS.
     for i in $(seq 1 30); do
+        if [[ $(date +%s) -ge $deadline ]]; then
+            echo "wait_siteapp_ready: gate 2 timed out after 120s" >&2
+            return 1
+        fi
         if docker exec lds-fake-vps bash -c '
             cd /srv/lab-bridge && docker compose exec -T caddy sh -c "
                 wget --no-check-certificate -q -O /dev/null https://127.0.0.1/docs/ &&
