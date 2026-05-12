@@ -51,7 +51,7 @@ load_siteapp_test_image() {
     local fixture_tag
     local repo version
     repo="$(yq -e '.siteapp_image_repo' "$ROOT/tests/fixtures/valid_pins.yaml")"
-    version="$(cat "$ROOT/compose/siteapp/VERSION" | tr -d '[:space:]')"
+    version="$(awk 'NF { print $1; exit }' "$ROOT/compose/siteapp/VERSION")"
     fixture_tag="${repo}:${version}"
     docker build --load -q -t "$fixture_tag" "$ROOT/compose/siteapp" >&2 || return 1
     _save_and_load_into_fake_vps "$fixture_tag"
