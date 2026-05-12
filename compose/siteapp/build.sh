@@ -3,7 +3,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-VERSION="$(tr -d '[:space:]' < "$SCRIPT_DIR/VERSION")"
+VERSION="$(awk 'NF { print $1; exit }' "$SCRIPT_DIR/VERSION")"
 GIT_SHA="$(git -C "$REPO_ROOT" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)"
 
 : "${SITEAPP_IMAGE_REPO:=$(yq e '.siteapp_image_repo' "$REPO_ROOT/compose/pins.yaml")}"

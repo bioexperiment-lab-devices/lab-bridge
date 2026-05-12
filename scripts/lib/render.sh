@@ -18,7 +18,7 @@ _siteapp_image() {
     fi
     [[ -f "$version_file" ]] || die "siteapp VERSION file not found: $version_file"
     local version
-    version="$(tr -d '[:space:]' < "$version_file")"
+    version="$(awk 'NF { print $1; exit }' "$version_file")"
     [[ -n "$version" ]] || die "siteapp VERSION file is empty: $version_file"
     printf '%s:%s' "$repo" "$version"
 }

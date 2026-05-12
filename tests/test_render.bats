@@ -337,7 +337,7 @@ remote_root: /srv/lb
 notebooks_path: /srv/lb/nb
 ssh_port: 22
 PINS
-    echo "1.2.3" > "$BATS_TEST_TMPDIR/compose/siteapp/VERSION"
+    echo "1.2.3 # x-release-please-version" > "$BATS_TEST_TMPDIR/compose/siteapp/VERSION"
     cat > "$BATS_TEST_TMPDIR/config.yaml" <<'CFG'
 vps: { host: 1.2.3.4, ssh_user: deploy }
 jupyter: { password_hash: sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567 }
