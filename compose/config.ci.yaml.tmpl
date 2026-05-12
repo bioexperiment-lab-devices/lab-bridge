@@ -1,0 +1,23 @@
+# CI-only config template. Rendered by .github/workflows/release-please.yml
+# on the runner via `envsubst`. Schema mirrors the post-refactor config.yaml
+# (instance values + password hashes + roster only). Stack pins come from
+# compose/pins.yaml, read by scripts/lib/config.sh.
+#
+# DO NOT use this template for laptop deploys — `task deploy` uses your
+# gitignored config.yaml.
+
+vps:
+  host: ${VPS_HOST}
+  ssh_user: ${VPS_SSH_USER}
+
+jupyter:
+  password_hash: "${JUPYTER_PASSWORD_HASH}"
+
+siteapp:
+  admin_password_hash: "${ADMIN_PASSWORD_HASH}"
+
+# Roster lives on the operator's laptop and on the VPS. CI deploys are
+# roster-preserving (scripts/deploy.sh with LDS_STACK_ONLY=1 excludes
+# chisel/users.json and siteapp/clients.json from rsync). LDS_REQUIRE_VAULT=1
+# asserts this field stays empty in stack-only mode.
+chisel_clients: []
