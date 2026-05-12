@@ -27,6 +27,8 @@ def make_router(settings: Settings) -> APIRouter:
             "chisel": {"listen_port": settings.chisel_listen_port},
             "loki": {"push_url": LOKI_PUSH_URL},
             "forward_tunnels": FORWARD_TUNNELS,
+            "version": settings.version,
+            "git_sha": settings.git_sha,
         }
 
     return router
