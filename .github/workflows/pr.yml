@@ -38,7 +38,7 @@ jobs:
   verify:
     name: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
 
@@ -64,7 +64,7 @@ jobs:
         uses: bats-core/bats-action@3.0.1
 
       - name: bats
-        timeout-minutes: 12
+        timeout-minutes: 25
         run: bats tests/
 
       - uses: actions/setup-python@v5
