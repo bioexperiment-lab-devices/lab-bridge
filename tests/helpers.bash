@@ -23,7 +23,10 @@ fixture() {
 # nested dockerd isn't installed yet).
 load_siteapp_test_image() {
     local fixture_tag
-    fixture_tag="$(yq -e '.siteapp.image' "$ROOT/tests/fixtures/valid_config.yaml")"
+    local repo version
+    repo="$(yq -e '.siteapp_image_repo' "$ROOT/tests/fixtures/valid_pins.yaml")"
+    version="$(cat "$ROOT/compose/siteapp/VERSION" | tr -d '[:space:]')"
+    fixture_tag="${repo}:${version}"
     docker build --load -q -t "$fixture_tag" "$ROOT/compose/siteapp" >&2 || return 1
     _save_and_load_into_fake_vps "$fixture_tag"
 }

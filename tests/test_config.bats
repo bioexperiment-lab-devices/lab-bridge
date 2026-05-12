@@ -13,8 +13,7 @@ teardown() { teardown_tmpdir; }
 @test "validate_config: rejects config missing required fields" {
     run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/fixtures/missing_field_config.yaml"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"vps.remote_root"* ]]
-    [[ "$output" == *"vps.notebooks_path"* ]]
+    [[ "$output" == *"siteapp.admin_password_hash"* ]]
 }
 
 @test "validate_config: rejects duplicate chisel reverse_ports" {
@@ -42,27 +41,35 @@ teardown() { teardown_tmpdir; }
     [[ "$output" == *"sha1:abcdef012345:"* ]]
 }
 
-@test "validate_config: rejects config missing loki/grafana fields" {
-    cat > "$TMPDIR/bad.yaml" <<'EOF'
-vps: {host: 1.2.3.4, ssh_user: u, ssh_port: 22, remote_root: /srv/x, notebooks_path: /srv/y}
-caddy: {acme_email: o@x.io}
-jupyter:
-  image: quay.io/jupyter/scipy-notebook:2026-04-20
-  password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"
-chisel: {image: jpillora/chisel:1.10.1, listen_port: 8080}
+@test "validate_config: rejects pins.yaml missing loki/grafana fields" {
+    cat > "$TMPDIR/cfg.yaml" <<'CFG'
+vps: {host: 1.2.3.4, ssh_user: u}
+jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
+siteapp: {admin_password_hash: "$2a$14$HO81PFKmfx2eOcpGyeogN.ct3M9SzgDmvXYHaeNrlTzV66aFbPK2y"}
 chisel_clients: []
-EOF
-    run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/bad.yaml"
+CFG
+    # Pins file is present but missing loki_image, loki_retention_days, grafana_image.
+    cat > "$TMPDIR/bad_pins.yaml" <<'PINS'
+jupyter_image: quay.io/jupyter/scipy-notebook:2026-04-20
+chisel_image: jpillora/chisel:1.10.1
+chisel_listen_port: 8080
+siteapp_image_repo: ghcr.io/test/lab-bridge-siteapp
+acme_email: ops@example.com
+remote_root: /srv/lab-bridge
+notebooks_path: /srv/jupyterlab/work
+ssh_port: 22
+PINS
+    run bash -c "export LDS_PINS_FILE=$TMPDIR/bad_pins.yaml; source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/cfg.yaml"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"loki.image"* ]]
-    [[ "$output" == *"loki.retention_days"* ]]
-    [[ "$output" == *"grafana.image"* ]]
+    [[ "$output" == *"loki_image"* ]]
+    [[ "$output" == *"loki_retention_days"* ]]
+    [[ "$output" == *"grafana_image"* ]]
 }
 
-@test "validate_config: rejects non-numeric loki.retention_days" {
-    cp "$ROOT/tests/fixtures/valid_config.yaml" "$TMPDIR/cfg.yaml"
-    yq -i '.loki.retention_days = "abc"' "$TMPDIR/cfg.yaml"
-    run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/cfg.yaml"
+@test "validate_config: rejects non-numeric loki_retention_days in pins.yaml" {
+    cp "$ROOT/tests/fixtures/valid_pins.yaml" "$TMPDIR/bad_pins.yaml"
+    yq -i '.loki_retention_days = "abc"' "$TMPDIR/bad_pins.yaml"
+    run bash -c "export LDS_PINS_FILE=$TMPDIR/bad_pins.yaml; source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/fixtures/valid_config.yaml"
     [ "$status" -ne 0 ]
     [[ "$output" == *"retention_days"* ]]
 }
@@ -71,4 +78,48 @@ EOF
     run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/fixtures/valid_config.yaml; echo \$LOKI_IMAGE \$LOKI_RETENTION_DAYS \$GRAFANA_IMAGE"
     [ "$status" -eq 0 ]
     [[ "$output" == *"grafana/loki:3.2.1 30 grafana/grafana:11.3.0"* ]]
+}
+
+@test "validate_config: passes when pins.yaml supplies image pins and paths" {
+    # Pins live in compose/pins.yaml; instance values live in config.yaml.
+    mkdir -p "$TMPDIR/compose"
+    cat > "$TMPDIR/compose/pins.yaml" <<'PINS'
+jupyter_image: quay.io/jupyter/scipy-notebook:2026-04-20
+chisel_image: jpillora/chisel:1.10.1
+chisel_listen_port: 8080
+loki_image: grafana/loki:3.2.1
+loki_retention_days: 30
+grafana_image: grafana/grafana:11.3.0
+siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
+acme_email: ops@example.com
+remote_root: /srv/lab-bridge
+notebooks_path: /srv/jupyterlab/work
+ssh_port: 22
+PINS
+    cat > "$TMPDIR/config.yaml" <<'CFG'
+vps:
+  host: 1.2.3.4
+  ssh_user: deploy
+jupyter:
+  password_hash: sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567
+siteapp:
+  admin_password_hash: $2a$14$DG5Aycl5h3ED0V1Qz50BfuZDxSle4cvw7sRFYCArNvB03eCpKSPxa
+chisel_clients: []
+CFG
+
+    run bash -c "export LDS_PINS_FILE=$TMPDIR/compose/pins.yaml; source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/config.yaml"
+    [ "$status" -eq 0 ]
+}
+
+@test "validate_config: fails when pins.yaml is missing" {
+    cat > "$TMPDIR/config.yaml" <<'CFG'
+vps: { host: 1.2.3.4, ssh_user: deploy }
+jupyter: { password_hash: sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567 }
+siteapp: { admin_password_hash: $2a$14$DG5Aycl5h3ED0V1Qz50BfuZDxSle4cvw7sRFYCArNvB03eCpKSPxa }
+chisel_clients: []
+CFG
+
+    run bash -c "export LDS_PINS_FILE=$TMPDIR/compose/pins.yaml; source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/config.yaml"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"pins file not found"* ]]
 }

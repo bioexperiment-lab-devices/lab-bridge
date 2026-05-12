@@ -2,7 +2,10 @@
 
 load helpers
 
-setup() { setup_tmpdir; }
+setup() {
+    setup_tmpdir
+    export LDS_PINS_FILE="$ROOT/tests/fixtures/valid_pins.yaml"
+}
 teardown() { teardown_tmpdir; }
 
 @test "render_compose: substitutes image, paths, password_hash, and chisel port" {
@@ -80,17 +83,9 @@ teardown() { teardown_tmpdir; }
 
 @test "render_chisel_users: empty chisel_clients yields empty object" {
     cat > $TMPDIR/empty.yaml <<'EOF'
-vps: {host: 1.2.3.4, ssh_user: u, ssh_port: 22, remote_root: /srv/x, notebooks_path: /srv/y}
-caddy: {acme_email: o@x.io}
-jupyter:
-  image: quay.io/jupyter/scipy-notebook:2026-04-20
-  password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"
-chisel: {image: jpillora/chisel:1.10.1, listen_port: 8080}
-loki: {image: grafana/loki:3.2.1, retention_days: 30}
-grafana: {image: grafana/grafana:11.3.0}
-siteapp:
-  image: ghcr.io/test/lab-bridge-siteapp:0.0.1
-  admin_password_hash: "$2a$14$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
+vps: {host: 1.2.3.4, ssh_user: u}
+jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
+siteapp: {admin_password_hash: "$2a$14$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345"}
 chisel_clients: []
 EOF
     run bash -c "
@@ -246,17 +241,9 @@ EOF
 
 @test "render_siteapp_clients: empty chisel_clients yields empty object" {
     cat > $TMPDIR/empty.yaml <<'EOF'
-vps: {host: 1.2.3.4, ssh_user: u, ssh_port: 22, remote_root: /srv/x, notebooks_path: /srv/y}
-caddy: {acme_email: o@x.io}
-jupyter:
-  image: quay.io/jupyter/scipy-notebook:2026-04-20
-  password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"
-chisel: {image: jpillora/chisel:1.10.1, listen_port: 8080}
-loki: {image: grafana/loki:3.2.1, retention_days: 30}
-grafana: {image: grafana/grafana:11.3.0}
-siteapp:
-  image: ghcr.io/test/lab-bridge-siteapp:0.0.1
-  admin_password_hash: "$2a$14$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
+vps: {host: 1.2.3.4, ssh_user: u}
+jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
+siteapp: {admin_password_hash: "$2a$14$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345"}
 chisel_clients: []
 EOF
     run bash -c "
