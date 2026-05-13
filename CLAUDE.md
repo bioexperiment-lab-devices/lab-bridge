@@ -125,10 +125,20 @@ Exit 0 means the image was built by this repo's CI from the corresponding commit
 
 ## CI gates on every PR (`pr.yml`)
 
-| Job | Steps | Required? |
+| Job | Required? | When it runs |
 |---|---|---|
-| `pr-title` | `amannn/action-semantic-pull-request@v6` | Yes |
-| `verify` | shellcheck (`-x --severity=warning`), bats (most files), ruff check + format, pytest, siteapp docker build (no push) | Yes |
+| `pr-title` | Yes | Always (semantic-PR check) |
+| `verify` | Yes | Always — but expensive steps inside are path-gated |
+
+The `verify` job uses `dorny/paths-filter@v3` to skip steps whose inputs didn't change. The job always reports a status (so branch protection's required-check is satisfied), but the work it does scales with the PR:
+
+| Files changed | What runs in `verify` |
+|---|---|
+| Only `docs/**`, `*.md`, `CLAUDE.md`, `renovate.json`, `release-please-*` | Nothing — all expensive steps skip; job goes green in seconds |
+| `scripts/**/*.sh` | shellcheck |
+| `scripts/**`, `tests/**`, `compose/**`, `Taskfile.yml`, `config.example.yaml` | bats (non-siteapp suites) |
+| `compose/siteapp/**` | ruff check + format, pytest, siteapp docker buildx (no push) |
+| `.github/workflows/pr.yml` | Everything (self-test the workflow change) |
 
 **bats coverage in CI**: all `tests/test_*.bats` EXCEPT `test_siteapp_*.bats` (the 4 siteapp integration files do a full fake-VPS deploy each — too slow for CI). **If you touch `compose/siteapp/` or any siteapp routing/auth/upload/safety code, run the siteapp bats locally before opening the PR:**
 
