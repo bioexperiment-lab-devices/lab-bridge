@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.1.0...v0.2.0) (2026-05-13)
+
+
+### Features
+
+* **flasher:** operator firmware-flashing UI ([#7](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/7)) ([04c109e](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/04c109edcc8d095ff8c0573e018afbc49d5c3067))
+
 ## [0.1.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.0.1...v0.1.0) (2026-05-12)
 
 
