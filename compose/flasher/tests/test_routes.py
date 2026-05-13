@@ -120,3 +120,145 @@ def test_ports_relays_serialhop_error_envelope(
     body = response.json()
     assert body["error"] == "list ports failed"
     assert body["detail"] == "boom"
+
+
+def test_post_flash_rejects_missing_client(client: TestClient, write_roster) -> None:
+    write_roster({})
+    response = client.post(
+        "/api/flash",
+        json={
+            "client": "nope",
+            "port": "COM3",
+            "firmware": ":00000001FF\n",
+            "test": None,
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["error"] == "unknown client"
+
+
+def test_post_flash_rejects_empty_firmware(client: TestClient, write_roster) -> None:
+    write_roster({"lab_a": {"port": 8081, "password_sha256": "aa"}})
+    response = client.post(
+        "/api/flash",
+        json={"client": "lab_a", "port": "COM3", "firmware": "", "test": None},
+    )
+    assert response.status_code == 400
+    assert response.json()["error"] == "invalid request"
+
+
+def test_post_flash_rejects_oversize_firmware(client: TestClient, write_roster) -> None:
+    write_roster({"lab_a": {"port": 8081, "password_sha256": "aa"}})
+    too_big = "x" * (256 * 1024 + 1)
+    response = client.post(
+        "/api/flash",
+        json={"client": "lab_a", "port": "COM3", "firmware": too_big, "test": None},
+    )
+    assert response.status_code == 400
+
+
+def test_post_flash_rejects_asymmetric_test_pair(client: TestClient, write_roster) -> None:
+    write_roster({"lab_a": {"port": 8081, "password_sha256": "aa"}})
+    response = client.post(
+        "/api/flash",
+        json={
+            "client": "lab_a",
+            "port": "COM3",
+            "firmware": ":00000001FF\n",
+            "test": {"command": "010203", "expected_response": ""},
+        },
+    )
+    assert response.status_code == 400
+
+
+def test_post_flash_rejects_odd_length_hex(client: TestClient, write_roster) -> None:
+    write_roster({"lab_a": {"port": 8081, "password_sha256": "aa"}})
+    response = client.post(
+        "/api/flash",
+        json={
+            "client": "lab_a",
+            "port": "COM3",
+            "firmware": ":00000001FF\n",
+            "test": {"command": "012", "expected_response": "aa"},
+        },
+    )
+    assert response.status_code == 400
+
+
+def test_post_flash_starts_background_job(monkeypatch, client: TestClient, write_roster) -> None:
+    write_roster({"lab_a": {"port": 8081, "password_sha256": "aa"}})
+    calls: list[tuple[str, dict]] = []
+
+    async def fake_disconnect(self) -> dict:
+        calls.append(("disconnect", {}))
+        return {"released": 0}
+
+    async def fake_flash(self, **kwargs: Any) -> dict:
+        calls.append(("flash", kwargs))
+        return {"outcome": "success", "port": kwargs["port"], "stages": {}}
+
+    monkeypatch.setattr("app.serialhop.SerialHopClient.disconnect_devices", fake_disconnect)
+    monkeypatch.setattr("app.serialhop.SerialHopClient.flash", fake_flash)
+
+    response = client.post(
+        "/api/flash",
+        json={
+            "client": "lab_a",
+            "port": "COM3",
+            "firmware": ":00000001FF\n",
+            "test": None,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+    assert job_id
+
+    import time as _t
+
+    polled: dict = {"status": "running"}
+    for _ in range(50):
+        polled = client.get(f"/api/flash/{job_id}").json()
+        if polled["status"] != "running":
+            break
+        _t.sleep(0.05)
+
+    assert polled["status"] == "done"
+    assert polled["result"]["outcome"] == "success"
+    assert [c[0] for c in calls] == ["disconnect", "flash"]
+
+
+def test_get_flash_unknown_returns_404(client: TestClient) -> None:
+    response = client.get("/api/flash/does_not_exist")
+    assert response.status_code == 404
+
+
+def test_get_flash_current_empty_when_no_jobs(client: TestClient) -> None:
+    response = client.get("/api/flash/current")
+    assert response.status_code == 200
+    assert response.json() == {}
+
+
+def test_get_flash_current_returns_latest(monkeypatch, client: TestClient, write_roster) -> None:
+    write_roster({"lab_a": {"port": 8081, "password_sha256": "aa"}})
+
+    async def fake_disconnect(self) -> dict:
+        return {"released": 0}
+
+    async def fake_flash(self, **kwargs: Any) -> dict:
+        return {"outcome": "success", "port": kwargs["port"], "stages": {}}
+
+    monkeypatch.setattr("app.serialhop.SerialHopClient.disconnect_devices", fake_disconnect)
+    monkeypatch.setattr("app.serialhop.SerialHopClient.flash", fake_flash)
+
+    started = client.post(
+        "/api/flash",
+        json={
+            "client": "lab_a",
+            "port": "COM3",
+            "firmware": ":00000001FF\n",
+            "test": None,
+        },
+    ).json()
+    response = client.get("/api/flash/current")
+    assert response.status_code == 200
+    assert response.json()["job_id"] == started["job_id"]
