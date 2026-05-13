@@ -48,17 +48,13 @@ def test_top_level_not_object_raises(tmp_path: Path) -> None:
 
 def test_rejects_non_int_port(tmp_path: Path) -> None:
     f = tmp_path / "clients.json"
-    f.write_text(
-        '{"x": {"port": "8089", "password_sha256": "aa"}}', encoding="utf-8"
-    )
+    f.write_text('{"x": {"port": "8089", "password_sha256": "aa"}}', encoding="utf-8")
     with pytest.raises(ValueError, match="port must be int"):
         load_roster(f)
 
 
 def test_rejects_bool_port(tmp_path: Path) -> None:
     f = tmp_path / "clients.json"
-    f.write_text(
-        '{"x": {"port": true, "password_sha256": "aa"}}', encoding="utf-8"
-    )
+    f.write_text('{"x": {"port": true, "password_sha256": "aa"}}', encoding="utf-8")
     with pytest.raises(ValueError, match="port must be int"):
         load_roster(f)
