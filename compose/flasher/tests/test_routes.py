@@ -227,6 +227,85 @@ def test_post_flash_starts_background_job(monkeypatch, client: TestClient, write
     assert [c[0] for c in calls] == ["disconnect", "flash"]
 
 
+def test_post_flash_forwards_skip_backup_when_true(
+    monkeypatch, client: TestClient, write_roster
+) -> None:
+    write_roster({"lab_a": {"port": 8081, "password_sha256": "aa"}})
+    seen: dict = {}
+
+    async def fake_disconnect(self) -> dict:
+        return {"released": 0}
+
+    async def fake_flash(self, **kwargs: Any) -> dict:
+        seen.update(kwargs)
+        return {"outcome": "success", "port": kwargs["port"], "stages": {}}
+
+    monkeypatch.setattr("app.serialhop.SerialHopClient.disconnect_devices", fake_disconnect)
+    monkeypatch.setattr("app.serialhop.SerialHopClient.flash", fake_flash)
+
+    response = client.post(
+        "/flash/api/flash",
+        json={
+            "client": "lab_a",
+            "port": "COM3",
+            "firmware": ":00000001FF\n",
+            "test": None,
+            "skip_backup": True,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    import time as _t
+
+    for _ in range(50):
+        polled = client.get(f"/flash/api/flash/{job_id}").json()
+        if polled["status"] != "running":
+            break
+        _t.sleep(0.05)
+
+    assert seen.get("skip_backup") is True
+
+
+def test_post_flash_omits_skip_backup_by_default(
+    monkeypatch, client: TestClient, write_roster
+) -> None:
+    write_roster({"lab_a": {"port": 8081, "password_sha256": "aa"}})
+    seen: dict = {}
+
+    async def fake_disconnect(self) -> dict:
+        return {"released": 0}
+
+    async def fake_flash(self, **kwargs: Any) -> dict:
+        seen.update(kwargs)
+        return {"outcome": "success", "port": kwargs["port"], "stages": {}}
+
+    monkeypatch.setattr("app.serialhop.SerialHopClient.disconnect_devices", fake_disconnect)
+    monkeypatch.setattr("app.serialhop.SerialHopClient.flash", fake_flash)
+
+    response = client.post(
+        "/flash/api/flash",
+        json={
+            "client": "lab_a",
+            "port": "COM3",
+            "firmware": ":00000001FF\n",
+            "test": None,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    import time as _t
+
+    for _ in range(50):
+        polled = client.get(f"/flash/api/flash/{job_id}").json()
+        if polled["status"] != "running":
+            break
+        _t.sleep(0.05)
+
+    assert "skip_backup" not in seen
+
+
 def test_get_flash_unknown_returns_404(client: TestClient) -> None:
     response = client.get("/flash/api/flash/does_not_exist")
     assert response.status_code == 404

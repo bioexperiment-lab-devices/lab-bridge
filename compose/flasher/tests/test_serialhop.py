@@ -98,6 +98,53 @@ async def test_flash_omits_test_when_not_provided() -> None:
 
 
 @pytest.mark.asyncio
+async def test_flash_omits_skip_backup_by_default() -> None:
+    seen: dict = {}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        import json as _json
+
+        seen["body"] = _json.loads(request.content)
+        return httpx.Response(200, json={"outcome": "success", "port": "COM3", "stages": {}})
+
+    client = _make_client(handler)
+    await client.flash(port="COM3", firmware=":00000001FF\n")
+    assert "skip_backup" not in seen["body"]
+
+
+@pytest.mark.asyncio
+async def test_flash_forwards_skip_backup_when_true() -> None:
+    seen: dict = {}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        import json as _json
+
+        seen["body"] = _json.loads(request.content)
+        return httpx.Response(200, json={"outcome": "success", "port": "COM3", "stages": {}})
+
+    client = _make_client(handler)
+    await client.flash(port="COM3", firmware=":00000001FF\n", skip_backup=True)
+    assert seen["body"]["skip_backup"] is True
+
+
+@pytest.mark.asyncio
+async def test_flash_omits_skip_backup_when_false() -> None:
+    seen: dict = {}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        import json as _json
+
+        seen["body"] = _json.loads(request.content)
+        return httpx.Response(200, json={"outcome": "success", "port": "COM3", "stages": {}})
+
+    client = _make_client(handler)
+    await client.flash(port="COM3", firmware=":00000001FF\n", skip_backup=False)
+    # SerialHop's default is to back up, so omitting the field is the right
+    # wire-level encoding when the caller didn't explicitly ask to skip.
+    assert "skip_backup" not in seen["body"]
+
+
+@pytest.mark.asyncio
 async def test_flash_rejects_asymmetric_test_pair() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"outcome": "success", "port": "COM3", "stages": {}})

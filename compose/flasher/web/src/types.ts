@@ -109,4 +109,5 @@ export interface FlashRequestBody {
   port: string
   firmware: string
   test: { command: string; expected_response: string } | null
+  skip_backup?: boolean
 }

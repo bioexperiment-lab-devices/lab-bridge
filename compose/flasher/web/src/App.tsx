@@ -5,6 +5,7 @@ import { ClientPicker } from './components/ClientPicker'
 import { PortTable } from './components/PortTable'
 import { FirmwarePicker, type FirmwareState } from './components/FirmwarePicker'
 import { TestPairEditor, type TestPair } from './components/TestPairEditor'
+import { FlashOptions } from './components/FlashOptions'
 import { FlashButton } from './components/FlashButton'
 import { RunningView } from './components/RunningView'
 import { ResultView } from './components/ResultView'
@@ -21,6 +22,7 @@ export function App() {
   const [firmware, setFirmware] = useState<FirmwareState | null>(null)
   const [testEnabled, setTestEnabled] = useState(true)
   const [testPair, setTestPair] = useState<TestPair>({ command: '', expected_response: '' })
+  const [skipBackup, setSkipBackup] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [state, setState] = useState<WizardState>({ kind: 'wizard' })
 
@@ -58,6 +60,7 @@ export function App() {
         test: testEnabled
           ? { command: testPair.command, expected_response: testPair.expected_response }
           : null,
+        skip_backup: skipBackup,
       })
       setState({
         kind: 'running',
@@ -74,11 +77,17 @@ export function App() {
     } catch (e) {
       setError((e as Error).message)
     }
-  }, [client, port, firmware, testEnabled, testPair])
+  }, [client, port, firmware, testEnabled, testPair, skipBackup])
 
   const onComplete = useCallback((job: FlashJob) => {
     if (job.status === 'running') return
     setState({ kind: 'result', job })
+  }, [])
+
+  // Back to the wizard with EVERY field preserved — the operator can tweak
+  // one thing and click Flash again.
+  const onRetry = useCallback(() => {
+    setState({ kind: 'wizard' })
   }, [])
 
   const onFlashAnother = useCallback(() => {
@@ -93,6 +102,7 @@ export function App() {
     setFirmware(null)
     setTestEnabled(true)
     setTestPair({ command: '', expected_response: '' })
+    setSkipBackup(false)
     setState({ kind: 'wizard' })
   }, [])
 
@@ -115,7 +125,12 @@ export function App() {
     return (
       <main className="container">
         <h1>lab-bridge flasher</h1>
-        <ResultView job={state.job} onFlashAnother={onFlashAnother} onDone={onDoneReset} />
+        <ResultView
+          job={state.job}
+          onRetry={onRetry}
+          onFlashAnother={onFlashAnother}
+          onDone={onDoneReset}
+        />
       </main>
     )
   }
@@ -137,6 +152,9 @@ export function App() {
           onToggle={setTestEnabled}
           onChange={setTestPair}
         />
+      )}
+      {client && port && firmware && (
+        <FlashOptions skipBackup={skipBackup} onChange={setSkipBackup} />
       )}
       {client && (
         <FlashButton enabled={flashReady} clientName={client} onClick={onFlash} />
