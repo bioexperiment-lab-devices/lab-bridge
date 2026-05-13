@@ -32,6 +32,10 @@ class _FlashRequest(BaseModel):
     port: str = Field(min_length=1, max_length=128)
     firmware: str
     test: _TestPair | None = None
+    # Default False (= back the device up before flashing). Operators who
+    # know the device is brand-new or already mirrored elsewhere can flip
+    # this on to save ~8 s of wall-time and the disk write.
+    skip_backup: bool = False
 
 
 def _validate_hex(value: str) -> None:
@@ -132,6 +136,7 @@ def make_router(settings: Settings, store: JobStore) -> APIRouter:
                 firmware=req.firmware,
                 test_command=test_command,
                 expected_response=expected_response,
+                skip_backup=req.skip_backup,
             )
         )
         _background_tasks.add(task)

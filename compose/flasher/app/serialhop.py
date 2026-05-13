@@ -121,6 +121,7 @@ class SerialHopClient:
         firmware: str,
         test_command: str | None = None,
         expected_response: str | None = None,
+        skip_backup: bool = False,
     ) -> dict:
         if (test_command is None) != (expected_response is None):
             raise ValueError("test_command and expected_response must both be set or both omitted")
@@ -128,6 +129,8 @@ class SerialHopClient:
         if test_command is not None:
             body["test_command"] = test_command
             body["expected_response"] = expected_response
+        if skip_backup:
+            body["skip_backup"] = True
         return await self._request(
             "POST",
             f"/flash/{port}",

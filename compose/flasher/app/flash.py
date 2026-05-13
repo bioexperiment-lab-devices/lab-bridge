@@ -102,6 +102,7 @@ async def run_flash_job(
     firmware: str,
     test_command: str | None,
     expected_response: str | None,
+    skip_backup: bool = False,
 ) -> None:
     """Run the disconnect -> flash sequence and write the outcome into the store.
 
@@ -114,6 +115,8 @@ async def run_flash_job(
         if test_command is not None and expected_response is not None:
             kwargs["test_command"] = test_command
             kwargs["expected_response"] = expected_response
+        if skip_backup:
+            kwargs["skip_backup"] = True
         result = await client.flash(**kwargs)
         store.complete(job_id, result=result)
     except UpstreamErrorResponse as exc:

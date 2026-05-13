@@ -128,6 +128,47 @@ async def test_run_flash_job_passes_test_pair_when_provided() -> None:
 
 
 @pytest.mark.asyncio
+async def test_run_flash_job_forwards_skip_backup() -> None:
+    store = JobStore(capacity=3)
+    job_id = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
+    fake = _FakeClient(flash_result={"outcome": "success", "port": "COM3", "stages": {}})
+
+    await run_flash_job(
+        store=store,
+        job_id=job_id,
+        client=fake,
+        port="COM3",
+        firmware=":00000001FF\n",
+        test_command=None,
+        expected_response=None,
+        skip_backup=True,
+    )
+
+    flash_kwargs = next(c for c in fake.calls if c[0] == "flash")[1]
+    assert flash_kwargs.get("skip_backup") is True
+
+
+@pytest.mark.asyncio
+async def test_run_flash_job_omits_skip_backup_by_default() -> None:
+    store = JobStore(capacity=3)
+    job_id = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
+    fake = _FakeClient(flash_result={"outcome": "success", "port": "COM3", "stages": {}})
+
+    await run_flash_job(
+        store=store,
+        job_id=job_id,
+        client=fake,
+        port="COM3",
+        firmware=":00000001FF\n",
+        test_command=None,
+        expected_response=None,
+    )
+
+    flash_kwargs = next(c for c in fake.calls if c[0] == "flash")[1]
+    assert "skip_backup" not in flash_kwargs
+
+
+@pytest.mark.asyncio
 async def test_run_flash_job_marks_error_on_upstream_unreachable() -> None:
     store = JobStore(capacity=3)
     job_id = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
