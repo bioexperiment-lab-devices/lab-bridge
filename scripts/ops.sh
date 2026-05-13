@@ -47,7 +47,8 @@ cmd_logs() {
 
 cmd_logs_loki()    { load_config "$CONFIG"; remote_compose "logs --tail=200 loki"; }
 cmd_logs_grafana() { load_config "$CONFIG"; remote_compose "logs --tail=200 grafana"; }
-cmd_logs_siteapp() { load_config "$CONFIG"; remote_compose "logs --tail=200 siteapp"; }
+cmd_logs_siteapp()  { load_config "$CONFIG"; remote_compose "logs --tail=200 siteapp"; }
+cmd_logs_flasher()  { load_config "$CONFIG"; remote_compose "logs --tail=200 flasher"; }
 
 cmd_loki_disk() {
     load_config "$CONFIG"
@@ -100,6 +101,7 @@ main() {
         logs:loki)     cmd_logs_loki ;;
         logs:grafana)  cmd_logs_grafana ;;
         logs:siteapp)  cmd_logs_siteapp ;;
+        logs:flasher)  cmd_logs_flasher ;;
         loki-disk)     cmd_loki_disk ;;
         site-disk)     cmd_site_disk ;;
         ssh)           cmd_ssh ;;
