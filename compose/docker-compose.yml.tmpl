@@ -10,7 +10,7 @@ services:
       - ./caddy_data:/data
       - ./caddy_config:/config
     networks: [labnet]
-    depends_on: [jupyter, siteapp]
+    depends_on: [jupyter, siteapp, flasher]
 
   jupyter:
     image: __JUPYTER_IMAGE__
@@ -78,6 +78,16 @@ services:
       - ./siteapp/clients.json:/etc/siteapp/clients.json:ro
     secrets:
       - agent_upload_token
+    networks: [labnet]
+
+  flasher:
+    image: __FLASHER_IMAGE__
+    restart: unless-stopped
+    environment:
+      FLASHER_CLIENTS_FILE: /etc/flasher/clients.json
+      FLASHER_CHISEL_HOST: chisel
+    volumes:
+      - ./siteapp/clients.json:/etc/flasher/clients.json:ro
     networks: [labnet]
 
 networks:

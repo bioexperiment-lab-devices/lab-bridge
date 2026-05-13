@@ -65,6 +65,7 @@ jobs:
           echo "version=$version"   >> "$GITHUB_OUTPUT"
           echo "mode=$mode"         >> "$GITHUB_OUTPUT"
           echo "image=ghcr.io/${{ github.repository_owner }}/lab-bridge-siteapp:$version" >> "$GITHUB_OUTPUT"
+          echo "flasher_image=ghcr.io/${{ github.repository_owner }}/lab-bridge-flasher:$version" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v4
         with:
@@ -104,6 +105,30 @@ jobs:
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/lab-bridge-siteapp
           subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: build & push flasher image
+        if: steps.ref.outputs.mode == 'release'
+        id: build-flasher
+        uses: docker/build-push-action@v6
+        with:
+          context: compose/flasher
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: |
+            ${{ steps.ref.outputs.flasher_image }}
+            ghcr.io/${{ github.repository_owner }}/lab-bridge-flasher:latest
+          build-args: |
+            LAB_BRIDGE_VERSION=${{ steps.ref.outputs.version }}
+            LAB_BRIDGE_GIT_SHA=${{ github.sha }}
+
+      - name: attest flasher build provenance
+        if: steps.ref.outputs.mode == 'release'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/lab-bridge-flasher
+          subject-digest: ${{ steps.build-flasher.outputs.digest }}
           push-to-registry: true
 
       - name: install rsync, envsubst, yq

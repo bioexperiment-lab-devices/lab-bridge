@@ -62,6 +62,8 @@ jobs:
               - 'Taskfile.yml'
             siteapp:
               - 'compose/siteapp/**'
+            flasher:
+              - 'compose/flasher/**'
             workflow:
               - '.github/workflows/pr.yml'
 
@@ -159,3 +161,75 @@ jobs:
           push: false
           load: true
           tags: lab-bridge-siteapp:pr-${{ github.event.pull_request.number }}
+
+      # Flasher service: same shape as siteapp's steps, gated on the
+      # flasher filter. setup-python / install uv / docker buildx setup
+      # are re-used from the siteapp steps when both filters are active;
+      # the if: conditions below cover the case where flasher changed but
+      # siteapp didn't.
+      - uses: actions/setup-python@v5
+        if: steps.changes.outputs.flasher == 'true' && steps.changes.outputs.siteapp != 'true' && steps.changes.outputs.workflow != 'true'
+        with:
+          python-version-file: compose/flasher/.python-version
+          cache: pip
+
+      - name: install uv (flasher)
+        if: steps.changes.outputs.flasher == 'true' && steps.changes.outputs.siteapp != 'true' && steps.changes.outputs.workflow != 'true'
+        run: pip install uv
+
+      - name: flasher deps
+        if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
+        working-directory: compose/flasher
+        run: uv sync --frozen
+
+      - name: flasher ruff check
+        if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
+        working-directory: compose/flasher
+        run: uv run ruff check app tests
+
+      - name: flasher ruff format check
+        if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
+        working-directory: compose/flasher
+        run: uv run ruff format --check app tests
+
+      - name: flasher pytest
+        if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
+        working-directory: compose/flasher
+        run: uv run pytest -v
+
+      - name: setup Node
+        if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: compose/flasher/web/package-lock.json
+
+      - name: flasher SPA install
+        if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
+        working-directory: compose/flasher/web
+        run: npm ci --no-audit --no-fund
+
+      - name: flasher SPA type-check
+        if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
+        working-directory: compose/flasher/web
+        run: npx tsc --noEmit
+
+      - name: flasher SPA build
+        if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
+        working-directory: compose/flasher/web
+        run: npm run build
+
+      - name: docker buildx setup (flasher)
+        if: steps.changes.outputs.flasher == 'true' && steps.changes.outputs.siteapp != 'true' && steps.changes.outputs.workflow != 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: flasher image build (no push)
+        if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: compose/flasher
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: lab-bridge-flasher:pr-${{ github.event.pull_request.number }}

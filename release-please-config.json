@@ -5,7 +5,8 @@
       "package-name": "lab-bridge",
       "include-component-in-tag": false,
       "extra-files": [
-        { "type": "generic", "path": "compose/siteapp/VERSION" }
+        { "type": "generic", "path": "compose/siteapp/VERSION" },
+        { "type": "generic", "path": "compose/flasher/VERSION" }
       ]
     }
   },
