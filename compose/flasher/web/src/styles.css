@@ -102,3 +102,47 @@ table.ports tbody tr.selected {
 .firmware-meta dd {
   margin: 0;
 }
+
+.hex-pair {
+  display: grid;
+  gap: 1rem;
+}
+
+.hex-input label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.hex-input input {
+  width: 100%;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.95rem;
+  padding: 0.4rem 0.6rem;
+  box-sizing: border-box;
+}
+
+.hex-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: #555;
+  margin-top: 0.25rem;
+}
+
+.hex-meta .ascii code {
+  background: #f4f4f4;
+  padding: 0 0.3rem;
+  border-radius: 3px;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.muted-text {
+  color: #555;
+  font-size: 0.95rem;
+}
