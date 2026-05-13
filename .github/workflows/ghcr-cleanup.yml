@@ -10,12 +10,18 @@ permissions:
 
 jobs:
   prune:
-    name: prune lab-bridge-siteapp tags
+    name: prune ${{ matrix.package }} tags
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - lab-bridge-siteapp
+          - lab-bridge-flasher
     steps:
       - uses: actions/delete-package-versions@v5
         with:
-          package-name: lab-bridge-siteapp
+          package-name: ${{ matrix.package }}
           package-type: container
           min-versions-to-keep: 10
           delete-only-untagged-versions: false
