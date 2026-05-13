@@ -1,18 +1,8 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
-
-
-def pytest_configure(config) -> None:  # noqa: ARG001
-    """Set sentinel env vars so app.main can be imported during collection.
-
-    The autouse fixtures below override these with tmp_path values per-test.
-    """
-    os.environ.setdefault("FLASHER_CLIENTS_FILE", "/tmp/clients_test_sentinel.json")
-    os.environ.setdefault("FLASHER_CHISEL_HOST", "chisel")
 
 
 @pytest.fixture(autouse=True)

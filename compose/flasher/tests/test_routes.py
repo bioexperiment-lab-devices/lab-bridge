@@ -1,19 +1,28 @@
 from __future__ import annotations
 
+import importlib
 from pathlib import Path
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
 from app import routes
 from app.serialhop import UpstreamErrorResponse, UpstreamUnreachable
 
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(app)
+    """Reload app.main inside the fixture so it picks up per-test env vars.
+
+    Without the reload, app.main's module-level `settings = load_settings()`
+    would run at collection time — before the autouse monkeypatch fixtures
+    that set FLASHER_CLIENTS_FILE per test.
+    """
+    import app.main
+
+    importlib.reload(app.main)
+    return TestClient(app.main.app)
 
 
 @pytest.fixture
