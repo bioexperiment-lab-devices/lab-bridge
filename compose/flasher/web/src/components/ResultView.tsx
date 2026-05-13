@@ -5,6 +5,7 @@ import type { FlashDone, FlashErrored, Outcome } from '../types'
 
 type Props = {
   job: FlashDone | FlashErrored
+  onRetry: () => void
   onFlashAnother: () => void
   onDone: () => void
 }
@@ -16,7 +17,7 @@ function outcomeBadge(outcome: Outcome | 'error'): { label: string; color: 'gree
   return { label: outcome, color: 'amber' }
 }
 
-export function ResultView({ job, onFlashAnother, onDone }: Props) {
+export function ResultView({ job, onRetry, onFlashAnother, onDone }: Props) {
   const [rawOpen, setRawOpen] = useState(false)
 
   if (job.status === 'error') {
@@ -31,7 +32,9 @@ export function ResultView({ job, onFlashAnother, onDone }: Props) {
           <pre>{JSON.stringify(job, null, 2)}</pre>
         </details>
         <div className="actions">
-          <button type="button" onClick={onFlashAnother}>Flash another</button>
+          <button type="button" className="primary" onClick={onRetry}>
+            Back to form (retry)
+          </button>
           <button type="button" onClick={onDone}>Done</button>
         </div>
       </section>
@@ -40,6 +43,7 @@ export function ResultView({ job, onFlashAnother, onDone }: Props) {
 
   const result = job.result
   const badge = outcomeBadge(result.outcome)
+  const isSuccess = result.outcome === 'success'
   return (
     <section className="result-view">
       <div className={`badge badge-${badge.color}`}>{result.outcome}</div>
@@ -74,7 +78,15 @@ export function ResultView({ job, onFlashAnother, onDone }: Props) {
       </details>
 
       <div className="actions">
-        <button type="button" onClick={onFlashAnother}>Flash another</button>
+        {isSuccess ? (
+          <button type="button" className="primary" onClick={onFlashAnother}>
+            Flash another
+          </button>
+        ) : (
+          <button type="button" className="primary" onClick={onRetry}>
+            Back to form (retry)
+          </button>
+        )}
         <button type="button" onClick={onDone}>Done</button>
       </div>
     </section>
