@@ -3,10 +3,93 @@
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 16px;
   line-height: 1.4;
+
+  /* Light theme tokens. The dark theme block below overrides each one. */
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted-fg: #555555;
+  --border: #cfcfcf;
+  --border-soft: #ececec;
+  --surface: #ffffff;
+  --surface-elevated: #f4f4f4;
+  --surface-highlight: #eaf3ff;
+
+  --accent: #2364c0;
+  --accent-fg: #ffffff;
+  --accent-disabled-bg: #9aa6b8;
+  --accent-disabled-fg: #ffffff;
+
+  --success-bg: #d6f5dd;
+  --success-border: #1a7f37;
+  --success-fg: #0c5e26;
+  --success-badge-bg: #1a7f37;
+  --success-badge-fg: #ffffff;
+
+  --warning-bg: #fff4ec;
+  --warning-border: #b8740d;
+  --warning-fg: #6b440a;
+  --warning-badge-bg: #b8740d;
+  --warning-badge-fg: #ffffff;
+
+  --danger-bg: #fadbe1;
+  --danger-border: #b00020;
+  --danger-fg: #7a0016;
+  --danger-text: #b00020;
+  --danger-badge-bg: #b00020;
+  --danger-badge-fg: #ffffff;
+
+  --chip-skipped-bg: #ececec;
+  --chip-skipped-fg: #555555;
+  --chip-na-bg: #f6f6f6;
+  --chip-na-fg: #999999;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161616;
+    --fg: #e8e8e8;
+    --muted-fg: #a8a8a8;
+    --border: #3a3a3a;
+    --border-soft: #2a2a2a;
+    --surface: #202020;
+    --surface-elevated: #2a2a2a;
+    --surface-highlight: #1f3a5a;
+
+    --accent: #5b94e0;
+    --accent-fg: #0c1828;
+    --accent-disabled-bg: #3a4150;
+    --accent-disabled-fg: #8a8f99;
+
+    --success-bg: #14361d;
+    --success-border: #3d9a52;
+    --success-fg: #a5e0b2;
+    --success-badge-bg: #2f7d44;
+    --success-badge-fg: #ffffff;
+
+    --warning-bg: #3a2a12;
+    --warning-border: #d18a2a;
+    --warning-fg: #f0c489;
+    --warning-badge-bg: #b8740d;
+    --warning-badge-fg: #ffffff;
+
+    --danger-bg: #3a1820;
+    --danger-border: #d04050;
+    --danger-fg: #f0a0a8;
+    --danger-text: #ff7080;
+    --danger-badge-bg: #a02030;
+    --danger-badge-fg: #ffffff;
+
+    --chip-skipped-bg: #2a2a2a;
+    --chip-skipped-fg: #a8a8a8;
+    --chip-na-bg: #232323;
+    --chip-na-fg: #707070;
+  }
 }
 
 body {
   margin: 0;
+  background: var(--bg);
+  color: var(--fg);
 }
 
 .container {
@@ -23,15 +106,44 @@ h1 {
 button {
   font: inherit;
   cursor: pointer;
+  color: var(--fg);
+  background: var(--surface);
 }
 
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.6;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+select {
+  padding: 0.4rem 0.6rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+.error {
+  color: var(--danger-text);
+}
+
+code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
 }
 
 .step {
-  border: 1px solid #cfcfcf;
+  border: 1px solid var(--border);
+  background: var(--surface);
   border-radius: 8px;
   padding: 1rem 1.25rem;
   margin-bottom: 1rem;
@@ -49,19 +161,6 @@ button:disabled {
   margin: 0;
 }
 
-select {
-  font: inherit;
-  padding: 0.4rem 0.6rem;
-}
-
-.error {
-  color: #b00020;
-}
-
-code {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-}
-
 table.ports {
   width: 100%;
   border-collapse: collapse;
@@ -72,7 +171,7 @@ table.ports th,
 table.ports td {
   text-align: left;
   padding: 0.4rem 0.5rem;
-  border-bottom: 1px solid #ececec;
+  border-bottom: 1px solid var(--border-soft);
 }
 
 table.ports tbody tr {
@@ -84,7 +183,7 @@ table.ports tbody tr.muted {
 }
 
 table.ports tbody tr.selected {
-  background: #eaf3ff;
+  background: var(--surface-highlight);
 }
 
 .firmware-meta {
@@ -95,7 +194,7 @@ table.ports tbody tr.selected {
 }
 
 .firmware-meta dt {
-  color: #555;
+  color: var(--muted-fg);
   font-size: 0.9rem;
 }
 
@@ -126,12 +225,13 @@ table.ports tbody tr.selected {
   display: flex;
   gap: 1rem;
   font-size: 0.85rem;
-  color: #555;
+  color: var(--muted-fg);
   margin-top: 0.25rem;
 }
 
 .hex-meta .ascii code {
-  background: #f4f4f4;
+  background: var(--surface-elevated);
+  color: var(--fg);
   padding: 0 0.3rem;
   border-radius: 3px;
 }
@@ -143,8 +243,12 @@ table.ports tbody tr.selected {
 }
 
 .muted-text {
-  color: #555;
+  color: var(--muted-fg);
   font-size: 0.95rem;
+}
+
+.muted-text.warning {
+  color: var(--warning-fg);
 }
 
 .flash-button {
@@ -155,14 +259,16 @@ table.ports tbody tr.selected {
 .flash-button button {
   font-size: 1.05rem;
   padding: 0.7rem 1.5rem;
-  background: #2364c0;
-  color: white;
+  background: var(--accent);
+  color: var(--accent-fg);
   border: 0;
   border-radius: 8px;
 }
 
 .flash-button button:disabled {
-  background: #9aa6b8;
+  background: var(--accent-disabled-bg);
+  color: var(--accent-disabled-fg);
+  opacity: 1;
 }
 
 .flash-button p {
@@ -173,18 +279,19 @@ table.ports tbody tr.selected {
 .running-view {
   text-align: center;
   padding: 2rem 1rem;
-  border: 1px solid #cfcfcf;
+  border: 1px solid var(--border);
+  background: var(--surface);
   border-radius: 8px;
 }
 
 .running-meta {
-  color: #555;
+  color: var(--muted-fg);
   margin-bottom: 1.25rem;
 }
 
 .progress-bar {
   height: 6px;
-  background: #ececec;
+  background: var(--border-soft);
   border-radius: 3px;
   overflow: hidden;
   margin: 1rem auto;
@@ -194,7 +301,7 @@ table.ports tbody tr.selected {
 .progress-bar-inner {
   width: 40%;
   height: 100%;
-  background: #2364c0;
+  background: var(--accent);
   animation: progress 1.4s linear infinite;
 }
 
@@ -209,7 +316,8 @@ table.ports tbody tr.selected {
 }
 
 .result-view {
-  border: 1px solid #cfcfcf;
+  border: 1px solid var(--border);
+  background: var(--surface);
   border-radius: 8px;
   padding: 1.25rem;
 }
@@ -221,12 +329,22 @@ table.ports tbody tr.selected {
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: lowercase;
-  color: white;
 }
 
-.badge-green { background: #1a7f37; }
-.badge-amber { background: #b8740d; }
-.badge-red   { background: #b00020; }
+.badge-green {
+  background: var(--success-badge-bg);
+  color: var(--success-badge-fg);
+}
+
+.badge-amber {
+  background: var(--warning-badge-bg);
+  color: var(--warning-badge-fg);
+}
+
+.badge-red {
+  background: var(--danger-badge-bg);
+  color: var(--danger-badge-fg);
+}
 
 .stage-strip {
   display: flex;
@@ -243,10 +361,27 @@ table.ports tbody tr.selected {
   border: 1px solid transparent;
 }
 
-.chip-ok      { background: #d6f5dd; border-color: #1a7f37; color: #0c5e26; }
-.chip-failed  { background: #fadbe1; border-color: #b00020; color: #7a0016; }
-.chip-skipped { background: #ececec; color: #555; }
-.chip-n-a     { background: #f6f6f6; color: #999; }
+.chip-ok {
+  background: var(--success-bg);
+  border-color: var(--success-border);
+  color: var(--success-fg);
+}
+
+.chip-failed {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger-fg);
+}
+
+.chip-skipped {
+  background: var(--chip-skipped-bg);
+  color: var(--chip-skipped-fg);
+}
+
+.chip-n-a {
+  background: var(--chip-na-bg);
+  color: var(--chip-na-fg);
+}
 
 .hex-diff {
   margin: 1rem 0;
@@ -261,7 +396,7 @@ table.ports tbody tr.selected {
 }
 
 .hex-row-label {
-  color: #555;
+  color: var(--muted-fg);
   font-size: 0.9rem;
 }
 
@@ -271,13 +406,13 @@ table.ports tbody tr.selected {
 }
 
 .hex-row-bytes .mismatch {
-  color: #b00020;
+  color: var(--danger-text);
   font-weight: 700;
 }
 
 .hex-diff-summary {
   font-size: 0.9rem;
-  color: #555;
+  color: var(--muted-fg);
   margin: 0.5rem 0 0;
 }
 
@@ -288,12 +423,20 @@ table.ports tbody tr.selected {
   margin: 1rem 0;
 }
 
-.backup-meta dt { color: #555; font-size: 0.9rem; }
-.backup-meta dd { margin: 0; word-break: break-all; }
+.backup-meta dt {
+  color: var(--muted-fg);
+  font-size: 0.9rem;
+}
+
+.backup-meta dd {
+  margin: 0;
+  word-break: break-all;
+}
 
 .recovery-hint {
-  background: #fff4ec;
-  border-left: 4px solid #b00020;
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+  border-left: 4px solid var(--danger-border);
   padding: 0.75rem 1rem;
   margin: 1rem 0;
 }
@@ -303,7 +446,8 @@ details {
 }
 
 details pre {
-  background: #f4f4f4;
+  background: var(--surface-elevated);
+  color: var(--fg);
   padding: 0.75rem;
   border-radius: 4px;
   overflow: auto;
@@ -318,7 +462,14 @@ details pre {
 
 .actions button {
   padding: 0.5rem 1rem;
-  border: 1px solid #cfcfcf;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: white;
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.actions button.primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
 }
