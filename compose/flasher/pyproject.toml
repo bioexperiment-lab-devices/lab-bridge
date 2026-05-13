@@ -1,0 +1,25 @@
+[project]
+name = "flasher"
+version = "0.1.0"
+description = "Operator firmware-flashing UI for lab-bridge."
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115,<0.116",
+    "uvicorn[standard]>=0.30,<0.31",
+    "httpx>=0.27,<0.29",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3,<9",
+    "pytest-asyncio>=0.24,<0.25",
+    "ruff>=0.6,<0.13",
+]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
