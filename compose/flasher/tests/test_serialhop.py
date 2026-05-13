@@ -98,6 +98,18 @@ async def test_flash_omits_test_when_not_provided() -> None:
 
 
 @pytest.mark.asyncio
+async def test_flash_rejects_asymmetric_test_pair() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"outcome": "success", "port": "COM3", "stages": {}})
+
+    client = _make_client(handler)
+    with pytest.raises(ValueError, match="both be set or both omitted"):
+        await client.flash(port="COM3", firmware=":00000001FF\n", test_command="010203")
+    with pytest.raises(ValueError, match="both be set or both omitted"):
+        await client.flash(port="COM3", firmware=":00000001FF\n", expected_response="aabbcc")
+
+
+@pytest.mark.asyncio
 async def test_flash_raises_on_4xx_with_error_body() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(403, json={"error": "flashing disabled", "detail": "off"})
