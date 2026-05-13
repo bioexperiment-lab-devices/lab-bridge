@@ -16,7 +16,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 settings = load_settings()
 JOB_STORE = JobStore(capacity=10)
 app = FastAPI(title="lab-bridge flasher")
-app.include_router(make_router(settings, JOB_STORE))
+app.include_router(make_router(settings, JOB_STORE), prefix="/flash")
 
 
 @app.exception_handler(HTTPException)

@@ -47,7 +47,7 @@ def test_clients_returns_only_online(monkeypatch, client: TestClient, write_rost
         return port == 8081  # only lab_a is online
 
     monkeypatch.setattr(routes, "probe_tcp", fake_probe)
-    response = client.get("/api/clients")
+    response = client.get("/flash/api/clients")
     assert response.status_code == 200
     assert response.json() == {"clients": [{"name": "lab_a", "port": 8081}]}
 
@@ -60,7 +60,7 @@ def test_clients_sorted_by_name(monkeypatch, client: TestClient, write_roster) -
         }
     )
     monkeypatch.setattr(routes, "probe_tcp", lambda *a, **k: True)
-    response = client.get("/api/clients")
+    response = client.get("/flash/api/clients")
     names = [c["name"] for c in response.json()["clients"]]
     assert names == ["alpha", "zeta"]
 
@@ -68,7 +68,7 @@ def test_clients_sorted_by_name(monkeypatch, client: TestClient, write_roster) -
 def test_clients_empty_when_none_online(monkeypatch, client: TestClient, write_roster) -> None:
     write_roster({"lab_a": {"port": 8081, "password_sha256": "aa"}})
     monkeypatch.setattr(routes, "probe_tcp", lambda *a, **k: False)
-    response = client.get("/api/clients")
+    response = client.get("/flash/api/clients")
     assert response.status_code == 200
     assert response.json() == {"clients": []}
 
@@ -81,14 +81,14 @@ def test_ports_proxies_serialhop(monkeypatch, client: TestClient, write_roster) 
         return body
 
     monkeypatch.setattr("app.serialhop.SerialHopClient.get_ports_detailed", fake_get_ports)
-    response = client.get("/api/clients/lab_a/ports")
+    response = client.get("/flash/api/clients/lab_a/ports")
     assert response.status_code == 200
     assert response.json() == body
 
 
 def test_ports_404_for_unknown_client(client: TestClient, write_roster) -> None:
     write_roster({})
-    response = client.get("/api/clients/nope/ports")
+    response = client.get("/flash/api/clients/nope/ports")
     assert response.status_code == 404
 
 
@@ -99,7 +99,7 @@ def test_ports_502_on_upstream_unreachable(monkeypatch, client: TestClient, writ
         raise UpstreamUnreachable(detail="connection refused")
 
     monkeypatch.setattr("app.serialhop.SerialHopClient.get_ports_detailed", fake_get_ports)
-    response = client.get("/api/clients/lab_a/ports")
+    response = client.get("/flash/api/clients/lab_a/ports")
     assert response.status_code == 502
     body = response.json()
     assert body["error"] == "upstream unreachable"
@@ -115,7 +115,7 @@ def test_ports_relays_serialhop_error_envelope(
         raise UpstreamErrorResponse(status_code=500, error_code="list ports failed", detail="boom")
 
     monkeypatch.setattr("app.serialhop.SerialHopClient.get_ports_detailed", fake_get_ports)
-    response = client.get("/api/clients/lab_a/ports")
+    response = client.get("/flash/api/clients/lab_a/ports")
     assert response.status_code == 502
     body = response.json()
     assert body["error"] == "list ports failed"
@@ -125,7 +125,7 @@ def test_ports_relays_serialhop_error_envelope(
 def test_post_flash_rejects_missing_client(client: TestClient, write_roster) -> None:
     write_roster({})
     response = client.post(
-        "/api/flash",
+        "/flash/api/flash",
         json={
             "client": "nope",
             "port": "COM3",
@@ -140,7 +140,7 @@ def test_post_flash_rejects_missing_client(client: TestClient, write_roster) -> 
 def test_post_flash_rejects_empty_firmware(client: TestClient, write_roster) -> None:
     write_roster({"lab_a": {"port": 8081, "password_sha256": "aa"}})
     response = client.post(
-        "/api/flash",
+        "/flash/api/flash",
         json={"client": "lab_a", "port": "COM3", "firmware": "", "test": None},
     )
     assert response.status_code == 400
@@ -151,7 +151,7 @@ def test_post_flash_rejects_oversize_firmware(client: TestClient, write_roster) 
     write_roster({"lab_a": {"port": 8081, "password_sha256": "aa"}})
     too_big = "x" * (256 * 1024 + 1)
     response = client.post(
-        "/api/flash",
+        "/flash/api/flash",
         json={"client": "lab_a", "port": "COM3", "firmware": too_big, "test": None},
     )
     assert response.status_code == 400
@@ -160,7 +160,7 @@ def test_post_flash_rejects_oversize_firmware(client: TestClient, write_roster) 
 def test_post_flash_rejects_asymmetric_test_pair(client: TestClient, write_roster) -> None:
     write_roster({"lab_a": {"port": 8081, "password_sha256": "aa"}})
     response = client.post(
-        "/api/flash",
+        "/flash/api/flash",
         json={
             "client": "lab_a",
             "port": "COM3",
@@ -174,7 +174,7 @@ def test_post_flash_rejects_asymmetric_test_pair(client: TestClient, write_roste
 def test_post_flash_rejects_odd_length_hex(client: TestClient, write_roster) -> None:
     write_roster({"lab_a": {"port": 8081, "password_sha256": "aa"}})
     response = client.post(
-        "/api/flash",
+        "/flash/api/flash",
         json={
             "client": "lab_a",
             "port": "COM3",
@@ -201,7 +201,7 @@ def test_post_flash_starts_background_job(monkeypatch, client: TestClient, write
     monkeypatch.setattr("app.serialhop.SerialHopClient.flash", fake_flash)
 
     response = client.post(
-        "/api/flash",
+        "/flash/api/flash",
         json={
             "client": "lab_a",
             "port": "COM3",
@@ -217,7 +217,7 @@ def test_post_flash_starts_background_job(monkeypatch, client: TestClient, write
 
     polled: dict = {"status": "running"}
     for _ in range(50):
-        polled = client.get(f"/api/flash/{job_id}").json()
+        polled = client.get(f"/flash/api/flash/{job_id}").json()
         if polled["status"] != "running":
             break
         _t.sleep(0.05)
@@ -228,12 +228,12 @@ def test_post_flash_starts_background_job(monkeypatch, client: TestClient, write
 
 
 def test_get_flash_unknown_returns_404(client: TestClient) -> None:
-    response = client.get("/api/flash/does_not_exist")
+    response = client.get("/flash/api/flash/does_not_exist")
     assert response.status_code == 404
 
 
 def test_get_flash_current_empty_when_no_jobs(client: TestClient) -> None:
-    response = client.get("/api/flash/current")
+    response = client.get("/flash/api/flash/current")
     assert response.status_code == 200
     assert response.json() == {}
 
@@ -251,7 +251,7 @@ def test_get_flash_current_returns_latest(monkeypatch, client: TestClient, write
     monkeypatch.setattr("app.serialhop.SerialHopClient.flash", fake_flash)
 
     started = client.post(
-        "/api/flash",
+        "/flash/api/flash",
         json={
             "client": "lab_a",
             "port": "COM3",
@@ -259,6 +259,6 @@ def test_get_flash_current_returns_latest(monkeypatch, client: TestClient, write
             "test": None,
         },
     ).json()
-    response = client.get("/api/flash/current")
+    response = client.get("/flash/api/flash/current")
     assert response.status_code == 200
     assert response.json()["job_id"] == started["job_id"]
