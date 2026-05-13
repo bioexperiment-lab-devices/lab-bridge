@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Path as PathParam
@@ -16,13 +17,19 @@ def make_router(settings: Settings) -> APIRouter:
         return SerialHopClient(host=settings.chisel_host, port=port)
 
     @router.get("/api/clients")
-    def get_clients() -> dict[str, Any]:
+    async def get_clients() -> dict[str, Any]:
         roster = load_roster(settings.clients_file)
-        out = []
-        for name in sorted(roster):
-            port = roster[name]["port"]
-            if probe_tcp(settings.chisel_host, port):
-                out.append({"name": name, "port": port})
+        names_ports = [(name, roster[name]["port"]) for name in sorted(roster)]
+        if not names_ports:
+            return {"clients": []}
+        results = await asyncio.gather(
+            *(asyncio.to_thread(probe_tcp, settings.chisel_host, port) for _, port in names_ports)
+        )
+        out = [
+            {"name": name, "port": port}
+            for (name, port), online in zip(names_ports, results, strict=True)
+            if online
+        ]
         return {"clients": out}
 
     @router.get("/api/clients/{name}/ports")
