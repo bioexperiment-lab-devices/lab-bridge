@@ -95,6 +95,9 @@ main() {
     # fsnotify-based auto-reload re-reads the same stale contents).
     # In stack-only mode chisel is excluded because its roster files are
     # managed by the operator, not CI.
+    # Flasher is intentionally excluded: it reads siteapp/clients.json on
+    # every request (see compose/flasher/app/routes.py), so a roster change
+    # is picked up without a restart.
     log "bringing up the stack..."
     local restart_services="caddy siteapp"
     if [[ "${LDS_STACK_ONLY:-}" != "1" ]]; then
