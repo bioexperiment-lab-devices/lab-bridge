@@ -32,6 +32,7 @@ _REQUIRED_PINS_FIELDS=(
     .loki_retention_days
     .grafana_image
     .siteapp_image_repo
+    .flasher_image_repo
     .acme_email
     .remote_root
     .notebooks_path
@@ -150,4 +151,5 @@ load_config() {
     export LOKI_RETENTION_DAYS   ; LOKI_RETENTION_DAYS="$(_yq e '.loki_retention_days' "$pins_path")"
     export GRAFANA_IMAGE         ; GRAFANA_IMAGE="$(_yq e '.grafana_image' "$pins_path")"
     export SITEAPP_IMAGE_REPO    ; SITEAPP_IMAGE_REPO="$(_yq e '.siteapp_image_repo' "$pins_path")"
+    export FLASHER_IMAGE_REPO    ; FLASHER_IMAGE_REPO="$(_yq e '.flasher_image_repo' "$pins_path")"
 }

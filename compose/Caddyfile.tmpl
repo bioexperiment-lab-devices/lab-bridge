@@ -39,6 +39,16 @@ https://__VPS_HOST__ {
         reverse_proxy siteapp:8000
     }
 
+    # Flasher service — operator firmware-flashing UI. Same single-admin
+    # basic_auth boundary as /admin/*; the flasher itself trusts whoever
+    # Caddy let through.
+    handle /flash* {
+        basic_auth {
+            admin __ADMIN_BCRYPT_HASH__
+        }
+        reverse_proxy flasher:8000
+    }
+
     # CI upload endpoint — bearer-token auth in the app, not Caddy.
     handle /api/agent/upload {
         reverse_proxy siteapp:8000
