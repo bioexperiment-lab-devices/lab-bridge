@@ -61,3 +61,28 @@ select {
 code {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
 }
+
+table.ports {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+table.ports th,
+table.ports td {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid #ececec;
+}
+
+table.ports tbody tr {
+  cursor: pointer;
+}
+
+table.ports tbody tr.muted {
+  opacity: 0.6;
+}
+
+table.ports tbody tr.selected {
+  background: #eaf3ff;
+}
