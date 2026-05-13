@@ -27,6 +27,7 @@ setup_file() {
     # load_siteapp_test_image (which uses `docker exec ... docker load`).
     bash "$ROOT/scripts/provision.sh"
     load_siteapp_test_image
+    load_flasher_test_image
     preload_fake_vps_images
     export _OPS_TMPDIR="$TMPDIR"
 }
