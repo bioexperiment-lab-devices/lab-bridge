@@ -42,28 +42,56 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Detect which file groups changed in this PR so we can skip steps
+      # whose inputs didn't change. Each filter activates the steps it gates.
+      # A docs-only PR (e.g. README, CLAUDE.md) leaves all filters false and
+      # the verify job passes in seconds — the required-check is still
+      # satisfied because the job ran.
+      - name: detect changed paths
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            shell:
+              - 'scripts/**/*.sh'
+            bats:
+              - 'scripts/**'
+              - 'tests/**'
+              - 'compose/**'
+              - 'config.example.yaml'
+              - 'Taskfile.yml'
+            siteapp:
+              - 'compose/siteapp/**'
+            workflow:
+              - '.github/workflows/pr.yml'
+
       - name: shellcheck
+        if: steps.changes.outputs.shell == 'true' || steps.changes.outputs.workflow == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck
           shellcheck -x --severity=warning scripts/*.sh scripts/lib/*.sh
 
       - name: install Task
+        if: steps.changes.outputs.bats == 'true' || steps.changes.outputs.workflow == 'true'
         uses: arduino/setup-task@v2
         with:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: install yq v4
+        if: steps.changes.outputs.bats == 'true' || steps.changes.outputs.workflow == 'true'
         run: |
           sudo wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
           sudo chmod +x /usr/local/bin/yq
           yq --version
 
       - name: install bats
+        if: steps.changes.outputs.bats == 'true' || steps.changes.outputs.workflow == 'true'
         uses: bats-core/bats-action@3.0.1
 
       - name: bats
+        if: steps.changes.outputs.bats == 'true' || steps.changes.outputs.workflow == 'true'
         timeout-minutes: 20
         # Skip all 4 test_siteapp_*.bats files in CI: each does an identical
         # full fake-VPS deploy in setup_file (~7min). 4 × 7 doesn't fit in any
@@ -89,33 +117,41 @@ jobs:
           bats "${files[@]}"
 
       - uses: actions/setup-python@v5
+        if: steps.changes.outputs.siteapp == 'true' || steps.changes.outputs.workflow == 'true'
         with:
           python-version-file: compose/siteapp/.python-version
           cache: pip
 
       - name: install uv
+        if: steps.changes.outputs.siteapp == 'true' || steps.changes.outputs.workflow == 'true'
         run: pip install uv
 
       - name: siteapp deps
+        if: steps.changes.outputs.siteapp == 'true' || steps.changes.outputs.workflow == 'true'
         working-directory: compose/siteapp
         run: uv sync --frozen
 
       - name: ruff check
+        if: steps.changes.outputs.siteapp == 'true' || steps.changes.outputs.workflow == 'true'
         working-directory: compose/siteapp
         run: uv run ruff check app tests
 
       - name: ruff format check
+        if: steps.changes.outputs.siteapp == 'true' || steps.changes.outputs.workflow == 'true'
         working-directory: compose/siteapp
         run: uv run ruff format --check app tests
 
       - name: pytest
+        if: steps.changes.outputs.siteapp == 'true' || steps.changes.outputs.workflow == 'true'
         working-directory: compose/siteapp
         run: uv run pytest -v
 
       - name: docker buildx setup
+        if: steps.changes.outputs.siteapp == 'true' || steps.changes.outputs.workflow == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: siteapp image build (no push)
+        if: steps.changes.outputs.siteapp == 'true' || steps.changes.outputs.workflow == 'true'
         uses: docker/build-push-action@v6
         with:
           context: compose/siteapp
