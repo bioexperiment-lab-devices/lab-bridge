@@ -170,7 +170,7 @@ basic_auth. Static SPA assets are served from `/` (matched by Caddy's
 The flasher reads the same `clients.json` siteapp uses (mounted at
 `/etc/flasher/clients.json`) to enumerate candidates. For each candidate,
 it probes liveness by opening a short-timeout (~500 ms) TCP connection
-to `chisel:<reverse_port>` (matching how SerialHop's URL would be built).
+to `chisel:<port>` (matching how SerialHop's URL would be built).
 A client that doesn't accept the TCP connect in that window is treated
 as offline and filtered out before returning. Probes run concurrently
 across candidates so a slow / offline client doesn't stall the rest.
@@ -180,11 +180,14 @@ Response:
 ```json
 {
   "clients": [
-    { "name": "khamit_desktop",  "reverse_port": 8089 },
-    { "name": "protres_ksenios", "reverse_port": 8081 }
+    { "name": "khamit_desktop",  "port": 8089 },
+    { "name": "protres_ksenios", "port": 8081 }
   ]
 }
 ```
+
+The flasher emits a list (not the keyed-by-name on-disk shape) so the
+SPA can render in a stable sort order without re-reshaping.
 
 ### Port list
 
@@ -242,8 +245,8 @@ The handler:
    request: <sanitized>}` in the in-memory job store. `firmware` is
    *not* stored in the job record; only its sha256 and length.
 3. Schedules a background task via `asyncio.create_task` that, in order:
-   a. `POST http://chisel:<reverse_port>/devices/disconnect`
-   b. `POST http://chisel:<reverse_port>/flash/{port}` with the
+   a. `POST http://chisel:<port>/devices/disconnect`
+   b. `POST http://chisel:<port>/flash/{port}` with the
       SerialHop-shaped body (the flasher reshapes the `test` sub-object
       into SerialHop's flat `test_command` / `expected_response` fields
       and applies SerialHop's defaults for `timeout_ms`,
@@ -439,24 +442,23 @@ when copied programmatically.
 The flasher reads at startup:
 
 - `FLASHER_CLIENTS_FILE` (path) — defaults to `/etc/flasher/clients.json`.
-  Same shape that `task secrets:add-client` already produces and that
-  siteapp consumes:
+  Same shape that `scripts/lib/render.sh::render_siteapp_clients`
+  already produces (and that siteapp's `app/clients.py` consumes):
 
   ```json
   {
-    "clients": [
-      { "name": "khamit_desktop",   "reverse_port": 8089, "password": "..." },
-      { "name": "protres_ksenios",  "reverse_port": 8081, "password": "..." }
-    ]
+    "khamit_desktop":  { "port": 8089, "password_sha256": "<hex>" },
+    "protres_ksenios": { "port": 8081, "password_sha256": "<hex>" }
   }
   ```
 
-  The flasher ignores `password` for now (SerialHop has no auth at this
-  layer; auth is enforced upstream by basic_auth at Caddy).
+  The flasher only needs `port` per entry. It ignores `password_sha256`
+  (SerialHop has no auth at this layer; auth is enforced upstream by
+  basic_auth at Caddy). The plaintext password is never written to
+  disk, so the flasher cannot reach it — and doesn't need to.
 
 - `FLASHER_CHISEL_HOST` (string) — defaults to `chisel`. Hostname used
-  when building `http://<host>:<reverse_port>/`. Overridable for local
-  testing.
+  when building `http://<host>:<port>/`. Overridable for local testing.
 
 The file is read on each request that needs it (it's tiny, and this
 avoids a reload-on-change problem after `task secrets:add-client`).
