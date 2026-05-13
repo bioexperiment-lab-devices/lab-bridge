@@ -16,6 +16,11 @@ from app.serialhop import SerialHopClient, UpstreamErrorResponse, UpstreamUnreac
 MAX_FIRMWARE_BYTES = 256 * 1024
 _HEX_RE = re.compile(r"^[0-9a-fA-F]+$")
 
+# Strong refs to live background flash tasks. asyncio.create_task only
+# holds a weak reference; without this, GC may collect a task before it
+# completes and silently lose the flash result.
+_background_tasks: set[asyncio.Task[None]] = set()
+
 
 class _TestPair(BaseModel):
     command: str
@@ -88,7 +93,8 @@ def make_router(settings: Settings, store: JobStore) -> APIRouter:
                 status_code=400,
                 detail={"error": "invalid request", "detail": "firmware is empty"},
             )
-        if len(req.firmware.encode("utf-8")) > MAX_FIRMWARE_BYTES:
+        firmware_bytes = req.firmware.encode("utf-8")
+        if len(firmware_bytes) > MAX_FIRMWARE_BYTES:
             raise HTTPException(
                 status_code=400,
                 detail={"error": "invalid request", "detail": "firmware exceeds 256 KiB"},
@@ -109,15 +115,15 @@ def make_router(settings: Settings, store: JobStore) -> APIRouter:
             test_command = None
             expected_response = None
 
-        sha = hashlib.sha256(req.firmware.encode("utf-8")).hexdigest()
+        sha = hashlib.sha256(firmware_bytes).hexdigest()
         job_id = store.create(
             client=req.client,
             port=req.port,
             firmware_sha256=sha,
-            firmware_size=len(req.firmware),
+            firmware_size=len(firmware_bytes),
         )
         client_obj = _build_client(entry["port"])
-        asyncio.create_task(
+        task = asyncio.create_task(
             run_flash_job(
                 store=store,
                 job_id=job_id,
@@ -128,6 +134,8 @@ def make_router(settings: Settings, store: JobStore) -> APIRouter:
                 expected_response=expected_response,
             )
         )
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
         return {"job_id": job_id}
 
     # Declared before the parameterized path so the literal segment wins.
