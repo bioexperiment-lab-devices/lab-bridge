@@ -29,3 +29,35 @@ button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
+
+.step {
+  border: 1px solid #cfcfcf;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.step > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.step h2 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+select {
+  font: inherit;
+  padding: 0.4rem 0.6rem;
+}
+
+.error {
+  color: #b00020;
+}
+
+code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+}
