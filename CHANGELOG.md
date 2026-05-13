@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.2.0...v0.3.0) (2026-05-13)
+
+
+### Features
+
+* **flasher:** skip-backup switch, retry-with-filled-form, dark-theme palette ([#9](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/9)) ([976e293](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/976e2933e0090e11a2159d966f04b9f95ffab1b9))
+
 ## [0.2.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.1.0...v0.2.0) (2026-05-13)
 
 
