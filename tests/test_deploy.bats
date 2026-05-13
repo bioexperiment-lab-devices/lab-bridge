@@ -25,6 +25,7 @@ setup_file() {
     chmod 600 "$LDS_AGENT_TOKEN_FILE"
     bash "$ROOT/scripts/provision.sh"
     load_siteapp_test_image
+    load_flasher_test_image
     preload_fake_vps_images
     export _DEPLOY_TMPDIR="$TMPDIR"
 }
