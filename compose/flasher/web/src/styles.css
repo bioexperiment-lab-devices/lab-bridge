@@ -86,3 +86,19 @@ table.ports tbody tr.muted {
 table.ports tbody tr.selected {
   background: #eaf3ff;
 }
+
+.firmware-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0.75rem 0 0;
+}
+
+.firmware-meta dt {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.firmware-meta dd {
+  margin: 0;
+}
