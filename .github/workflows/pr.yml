@@ -94,7 +94,10 @@ jobs:
 
       - name: bats
         if: steps.changes.outputs.bats == 'true' || steps.changes.outputs.workflow == 'true'
-        timeout-minutes: 20
+        # 30 min, not 20: typical run is ~17.5 min after we added the flasher
+        # image build into both test_deploy.bats and test_ops.bats setup_file.
+        # One slow Docker pull on a CI runner pushes wall-clock past 20 min.
+        timeout-minutes: 30
         # Skip all 4 test_siteapp_*.bats files in CI: each does an identical
         # full fake-VPS deploy in setup_file (~7min). 4 × 7 doesn't fit in any
         # reasonable CI step budget. The deploy chain is already exercised by
