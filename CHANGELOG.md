@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.3.0...v0.3.1) (2026-05-14)
+
+
+### Bug Fixes
+
+* **flasher:** unstick result-view trap on refresh + safety-net runner exception ([#11](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/11)) ([4e94859](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/4e94859de13cb2c31fa057448a7afcfe68aef6d0))
+
 ## [0.3.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.2.0...v0.3.0) (2026-05-13)
 
 
