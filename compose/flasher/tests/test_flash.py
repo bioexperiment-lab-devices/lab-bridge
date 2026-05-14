@@ -28,6 +28,37 @@ def test_current_returns_most_recent_running() -> None:
     assert current["status"] == "running"
 
 
+def test_current_returns_none_when_only_done_jobs() -> None:
+    store = JobStore(capacity=3)
+    a = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
+    store.complete(a, result={"outcome": "success"})
+    assert store.current() is None
+
+
+def test_current_returns_none_when_only_error_jobs() -> None:
+    store = JobStore(capacity=3)
+    a = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
+    store.fail(a, error_code="upstream unreachable", detail="boom")
+    # Refreshing the SPA must not re-mount the result view from a stale
+    # error job — that traps the operator.
+    assert store.current() is None
+
+
+def test_current_returns_running_even_when_a_newer_job_is_done() -> None:
+    # Edge: the most-recently-inserted job already terminated, but an older
+    # one is still running. current() should still surface the running one.
+    # In practice this can't happen (single-flight in production), but the
+    # invariant is "current returns *a* running job if any exist".
+    store = JobStore(capacity=3)
+    older = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
+    newer = store.create(client="x", port="COM4", firmware_sha256="bb", firmware_size=10)
+    store.complete(newer, result={"outcome": "success"})
+    current = store.current()
+    assert current is not None
+    assert current["job_id"] == older
+    assert current["status"] == "running"
+
+
 def test_complete_marks_done_with_result() -> None:
     store = JobStore(capacity=3)
     job_id = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
@@ -189,6 +220,35 @@ async def test_run_flash_job_marks_error_on_upstream_unreachable() -> None:
     assert record["status"] == "error"
     assert record["error_code"] == "upstream unreachable"
     assert "connection refused" in record["detail"]
+
+
+@pytest.mark.asyncio
+async def test_run_flash_job_marks_error_on_unexpected_exception() -> None:
+    """Safety net: any uncaught exception must terminate the job.
+
+    Without this, a bug in the SerialHop wrapper or an asyncio cancellation
+    leaves the job in `running` forever and the SPA polls indefinitely on
+    every page load.
+    """
+    store = JobStore(capacity=3)
+    job_id = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
+    fake = _FakeClient(raise_on_flash=AttributeError("nope"))
+
+    await run_flash_job(
+        store=store,
+        job_id=job_id,
+        client=fake,
+        port="COM3",
+        firmware=":00000001FF\n",
+        test_command=None,
+        expected_response=None,
+    )
+
+    record = store.get(job_id)
+    assert record is not None
+    assert record["status"] == "error"
+    assert record["error_code"] == "internal error"
+    assert "nope" in record["detail"]
 
 
 @pytest.mark.asyncio
