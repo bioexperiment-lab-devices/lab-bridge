@@ -60,10 +60,21 @@ class JobStore:
         return self._snapshot(record)
 
     def current(self) -> dict[str, Any] | None:
+        """Return the most recent *running* job, or None.
+
+        Done and error jobs are session-only UI state — the SPA renders them
+        from in-memory React state for the duration of the tab. Returning a
+        terminated job here would re-mount the result view on every refresh,
+        trapping the operator on a screen they can't dismiss until 10 new
+        jobs roll out via the LRU.
+        """
         if not self._jobs:
             return None
-        last_id = next(reversed(self._jobs))
-        return self._snapshot(self._jobs[last_id])
+        for job_id in reversed(self._jobs):
+            record = self._jobs[job_id]
+            if record["status"] == "running":
+                return self._snapshot(record)
+        return None
 
     def complete(self, job_id: str, *, result: dict) -> None:
         self._jobs[job_id]["status"] = "done"
@@ -123,5 +134,17 @@ async def run_flash_job(
         store.fail(job_id, error_code=exc.error_code, detail=exc.detail)
     except UpstreamUnreachable as exc:
         store.fail(job_id, error_code="upstream unreachable", detail=exc.detail)
-    except SerialHopError as exc:  # safety net
+    except SerialHopError as exc:
         store.fail(job_id, error_code="upstream error", detail=str(exc))
+    except Exception as exc:
+        # Last-resort safety net so a job never stays "running" forever in
+        # the in-memory store. Without this, an unexpected exception (e.g.
+        # an attribute error in the response parsing path, or asyncio
+        # cancellation) leaves the job in the running state, which makes
+        # the SPA's polling loop spin indefinitely and traps the operator
+        # on the running view across page reloads.
+        store.fail(
+            job_id,
+            error_code="internal error",
+            detail=str(exc) or type(exc).__name__,
+        )

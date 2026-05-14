@@ -317,7 +317,61 @@ def test_get_flash_current_empty_when_no_jobs(client: TestClient) -> None:
     assert response.json() == {}
 
 
-def test_get_flash_current_returns_latest(monkeypatch, client: TestClient, write_roster) -> None:
+def test_get_flash_current_returns_running_job(
+    monkeypatch, client: TestClient, write_roster
+) -> None:
+    """While a flash is in flight, /current surfaces it for refresh recovery."""
+    import asyncio
+
+    write_roster({"lab_a": {"port": 8081, "password_sha256": "aa"}})
+
+    async def fake_disconnect(self) -> dict:
+        return {"released": 0}
+
+    # Hold the flash open so the /current query lands while the job is
+    # still in the running state.
+    flash_started = asyncio.Event()
+    flash_release = asyncio.Event()
+
+    async def fake_flash(self, **kwargs: Any) -> dict:
+        flash_started.set()
+        await flash_release.wait()
+        return {"outcome": "success", "port": kwargs["port"], "stages": {}}
+
+    monkeypatch.setattr("app.serialhop.SerialHopClient.disconnect_devices", fake_disconnect)
+    monkeypatch.setattr("app.serialhop.SerialHopClient.flash", fake_flash)
+
+    started = client.post(
+        "/flash/api/flash",
+        json={
+            "client": "lab_a",
+            "port": "COM3",
+            "firmware": ":00000001FF\n",
+            "test": None,
+        },
+    ).json()
+
+    # Wait briefly for the background task to enter fake_flash. TestClient
+    # bridges sync<->async so the task gets scheduled but we need to give
+    # it a tick.
+    import time as _t
+
+    for _ in range(50):
+        response = client.get("/flash/api/flash/current")
+        body = response.json()
+        if body.get("job_id"):
+            break
+        _t.sleep(0.05)
+
+    assert body["job_id"] == started["job_id"]
+    assert body["status"] == "running"
+
+
+def test_get_flash_current_returns_empty_after_completion(
+    monkeypatch, client: TestClient, write_roster
+) -> None:
+    """After a flash terminates, /current returns {} so a refresh lands on
+    the wizard rather than re-mounting the result view."""
     write_roster({"lab_a": {"port": 8081, "password_sha256": "aa"}})
 
     async def fake_disconnect(self) -> dict:
@@ -338,6 +392,18 @@ def test_get_flash_current_returns_latest(monkeypatch, client: TestClient, write
             "test": None,
         },
     ).json()
+
+    import time as _t
+
+    # Wait for the job to terminate.
+    for _ in range(50):
+        polled = client.get(f"/flash/api/flash/{started['job_id']}").json()
+        if polled["status"] != "running":
+            break
+        _t.sleep(0.05)
+    assert polled["status"] == "done"
+
+    # Now /current must NOT surface the terminated job.
     response = client.get("/flash/api/flash/current")
     assert response.status_code == 200
-    assert response.json()["job_id"] == started["job_id"]
+    assert response.json() == {}
