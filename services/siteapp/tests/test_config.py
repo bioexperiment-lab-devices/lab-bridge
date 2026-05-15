@@ -42,6 +42,7 @@ def test_creates_subdirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 def test_seeds_default_index_when_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.skip("default_docs/ moved to public_docs/; seeding behaviour removed in next commit")
     monkeypatch.setenv("SITE_DATA", str(tmp_path))
     monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
     s = load_settings()
@@ -51,6 +52,7 @@ def test_seeds_default_index_when_missing(tmp_path: Path, monkeypatch: pytest.Mo
 
 
 def test_does_not_overwrite_existing_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.skip("default_docs/ moved to public_docs/; seeding behaviour removed in next commit")
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "index.md").write_text("# Custom\n", encoding="utf-8")
     monkeypatch.setenv("SITE_DATA", str(tmp_path))
@@ -62,6 +64,7 @@ def test_does_not_overwrite_existing_index(tmp_path: Path, monkeypatch: pytest.M
 def test_seeds_default_icons_when_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Fresh deploy must seed every file under default_docs/, not just index.md.
     Otherwise the seeded landing page renders with broken <img> references."""
+    pytest.skip("default_docs/ moved to public_docs/; seeding behaviour removed in next commit")
     monkeypatch.setenv("SITE_DATA", str(tmp_path))
     monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
     s = load_settings()

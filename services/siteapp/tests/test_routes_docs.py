@@ -126,6 +126,7 @@ def test_default_index_smoke(tmp_path: Path, monkeypatch) -> None:
     """The shipped default_docs/index.md must render with all four
     extensions active: alert div, mermaid pre, sanitized <img>, and
     a working /docs/icons/jupyter.svg URL."""
+    pytest.skip("default_docs/ moved to public_docs/; seeding behaviour removed in next commit")
     monkeypatch.setenv("SITE_DATA", str(tmp_path))
     monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
     from importlib import reload
