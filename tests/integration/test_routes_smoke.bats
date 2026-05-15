@@ -82,11 +82,6 @@ _through_caddy() {
     [[ "$code" == "200" ]] || { echo "got: $code"; false; }
 }
 
-@test "/admin/ is gated by basic_auth (401)" {
-    code="$(_through_caddy 'https://127.0.0.1/admin/')"
-    [[ "$code" == "401" ]] || { echo "got: $code"; false; }
-}
-
 @test "/flash/ is gated by basic_auth (401)" {
     code="$(_through_caddy 'https://127.0.0.1/flash/')"
     [[ "$code" == "401" ]] || { echo "got: $code"; false; }

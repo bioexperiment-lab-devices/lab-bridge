@@ -47,11 +47,11 @@ teardown() { teardown_tmpdir; }
     [[ "$output" == *"profile shortlived"* ]]
     [[ "$output" == *"default_sni 192.0.2.10"* ]]
     [[ "$output" == *"reverse_proxy jupyter:8888"* ]]
-    # basic_auth must ONLY appear inside the /admin* handle block (mobile WebSocket
+    # basic_auth must ONLY appear inside the /flash* handle block (mobile WebSocket
     # upgrades break under top-level basic_auth on JupyterLab). Verify that every
-    # basic_auth occurrence is preceded by "handle /admin" within a few lines.
+    # basic_auth occurrence is preceded by "handle /flash" within a few lines.
     grep -q 'basic_auth' <<< "$output" && \
-        grep -B 5 'basic_auth' <<< "$output" | grep -q '/admin'
+        grep -B 5 'basic_auth' <<< "$output" | grep -q '/flash'
     ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
 }
 
