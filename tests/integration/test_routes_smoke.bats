@@ -39,7 +39,7 @@ setup_file() {
 }
 
 teardown_file() {
-    bash "$ROOT/tests/integration/fake_vps/stop.sh" 2>/dev/null || true
+    docker rm -f lds-fake-vps >/dev/null 2>&1 || true
 }
 
 setup() {

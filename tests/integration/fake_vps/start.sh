@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build, start, and configure the fake-VPS container. Idempotent.
-# After this returns, you can `ssh -i tests/fake_vps/id_test -p 2222 khamit@127.0.0.1`.
+# After this returns, you can `ssh -i tests/integration/fake_vps/id_test -p 2222 khamit@127.0.0.1`.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NAME="lds-fake-vps"
