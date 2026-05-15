@@ -32,6 +32,9 @@ def load_settings() -> Settings:
     docs_env = os.environ.get("SITEAPP_DOCS_DIR")
     if not docs_env:
         raise RuntimeError("SITEAPP_DOCS_DIR env var is required")
+    # Not .resolve()'d — this is a reference to an externally-mounted
+    # directory, not a data root we own. Symlinks inside are still
+    # rejected at request time by safe_join in docs.py.
     docs_root = Path(docs_env)
     if not docs_root.is_dir():
         raise RuntimeError(
