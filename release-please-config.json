@@ -27,7 +27,7 @@
       "extra-files": [
         { "type": "generic", "path": "compose/VERSION" }
       ],
-      "exclude-paths": ["services/siteapp", "services/flasher"]
+      "exclude-paths": ["services/siteapp", "services/flasher", "public_docs"]
     }
   },
   "changelog-sections": [
