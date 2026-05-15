@@ -3,6 +3,15 @@
 load helpers
 
 setup_file() {
+    # Skip the whole file when the host can't reach all compose images
+    # (Docker Hub / quay.io anonymous-pull rate limit on a shared CI box).
+    # Skip marker written under BATS_FILE_TMPDIR because export from
+    # setup_file doesn't reach the per-test setup() subshell.
+    if ! compose_images_available; then
+        echo "host docker can't reach all compose images (registry rate-limited?)" \
+            > "$BATS_FILE_TMPDIR/skip"
+        return 0
+    fi
     bash "$ROOT/tests/integration/fake_vps/start.sh"
     # Run the one-time-per-file provisioning and image loading here so each
     # per-test setup() doesn't rebuild/reload the siteapp image for every test.
@@ -37,6 +46,7 @@ teardown_file() {
 }
 
 setup() {
+    [[ -f "$BATS_FILE_TMPDIR/skip" ]] && skip "$(cat "$BATS_FILE_TMPDIR/skip")"
     setup_tmpdir
     cp "$ROOT/tests/integration/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
     yq -i ".vps.host = \"127.0.0.1\"" "$TMPDIR/config.yaml"
