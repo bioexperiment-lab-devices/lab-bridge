@@ -3,18 +3,18 @@
 load helpers
 
 setup_file() {
-    bash "$ROOT/tests/fake_vps/start.sh"
+    bash "$ROOT/tests/integration/fake_vps/start.sh"
     # Run the one-time-per-file provisioning and image loading here so each
     # per-test setup() doesn't rebuild/reload the siteapp image for every test.
     # provision.sh installs Docker in the fake-VPS; must run before image ops.
     setup_tmpdir
-    cp "$ROOT/tests/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
     yq -i ".vps.host = \"127.0.0.1\"" "$TMPDIR/config.yaml"
-    cp "$ROOT/tests/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
     yq -i ".ssh_port = 2222" "$TMPDIR/pins.yaml"
     export LDS_CONFIG="$TMPDIR/config.yaml"
     export LDS_PINS_FILE="$TMPDIR/pins.yaml"
-    export LDS_SSH_KEY="$ROOT/tests/fake_vps/id_test"
+    export LDS_SSH_KEY="$ROOT/tests/integration/fake_vps/id_test"
     export LDS_SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     export LDS_SKIP_HEALTHCHECK=1
     export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
@@ -38,14 +38,14 @@ teardown_file() {
 
 setup() {
     setup_tmpdir
-    cp "$ROOT/tests/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
     yq -i ".vps.host = \"127.0.0.1\"" "$TMPDIR/config.yaml"
     # ssh_port is now a pins.yaml value; create a test-specific pins with port 2222.
-    cp "$ROOT/tests/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
     yq -i ".ssh_port = 2222" "$TMPDIR/pins.yaml"
     export LDS_CONFIG="$TMPDIR/config.yaml"
     export LDS_PINS_FILE="$TMPDIR/pins.yaml"
-    export LDS_SSH_KEY="$ROOT/tests/fake_vps/id_test"
+    export LDS_SSH_KEY="$ROOT/tests/integration/fake_vps/id_test"
     export LDS_SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     export LDS_SKIP_HEALTHCHECK=1   # tests don't need full TLS up; just deploy
     export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
@@ -80,7 +80,7 @@ teardown() { teardown_tmpdir; }
 }
 
 @test "deploy: rejects config with invalid hash before touching VPS" {
-    cp "$ROOT/tests/fixtures/bad_hash_config.yaml" "$LDS_CONFIG"
+    cp "$ROOT/tests/integration/fixtures/bad_hash_config.yaml" "$LDS_CONFIG"
     yq -i ".vps.host = \"127.0.0.1\"" "$LDS_CONFIG"
     run bash "$ROOT/scripts/deploy.sh"
     [ "$status" -ne 0 ]

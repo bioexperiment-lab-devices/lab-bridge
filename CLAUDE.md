@@ -28,10 +28,11 @@ Design + plan docs:
 ## Testing
 
 - **`verify` is path-gated** via `dorny/paths-filter@v3` — docs-only PRs skip all expensive steps. If you change `pr.yml`, everything re-runs.
-- **siteapp bats suites (`tests/test_siteapp_*.bats`) are NOT run in CI** (too slow — each does a full fake-VPS deploy). If you touch `services/siteapp/` routing/auth/upload/safety, run them locally before opening the PR:
+- **siteapp behavior tests (`services/siteapp/tests/e2e/`) are NOT run in CI's siteapp workflow unless `services/siteapp/**` changed.** If you touch siteapp routing/auth/upload/safety, the pr-siteapp workflow exercises them automatically.
   ```bash
-  bats tests/test_siteapp_auth.bats tests/test_siteapp_routing.bats \
-       tests/test_siteapp_safety.bats tests/test_siteapp_uploads.bats
+  bats tests/integration/test_routes_smoke.bats   # Caddy routing smoke
+  # For siteapp behavior tests (auth, safety, uploads), run service e2e:
+  cd services/siteapp && uv run pytest tests/e2e/
   ```
 - **Don't change `pr.yml`'s required checks** without updating branch protection's required-checks list in lockstep.
 

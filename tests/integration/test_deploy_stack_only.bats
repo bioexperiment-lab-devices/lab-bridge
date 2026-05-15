@@ -29,7 +29,7 @@ chisel_clients: []
 CFG
 
     local spy_pins="$BATS_TEST_TMPDIR/stack_pins.yaml"
-    cp "$ROOT/tests/fixtures/valid_pins.yaml" "$spy_pins"
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$spy_pins"
 
     setup_fake_rsync_spy "$rsync_log"
 
@@ -58,7 +58,7 @@ chisel_clients:
 CFG
 
     local spy_pins="$BATS_TEST_TMPDIR/stack_pins.yaml"
-    cp "$ROOT/tests/fixtures/valid_pins.yaml" "$spy_pins"
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$spy_pins"
 
     LDS_STACK_ONLY=1 \
     LDS_REQUIRE_VAULT=1 \

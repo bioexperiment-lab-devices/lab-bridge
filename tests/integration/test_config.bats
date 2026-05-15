@@ -6,24 +6,24 @@ setup() { setup_tmpdir; }
 teardown() { teardown_tmpdir; }
 
 @test "validate_config: accepts a valid config" {
-    run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/fixtures/valid_config.yaml"
+    run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/integration/fixtures/valid_config.yaml"
     [ "$status" -eq 0 ]
 }
 
 @test "validate_config: rejects config missing required fields" {
-    run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/fixtures/missing_field_config.yaml"
+    run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/integration/fixtures/missing_field_config.yaml"
     [ "$status" -ne 0 ]
     [[ "$output" == *"siteapp.admin_password_hash"* ]]
 }
 
 @test "validate_config: rejects duplicate chisel reverse_ports" {
-    run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/fixtures/duplicate_port_config.yaml"
+    run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/integration/fixtures/duplicate_port_config.yaml"
     [ "$status" -ne 0 ]
     [[ "$output" == *"duplicate"* ]] || [[ "$output" == *"9001"* ]]
 }
 
 @test "validate_config: rejects malformed jupyter.password_hash" {
-    run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/fixtures/bad_hash_config.yaml"
+    run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/integration/fixtures/bad_hash_config.yaml"
     [ "$status" -ne 0 ]
     [[ "$output" == *"password_hash"* ]] || [[ "$output" == *"sha1"* ]]
 }
@@ -35,7 +35,7 @@ teardown() { teardown_tmpdir; }
 }
 
 @test "load_config: exports VPS_HOST, JUPYTER_PASSWORD_HASH, etc." {
-    run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/fixtures/valid_config.yaml; echo \$VPS_HOST \$VPS_SSH_USER \$VPS_SSH_PORT \$JUPYTER_PASSWORD_HASH"
+    run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/integration/fixtures/valid_config.yaml; echo \$VPS_HOST \$VPS_SSH_USER \$VPS_SSH_PORT \$JUPYTER_PASSWORD_HASH"
     [ "$status" -eq 0 ]
     [[ "$output" == *"192.0.2.10 khamit 22"* ]]
     [[ "$output" == *"sha1:abcdef012345:"* ]]
@@ -67,15 +67,15 @@ PINS
 }
 
 @test "validate_config: rejects non-numeric loki_retention_days in pins.yaml" {
-    cp "$ROOT/tests/fixtures/valid_pins.yaml" "$TMPDIR/bad_pins.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/bad_pins.yaml"
     yq -i '.loki_retention_days = "abc"' "$TMPDIR/bad_pins.yaml"
-    run bash -c "export LDS_PINS_FILE=$TMPDIR/bad_pins.yaml; source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/fixtures/valid_config.yaml"
+    run bash -c "export LDS_PINS_FILE=$TMPDIR/bad_pins.yaml; source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/integration/fixtures/valid_config.yaml"
     [ "$status" -ne 0 ]
     [[ "$output" == *"retention_days"* ]]
 }
 
 @test "load_config: exports LOKI_IMAGE, LOKI_RETENTION_DAYS, GRAFANA_IMAGE" {
-    run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/fixtures/valid_config.yaml; echo \$LOKI_IMAGE \$LOKI_RETENTION_DAYS \$GRAFANA_IMAGE"
+    run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/integration/fixtures/valid_config.yaml; echo \$LOKI_IMAGE \$LOKI_RETENTION_DAYS \$GRAFANA_IMAGE"
     [ "$status" -eq 0 ]
     [[ "$output" == *"grafana/loki:3.2.1 30 grafana/grafana:11.3.0"* ]]
 }

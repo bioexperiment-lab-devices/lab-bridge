@@ -3,18 +3,18 @@
 load helpers
 
 setup_file() {
-    bash "$ROOT/tests/fake_vps/start.sh"
+    bash "$ROOT/tests/integration/fake_vps/start.sh"
     # Run the one-time-per-file provisioning and image loading here so each
     # per-test setup() doesn't repeat the expensive Docker install + image build.
     # A shared tmpdir is used for secrets files (loaded into the test env below).
     setup_tmpdir
-    cp "$ROOT/tests/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
     yq -i ".vps.host = \"127.0.0.1\"" "$TMPDIR/config.yaml"
-    cp "$ROOT/tests/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
     yq -i ".ssh_port = 2222" "$TMPDIR/pins.yaml"
     export LDS_CONFIG="$TMPDIR/config.yaml"
     export LDS_PINS_FILE="$TMPDIR/pins.yaml"
-    export LDS_SSH_KEY="$ROOT/tests/fake_vps/id_test"
+    export LDS_SSH_KEY="$ROOT/tests/integration/fake_vps/id_test"
     export LDS_SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     export LDS_SKIP_HEALTHCHECK=1
     export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
@@ -40,14 +40,14 @@ teardown_file() {
 
 setup() {
     setup_tmpdir
-    cp "$ROOT/tests/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
     yq -i ".vps.host = \"127.0.0.1\"" "$TMPDIR/config.yaml"
     # ssh_port is now a pins.yaml value; create a test-specific pins with port 2222.
-    cp "$ROOT/tests/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
     yq -i ".ssh_port = 2222" "$TMPDIR/pins.yaml"
     export LDS_CONFIG="$TMPDIR/config.yaml"
     export LDS_PINS_FILE="$TMPDIR/pins.yaml"
-    export LDS_SSH_KEY="$ROOT/tests/fake_vps/id_test"
+    export LDS_SSH_KEY="$ROOT/tests/integration/fake_vps/id_test"
     export LDS_SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     export LDS_SKIP_HEALTHCHECK=1
     export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"

@@ -4,7 +4,7 @@ load helpers
 
 setup() {
     setup_tmpdir
-    export LDS_PINS_FILE="$ROOT/tests/fixtures/valid_pins.yaml"
+    export LDS_PINS_FILE="$ROOT/tests/integration/fixtures/valid_pins.yaml"
 }
 teardown() { teardown_tmpdir; }
 
@@ -13,7 +13,7 @@ teardown() { teardown_tmpdir; }
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
         cat $TMPDIR/docker-compose.yml
     "
@@ -37,7 +37,7 @@ teardown() { teardown_tmpdir; }
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_caddyfile $ROOT/compose/Caddyfile.tmpl $TMPDIR/Caddyfile
         cat $TMPDIR/Caddyfile
     "
@@ -60,7 +60,7 @@ teardown() { teardown_tmpdir; }
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_chisel_users $TMPDIR/users.json
         cat $TMPDIR/users.json
     "
@@ -76,7 +76,7 @@ teardown() { teardown_tmpdir; }
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_chisel_users $TMPDIR/users.json
     "
     [ "$status" -eq 0 ]
@@ -109,7 +109,7 @@ EOF
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
         cat $TMPDIR/docker-compose.yml
     "
@@ -129,7 +129,7 @@ EOF
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
     "
     run yq e '.services.loki | has("ports")' "$TMPDIR/docker-compose.yml"
@@ -142,7 +142,7 @@ EOF
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_caddyfile $ROOT/compose/Caddyfile.tmpl $TMPDIR/Caddyfile
         cat $TMPDIR/Caddyfile
     "
@@ -157,7 +157,7 @@ EOF
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_loki_config $ROOT/compose/loki/config.yaml.tmpl $TMPDIR/loki.yaml
         cat $TMPDIR/loki.yaml
     "
@@ -171,7 +171,7 @@ EOF
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_loki_config $ROOT/compose/loki/config.yaml.tmpl $TMPDIR/loki.yaml
     "
     [ "$status" -eq 0 ]
@@ -188,7 +188,7 @@ EOF
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_siteapp_clients $TMPDIR/clients.json
         cat $TMPDIR/clients.json
     "
@@ -221,7 +221,7 @@ EOF
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_siteapp_clients $TMPDIR/clients.json
     "
     expected="$(printf '%s' 'k7HfLpNqRsT3uVwX1yZ2aB3cD4eF5gH6' | openssl dgst -sha256 -hex | awk '{print $NF}')"
@@ -234,7 +234,7 @@ EOF
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_siteapp_clients $TMPDIR/clients.json
         cat $TMPDIR/clients.json
     "
@@ -269,7 +269,7 @@ EOF
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_chisel_users $TMPDIR/users.json
         render_siteapp_clients $TMPDIR/clients.json
     "
@@ -284,7 +284,7 @@ EOF
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
     "
     run yq e '.services.siteapp.volumes[]' "$TMPDIR/docker-compose.yml"
@@ -301,7 +301,7 @@ EOF
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_caddyfile $ROOT/compose/Caddyfile.tmpl $TMPDIR/Caddyfile
         cat $TMPDIR/Caddyfile
     "
@@ -317,7 +317,7 @@ EOF
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/fixtures/valid_config.yaml
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
         render_caddyfile $ROOT/compose/Caddyfile.tmpl $TMPDIR/Caddyfile
         cat $TMPDIR/Caddyfile
     "

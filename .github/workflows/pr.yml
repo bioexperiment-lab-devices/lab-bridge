@@ -56,7 +56,7 @@ jobs:
               - 'scripts/**/*.sh'
             bats:
               - 'scripts/**'
-              - 'tests/**'
+              - 'tests/integration/**'
               - 'compose/**'
               - 'config.example.yaml'
               - 'Taskfile.yml'
@@ -98,28 +98,7 @@ jobs:
         # image build into both test_deploy.bats and test_ops.bats setup_file.
         # One slow Docker pull on a CI runner pushes wall-clock past 20 min.
         timeout-minutes: 30
-        # Skip all 4 test_siteapp_*.bats files in CI: each does an identical
-        # full fake-VPS deploy in setup_file (~7min). 4 × 7 doesn't fit in any
-        # reasonable CI step budget. The deploy chain is already exercised by
-        # test_deploy.bats (rsync + compose up to the fake-VPS); the siteapp_*
-        # files verify routing/auth/upload/safety policies specifically and
-        # require siteapp running. They still pass locally with `bats tests/`.
-        # Follow-up: consolidate the four into one .bats with a single shared
-        # setup_file so CI can run them under one ~10-12min budget.
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          files=()
-          for f in tests/*.bats; do
-              case "$(basename "$f")" in
-                  test_siteapp_*.bats)
-                      echo "::notice::skipping $f in CI (run locally: bats tests/$(basename "$f"))"
-                      continue
-                      ;;
-              esac
-              files+=("$f")
-          done
-          bats "${files[@]}"
+        run: bats tests/integration/
 
       - uses: actions/setup-python@v5
         if: steps.changes.outputs.siteapp == 'true' || steps.changes.outputs.workflow == 'true'

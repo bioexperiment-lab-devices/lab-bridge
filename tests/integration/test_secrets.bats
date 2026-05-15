@@ -4,7 +4,7 @@ load helpers
 
 setup() {
     setup_tmpdir
-    cp "$ROOT/tests/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
     export LDS_CONFIG="$TMPDIR/config.yaml"
 }
 teardown() { teardown_tmpdir; }
@@ -100,7 +100,7 @@ teardown() { teardown_tmpdir; }
 
 @test "secrets:set-admin-password writes a bcrypt hash to config.yaml" {
     setup_tmpdir
-    cp "$ROOT/tests/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
     export LDS_CONFIG="$TMPDIR/config.yaml"
 
     # Bypass the docker call by stubbing it in PATH for this test.

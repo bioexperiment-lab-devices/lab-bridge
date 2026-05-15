@@ -1,5 +1,5 @@
 # Source from the repo root regardless of where bats was invoked.
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # Create a fake rsync shim that logs its arguments to a file and exits 0.
 # Also creates a fake ssh shim that exits 0 (for the compose up step).
@@ -37,7 +37,7 @@ teardown_tmpdir() {
 }
 
 fixture() {
-    cat "$ROOT/tests/fixtures/$1"
+    cat "$ROOT/tests/integration/fixtures/$1"
 }
 
 # Build the siteapp image on the host and load it into the fake-VPS DinD
@@ -50,7 +50,7 @@ fixture() {
 load_siteapp_test_image() {
     local fixture_tag
     local repo version
-    repo="$(yq -e '.siteapp_image_repo' "$ROOT/tests/fixtures/valid_pins.yaml")"
+    repo="$(yq -e '.siteapp_image_repo' "$ROOT/tests/integration/fixtures/valid_pins.yaml")"
     version="$(awk 'NF { print $1; exit }' "$ROOT/services/siteapp/VERSION")"
     fixture_tag="${repo}:${version}"
     docker build --load -q -t "$fixture_tag" "$ROOT/services/siteapp" >&2 || return 1
@@ -64,7 +64,7 @@ load_siteapp_test_image() {
 load_flasher_test_image() {
     local fixture_tag
     local repo version
-    repo="$(yq -e '.flasher_image_repo' "$ROOT/tests/fixtures/valid_pins.yaml")"
+    repo="$(yq -e '.flasher_image_repo' "$ROOT/tests/integration/fixtures/valid_pins.yaml")"
     version="$(awk 'NF { print $1; exit }' "$ROOT/services/flasher/VERSION")"
     fixture_tag="${repo}:${version}"
     docker build --load -q -t "$fixture_tag" "$ROOT/services/flasher" >&2 || return 1
