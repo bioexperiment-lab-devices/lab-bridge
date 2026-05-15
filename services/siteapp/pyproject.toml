@@ -27,6 +27,9 @@ dev = [
 [tool.pytest.ini_options]
 addopts = "-q"
 asyncio_mode = "auto"
+# E2E tests have their own setup (docker compose) and are invoked
+# explicitly via `pytest tests/e2e/`. Exclude from default collection.
+norecursedirs = ["tests/e2e"]
 
 [tool.ruff]
 line-length = 100
