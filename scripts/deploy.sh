@@ -62,6 +62,12 @@ main() {
     mkdir -p "$stage/siteapp"
     install -m 644 "$tokfile" "$stage/siteapp/agent_upload_token"
 
+    # Public docs — tracked in git at repo root, copied into the staged
+    # tree so the existing rsync ships them to ~/lab-bridge/siteapp/docs/
+    # on the VPS, where compose mounts them read-only at /srv/docs.
+    mkdir -p "$stage/siteapp/docs"
+    cp -R "$REPO_ROOT/public_docs/." "$stage/siteapp/docs/"
+
     # 2. Build SSH/rsync.
     local ssh_base rsync_e target
     ssh_base="ssh -p $VPS_SSH_PORT"
