@@ -1,0 +1,24 @@
+services:
+  siteapp:
+    image: ${SITEAPP_TEST_IMAGE:-lab-bridge-siteapp:e2e}
+    ports:
+      - "127.0.0.1:8001:8000"
+    environment:
+      LAB_BRIDGE_VERSION: "e2e-test"
+      LAB_BRIDGE_GIT_SHA: "test"
+      SITEAPP_CHISEL_LISTEN_PORT: "7000"
+      SITEAPP_CLIENTS_FILE: /etc/siteapp/clients.json
+      SITEAPP_AGENT_UPLOAD_TOKEN__FILE: /run/secrets/agent_upload_token
+      SITE_DATA: /data
+    volumes:
+      - ./fixtures/clients.json:/etc/siteapp/clients.json:ro
+      - ./fixtures/agent_upload_token:/run/secrets/agent_upload_token:ro
+      - siteapp_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz').status==200 else 1)\""]
+      interval: 1s
+      timeout: 2s
+      retries: 30
+
+volumes:
+  siteapp_data:

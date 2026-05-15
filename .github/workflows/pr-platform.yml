@@ -1,0 +1,146 @@
+name: pr-platform
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+concurrency:
+  group: pr-platform-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+      shell: ${{ steps.changed.outputs.shell }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: changed
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            src:
+              - 'compose/**'
+              - 'scripts/**'
+              - 'tests/integration/**'
+              - 'config.example.yaml'
+              - 'Taskfile.yml'
+              - '.github/workflows/pr-platform.yml'
+            shell:
+              - 'scripts/**/*.sh'
+
+      - id: gate
+        run: |
+          set -e
+          if [[ "${{ github.head_ref }}" == release-please--* ]]; then
+            if ${{ contains(github.event.pull_request.labels.*.name, 'run-integration') }}; then
+              echo "run=true" >> "$GITHUB_OUTPUT"
+              echo "::notice::release-please PR with 'run-integration' label — running full bats integration"
+            else
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              echo "::notice::release-please PR — bats integration skipped. Apply 'run-integration' to opt in."
+            fi
+          else
+            echo "run=${{ steps.changed.outputs.src }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  shellcheck:
+    needs: gate
+    if: needs.gate.outputs.run == 'true' && needs.gate.outputs.shell == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          shellcheck -x --severity=warning scripts/*.sh scripts/lib/*.sh
+
+  bats:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: cheap
+            files: >-
+              tests/integration/test_common.bats
+              tests/integration/test_config.bats
+              tests/integration/test_crypto.bats
+              tests/integration/test_render.bats
+              tests/integration/test_secrets.bats
+              tests/integration/test_grafana_provisioning.bats
+              tests/integration/test_deploy_stack_only.bats
+          - suite: deploy
+            files: tests/integration/test_deploy.bats
+          - suite: ops
+            files: tests/integration/test_ops.bats
+          - suite: provision
+            files: tests/integration/test_provision.bats
+          - suite: routes-smoke
+            files: tests/integration/test_routes_smoke.bats
+    name: bats (${{ matrix.suite }})
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: install yq v4
+        run: |
+          sudo wget -q https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: install bats
+        uses: bats-core/bats-action@3.0.1
+
+      - name: bats ${{ matrix.suite }}
+        run: bats ${{ matrix.files }}
+
+  # Aggregator: the single required check for branch protection. Succeeds
+  # when gate ran and every dependent job either passed or was skipped
+  # (e.g., docs-only PRs or unlabeled release PRs where gate.outputs.run=='false').
+  platform:
+    needs: [gate, shellcheck, bats]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: aggregate
+        run: |
+          set -e
+          gate="${{ needs.gate.result }}"
+          shellcheck="${{ needs.shellcheck.result }}"
+          bats="${{ needs.bats.result }}"
+          echo "gate:       $gate"
+          echo "shellcheck: $shellcheck"
+          echo "bats:       $bats"
+          if [[ "$gate" != "success" ]]; then
+            echo "::error::gate job did not succeed: $gate"
+            exit 1
+          fi
+          for r in "$shellcheck" "$bats"; do
+            case "$r" in
+              success|skipped) ;;
+              *)
+                echo "::error::dependent job failed: $r"
+                exit 1
+                ;;
+            esac
+          done
+          echo "platform: all required checks pass"

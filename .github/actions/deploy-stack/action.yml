@@ -1,0 +1,78 @@
+name: 'Deploy stack to VPS'
+description: 'rsync + docker compose up on the VPS, with optional version-equality healthcheck'
+
+inputs:
+  vps_host:              { required: true }
+  vps_ssh_user:          { required: true }
+  vps_ssh_key:           { required: true }
+  jupyter_password_hash: { required: true }
+  admin_password_hash:   { required: true }
+  grafana_password:      { required: true }
+  agent_upload_token:    { required: true }
+  verify_siteapp_version:
+    description: "When set, assert server-info.version == this value after deploy. Omit for platform/flasher releases."
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: install rsync, envsubst, yq
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y rsync gettext-base
+        sudo wget -q https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -O /usr/local/bin/yq
+        sudo chmod +x /usr/local/bin/yq
+
+    - name: load SSH key
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ inputs.vps_ssh_key }}
+
+    - name: render CI config.yaml
+      shell: bash
+      env:
+        ADMIN_PASSWORD_HASH: ${{ inputs.admin_password_hash }}
+        AGENT_UPLOAD_TOKEN: ${{ inputs.agent_upload_token }}
+        GRAFANA_PASSWORD: ${{ inputs.grafana_password }}
+        JUPYTER_PASSWORD_HASH: ${{ inputs.jupyter_password_hash }}
+        VPS_HOST: ${{ inputs.vps_host }}
+        VPS_SSH_USER: ${{ inputs.vps_ssh_user }}
+      run: |
+        mkdir -p compose/grafana compose/siteapp
+        envsubst < compose/config.ci.yaml.tmpl > config.ci.rendered.yaml
+        printf '%s' "$GRAFANA_PASSWORD" > compose/grafana/admin_password
+        printf '%s' "$AGENT_UPLOAD_TOKEN" > compose/siteapp/agent_upload_token
+        chmod 0600 compose/grafana/admin_password compose/siteapp/agent_upload_token
+
+    - name: deploy to VPS (stack-only)
+      shell: bash
+      env:
+        VPS_HOST: ${{ inputs.vps_host }}
+        VPS_SSH_USER: ${{ inputs.vps_ssh_user }}
+        LDS_CONFIG: ${{ github.workspace }}/config.ci.rendered.yaml
+        LDS_STACK_ONLY: '1'
+        LDS_REQUIRE_VAULT: '1'
+        LDS_SSH_OPTS: '-o StrictHostKeyChecking=accept-new'
+      run: bash scripts/deploy.sh
+
+    - name: verify deployed version
+      if: inputs.verify_siteapp_version != ''
+      shell: bash
+      env:
+        VPS_HOST: ${{ inputs.vps_host }}
+        EXPECTED_VERSION: ${{ inputs.verify_siteapp_version }}
+      run: |
+        set -euo pipefail
+        for i in $(seq 1 30); do
+          body="$(curl -sk "https://$VPS_HOST/api/public/server-info")" || true
+          if echo "$body" | jq -e --arg v "$EXPECTED_VERSION" '.version == $v' >/dev/null; then
+            echo "verified: server reports siteapp version $EXPECTED_VERSION"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "::error::server-info did not report expected version $EXPECTED_VERSION after 60s"
+        echo "last body: $body"
+        exit 1
