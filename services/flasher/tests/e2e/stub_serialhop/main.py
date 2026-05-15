@@ -62,6 +62,13 @@ def _flash_response(port: str, outcome: str) -> dict[str, Any]:
     elif outcome == "rolled_back_verify_failed":
         base["stages"]["verify"] = {"status": "failed", "duration_ms": 100, "first_mismatch_offset": "0x010"}
         base["stages"]["rollback"] = {"status": "ok", "duration_ms": 200, "verify_status": "ok"}
+    elif outcome == "failed_preflight":
+        base["stages"]["preflight"] = {"status": "failed", "duration_ms": 10, "error": "stub-induced preflight failure"}
+        base["stages"]["backup"] = {"status": "skipped"}
+        base["stages"]["erase"] = {"status": "skipped"}
+        base["stages"]["program"] = {"status": "skipped"}
+        base["stages"]["verify"] = {"status": "skipped"}
+        base["backup"] = None
     elif outcome == "failed_backup":
         base["stages"]["backup"] = {"status": "failed", "duration_ms": 50, "error": "no device"}
         base["stages"]["erase"] = {"status": "skipped"}

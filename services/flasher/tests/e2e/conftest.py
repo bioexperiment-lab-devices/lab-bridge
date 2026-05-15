@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import time
 from pathlib import Path
 
 import httpx
@@ -10,6 +11,26 @@ import pytest
 
 HERE = Path(__file__).parent
 COMPOSE_FILE = HERE / "compose.yaml"
+
+
+def wait_for_terminal(http: httpx.Client, job_id: str, *, max_iterations: int = 30, sleep_s: float = 0.5) -> dict:
+    """Poll /flash/api/flash/<job_id> until status is terminal ('done' or 'error').
+
+    Returns the final job-record body. Raises AssertionError with the latest
+    body if the loop exhausts without reaching terminal state.
+    """
+    body: dict = {}
+    for _ in range(max_iterations):
+        time.sleep(sleep_s)
+        r = http.get(f"/flash/api/flash/{job_id}")
+        assert r.status_code == 200, f"polling /flash/api/flash/{job_id} returned {r.status_code}"
+        body = r.json()
+        if body.get("status") in {"done", "error"}:
+            return body
+    raise AssertionError(
+        f"flash job {job_id} did not reach terminal status within "
+        f"{max_iterations * sleep_s:.1f}s; last body: {body!r}"
+    )
 
 
 def _compose(*args: str, env: dict | None = None, check: bool = True) -> subprocess.CompletedProcess:

@@ -1,4 +1,4 @@
-import time
+from conftest import wait_for_terminal
 
 
 VALID_FIRMWARE_HEX = ":100000000C9461000C947E000C947E000C947E0099\n:00000001FF\n"
@@ -19,13 +19,7 @@ def test_flash_returns_rolled_back_outcome_when_stub_rolls_back(http, set_stub_o
     assert r.status_code == 200
     job_id = r.json()["job_id"]
 
-    body: dict = {}
-    for _ in range(30):
-        time.sleep(0.5)
-        rec = http.get(f"/flash/api/flash/{job_id}")
-        body = rec.json()
-        if body.get("status") in {"done", "error"}:
-            break
+    body = wait_for_terminal(http, job_id)
     assert body["status"] == "done", body
     assert body["result"]["outcome"] == "rolled_back_test_failed"
     assert body["result"]["test_result"]["match"] is False

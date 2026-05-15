@@ -20,6 +20,7 @@ dev = [
 addopts = "-q"
 asyncio_mode = "auto"
 norecursedirs = ["tests/e2e"]
+pythonpath = ["tests/e2e"]
 
 [tool.ruff]
 line-length = 100

@@ -1,4 +1,4 @@
-import time
+from conftest import wait_for_terminal
 
 
 VALID_FIRMWARE_HEX = ":100000000C9461000C947E000C947E000C947E0099\n:00000001FF\n"
@@ -24,16 +24,7 @@ def test_flash_happy_path_returns_success_outcome(http) -> None:
     job_id = r.json()["job_id"]
     assert job_id
 
-    # Poll for completion (stub responds quickly, but flasher's state
-    # machine has its own bookkeeping).
-    body: dict = {}
-    for _ in range(30):
-        time.sleep(0.5)
-        rec = http.get(f"/flash/api/flash/{job_id}")
-        assert rec.status_code == 200
-        body = rec.json()
-        if body.get("status") in {"done", "error"}:
-            break
+    body = wait_for_terminal(http, job_id)
     assert body["status"] == "done", body
     assert body["result"]["outcome"] == "success"
 
