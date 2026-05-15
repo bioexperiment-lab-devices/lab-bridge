@@ -9,7 +9,7 @@ from app.translations import find_doc, resolve_lang_file
 
 @pytest.fixture
 def docs(site_data: Path) -> Path:
-    docs_root = site_data / "docs"
+    docs_root = site_data / "docs-root"
     (docs_root / "intro.md").write_text("# Intro\n", encoding="utf-8")
     (docs_root / "intro.ru.md").write_text("# Введение\n", encoding="utf-8")
     section = docs_root / "section"
@@ -80,6 +80,6 @@ def test_find_doc_section_without_slash_returns_none(docs: Path) -> None:
 def test_find_doc_orphan_ru_only_returns_none(site_data: Path) -> None:
     """A foo.ru.md without a matching foo.md must be ignored — English is
     the source of truth."""
-    docs_root = site_data / "docs"
+    docs_root = site_data / "docs-root"
     (docs_root / "only.ru.md").write_text("# Только\n", encoding="utf-8")
     assert find_doc(docs_root, "only") is None

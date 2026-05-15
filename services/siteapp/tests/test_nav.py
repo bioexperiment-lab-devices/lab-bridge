@@ -8,8 +8,8 @@ from app.nav import build_nav
 
 
 @pytest.fixture
-def tree(site_data: Path) -> Path:
-    d = site_data / "docs"
+def tree(tmp_path: Path) -> Path:
+    d = tmp_path / "docs-root"
     (d / "index.md").write_text("# Home\n", encoding="utf-8")
     (d / "index.ru.md").write_text("# Главная\n", encoding="utf-8")
     (d / "alpha.md").write_text("# Alpha\n", encoding="utf-8")
@@ -50,23 +50,23 @@ def test_directory_url_has_trailing_slash(tree: Path) -> None:
     assert {c.url for c in advanced.children} == {"/docs/advanced/deep"}
 
 
-def test_filename_fallback_when_no_h1(site_data: Path) -> None:
-    d = site_data / "docs"
+def test_filename_fallback_when_no_h1(tmp_path: Path) -> None:
+    d = tmp_path / "docs-root"
     (d / "no-heading.md").write_text("just a paragraph\n", encoding="utf-8")
     nav = build_nav(d)
     entry = next(e for e in nav if e.url == "/docs/no-heading")
     assert entry.title_en == "no-heading"
 
 
-def test_orphan_ru_file_is_ignored(site_data: Path) -> None:
-    d = site_data / "docs"
+def test_orphan_ru_file_is_ignored(tmp_path: Path) -> None:
+    d = tmp_path / "docs-root"
     (d / "only-ru.ru.md").write_text("# Только\n", encoding="utf-8")
     nav = build_nav(d)
     assert all(e.url != "/docs/only-ru" for e in nav)
 
 
-def test_section_title_falls_back_to_dir_name(site_data: Path) -> None:
-    d = site_data / "docs"
+def test_section_title_falls_back_to_dir_name(tmp_path: Path) -> None:
+    d = tmp_path / "docs-root"
     sec = d / "untitled"
     sec.mkdir()
     (sec / "index.md").write_text("just a paragraph\n", encoding="utf-8")
@@ -75,8 +75,8 @@ def test_section_title_falls_back_to_dir_name(site_data: Path) -> None:
     assert entry.title_en == "untitled"
 
 
-def test_dir_without_index_uses_dir_name(site_data: Path) -> None:
-    d = site_data / "docs"
+def test_dir_without_index_uses_dir_name(tmp_path: Path) -> None:
+    d = tmp_path / "docs-root"
     sec = d / "loose"
     sec.mkdir()
     (sec / "page.md").write_text("# Page\n", encoding="utf-8")
@@ -87,8 +87,8 @@ def test_dir_without_index_uses_dir_name(site_data: Path) -> None:
     assert {c.url for c in entry.children} == {"/docs/loose/page"}
 
 
-def test_empty_dir_is_skipped(site_data: Path) -> None:
-    d = site_data / "docs"
+def test_empty_dir_is_skipped(tmp_path: Path) -> None:
+    d = tmp_path / "docs-root"
     (d / "empty").mkdir()
     nav = build_nav(d)
     assert all(e.url != "/docs/empty/" for e in nav)

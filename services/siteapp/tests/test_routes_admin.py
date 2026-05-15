@@ -48,7 +48,7 @@ def test_upload_md(client: TestClient, tmp_path: Path) -> None:
         files={"files": ("Hello.MD", b"# Hi\n", "text/markdown")},
     )
     assert r.status_code in (200, 303)
-    assert (tmp_path / "docs" / "hello.md").is_file()
+    assert (tmp_path / "docs-root" / "hello.md").is_file()
 
 
 def test_upload_rejects_bad_extension(client: TestClient, tmp_path: Path) -> None:
@@ -61,7 +61,7 @@ def test_upload_rejects_bad_extension(client: TestClient, tmp_path: Path) -> Non
     )
     assert r.status_code == 400
     # The seeded defaults should be present; no evil.exe written.
-    names = {p.name for p in (tmp_path / "docs").iterdir()}
+    names = {p.name for p in (tmp_path / "docs-root").iterdir()}
     assert "evil.exe" not in names
     assert "index.md" in names
 
@@ -86,26 +86,26 @@ def test_upload_without_csrf(client: TestClient) -> None:
 
 
 def test_delete(client: TestClient, tmp_path: Path) -> None:
-    (tmp_path / "docs" / "doomed.md").write_text("# Doomed\n", encoding="utf-8")
+    (tmp_path / "docs-root" / "doomed.md").write_text("# Doomed\n", encoding="utf-8")
     csrf = _csrf(client)
     r = client.post(
         "/admin/docs/delete",
         data={"csrf": csrf, "target": "", "name": "doomed.md"},
     )
     assert r.status_code in (200, 303)
-    assert not (tmp_path / "docs" / "doomed.md").exists()
+    assert not (tmp_path / "docs-root" / "doomed.md").exists()
 
 
 def test_rename(client: TestClient, tmp_path: Path) -> None:
-    (tmp_path / "docs" / "old.md").write_text("# Old\n", encoding="utf-8")
+    (tmp_path / "docs-root" / "old.md").write_text("# Old\n", encoding="utf-8")
     csrf = _csrf(client)
     r = client.post(
         "/admin/docs/rename",
         data={"csrf": csrf, "target": "", "old": "old.md", "new": "shiny.md"},
     )
     assert r.status_code in (200, 303)
-    assert (tmp_path / "docs" / "shiny.md").is_file()
-    assert not (tmp_path / "docs" / "old.md").exists()
+    assert (tmp_path / "docs-root" / "shiny.md").is_file()
+    assert not (tmp_path / "docs-root" / "old.md").exists()
 
 
 def test_new_folder(client: TestClient, tmp_path: Path) -> None:
@@ -115,7 +115,7 @@ def test_new_folder(client: TestClient, tmp_path: Path) -> None:
         data={"csrf": csrf, "target": "", "name": "Section-One"},
     )
     assert r.status_code in (200, 303)
-    assert (tmp_path / "docs" / "section-one").is_dir()
+    assert (tmp_path / "docs-root" / "section-one").is_dir()
 
 
 def test_target_with_unsafe_segment_rejected(client: TestClient) -> None:
@@ -130,7 +130,7 @@ def test_target_with_unsafe_segment_rejected(client: TestClient) -> None:
 
 
 def test_new_folder_existing_returns_409(client: TestClient, tmp_path: Path) -> None:
-    (tmp_path / "docs" / "already").mkdir()
+    (tmp_path / "docs-root" / "already").mkdir()
     csrf = _csrf(client)
     r = client.post(
         "/admin/docs/new-folder",
@@ -152,7 +152,7 @@ def test_new_folder_missing_parent_returns_404(client: TestClient) -> None:
 
 
 def test_delete_non_empty_directory_returns_400(client: TestClient, tmp_path: Path) -> None:
-    sec = tmp_path / "docs" / "filled"
+    sec = tmp_path / "docs-root" / "filled"
     sec.mkdir()
     (sec / "child.md").write_text("# c\n", encoding="utf-8")
     csrf = _csrf(client)
@@ -166,7 +166,7 @@ def test_delete_non_empty_directory_returns_400(client: TestClient, tmp_path: Pa
 def test_breadcrumb_accumulates_path(client: TestClient, tmp_path: Path) -> None:
     """Nested target should produce links that include the cumulative path,
     not just each segment in isolation."""
-    nested = tmp_path / "docs" / "a" / "b"
+    nested = tmp_path / "docs-root" / "a" / "b"
     nested.mkdir(parents=True)
     r = client.get("/admin/docs?target=a/b")
     assert r.status_code == 200
@@ -212,36 +212,36 @@ def test_rotate_token_returns_value(client: TestClient) -> None:
 def test_rename_rejects_extensionless_new_name(client: TestClient, tmp_path: Path) -> None:
     """Renaming a .md file to a name with no extension must 400, otherwise the
     file becomes unreachable via /docs/<name>. Original must be preserved."""
-    (tmp_path / "docs" / "intro.md").write_text("# Intro\n", encoding="utf-8")
+    (tmp_path / "docs-root" / "intro.md").write_text("# Intro\n", encoding="utf-8")
     csrf = _csrf(client)
     r = client.post(
         "/admin/docs/rename",
         data={"csrf": csrf, "target": "", "old": "intro.md", "new": "intro"},
     )
     assert r.status_code == 400
-    assert (tmp_path / "docs" / "intro.md").is_file()
-    assert not (tmp_path / "docs" / "intro").exists()
+    assert (tmp_path / "docs-root" / "intro.md").is_file()
+    assert not (tmp_path / "docs-root" / "intro").exists()
 
 
 def test_rename_rejects_disallowed_extension(client: TestClient, tmp_path: Path) -> None:
     """Renaming to a name with an extension outside ALLOWED_DOC_EXT must 400."""
-    (tmp_path / "docs" / "intro.md").write_text("# Intro\n", encoding="utf-8")
+    (tmp_path / "docs-root" / "intro.md").write_text("# Intro\n", encoding="utf-8")
     csrf = _csrf(client)
     r = client.post(
         "/admin/docs/rename",
         data={"csrf": csrf, "target": "", "old": "intro.md", "new": "intro.exe"},
     )
     assert r.status_code == 400
-    assert (tmp_path / "docs" / "intro.md").is_file()
+    assert (tmp_path / "docs-root" / "intro.md").is_file()
 
 
 def test_rename_directory_no_extension_check(client: TestClient, tmp_path: Path) -> None:
     """Directories rename freely — no extension constraint."""
-    (tmp_path / "docs" / "old-section").mkdir()
+    (tmp_path / "docs-root" / "old-section").mkdir()
     csrf = _csrf(client)
     r = client.post(
         "/admin/docs/rename",
         data={"csrf": csrf, "target": "", "old": "old-section", "new": "new-section"},
     )
     assert r.status_code in (200, 303)
-    assert (tmp_path / "docs" / "new-section").is_dir()
+    assert (tmp_path / "docs-root" / "new-section").is_dir()

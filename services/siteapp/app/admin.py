@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import secrets as _secrets
+
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse, Response
 from itsdangerous import BadSignature, URLSafeSerializer
@@ -71,7 +73,9 @@ def _list_dir(path: Path) -> list[dict[str, object]]:
 
 def make_router(settings: Settings) -> APIRouter:
     router = APIRouter(prefix="/admin")
-    serializer = _serializer(settings.csrf_secret)
+    # csrf_secret removed from Settings (admin removed in a later commit);
+    # generate a per-process secret so the router still boots until then.
+    serializer = _serializer(_secrets.token_urlsafe(32))
 
     @router.get("/", include_in_schema=False)
     @router.get("", include_in_schema=False)
