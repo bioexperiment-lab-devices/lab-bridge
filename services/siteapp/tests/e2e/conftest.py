@@ -5,6 +5,7 @@ The image to run is selected via SITEAPP_TEST_IMAGE env var (default
 image-build step and exports the tag; local runs should
 ``docker build -t lab-bridge-siteapp:e2e services/siteapp`` first.
 """
+
 from __future__ import annotations
 
 import subprocess

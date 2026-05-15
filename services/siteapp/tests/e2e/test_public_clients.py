@@ -2,6 +2,7 @@
 ``alice_machine`` with port 9001 and password 'password' (sha256 of
 'password' is in the fixture).
 """
+
 from __future__ import annotations
 
 

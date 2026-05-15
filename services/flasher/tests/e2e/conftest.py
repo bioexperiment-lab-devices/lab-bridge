@@ -1,4 +1,5 @@
 """Bring flasher + stub-serialhop up via docker compose for the test session."""
+
 from __future__ import annotations
 
 import os
@@ -13,7 +14,9 @@ HERE = Path(__file__).parent
 COMPOSE_FILE = HERE / "compose.yaml"
 
 
-def wait_for_terminal(http: httpx.Client, job_id: str, *, max_iterations: int = 30, sleep_s: float = 0.5) -> dict:
+def wait_for_terminal(
+    http: httpx.Client, job_id: str, *, max_iterations: int = 30, sleep_s: float = 0.5
+) -> dict:
     """Poll /flash/api/flash/<job_id> until status is terminal ('done' or 'error').
 
     Returns the final job-record body. Raises AssertionError with the latest
@@ -33,7 +36,9 @@ def wait_for_terminal(http: httpx.Client, job_id: str, *, max_iterations: int = 
     )
 
 
-def _compose(*args: str, env: dict | None = None, check: bool = True) -> subprocess.CompletedProcess:
+def _compose(
+    *args: str, env: dict | None = None, check: bool = True
+) -> subprocess.CompletedProcess:
     proc_env = os.environ.copy()
     if env:
         proc_env.update(env)
@@ -74,6 +79,7 @@ def set_stub_outcome():
             set_stub_outcome("rolled_back_test_failed")
             ...
     """
+
     def _set(outcome: str) -> None:
         _compose("stop", "stub-serialhop", check=False)
         _compose("rm", "-f", "stub-serialhop", check=False)

@@ -9,6 +9,7 @@ validation independent of who's authenticated at the edge.)
 Note: /admin/docs/upload requires a valid CSRF token. We fetch one from
 GET /admin/docs and parse it from the HTML response before posting.
 """
+
 from __future__ import annotations
 
 import io
@@ -35,9 +36,7 @@ def test_admin_docs_upload_rejects_traversal_target(http) -> None:
     # We hit siteapp directly; the route should still validate `target`.
     r = http.post("/admin/docs/upload", files=files, data=data)
     # Expect 400 (traversal rejected) — NOT 200/302 (would mean traversal accepted).
-    assert r.status_code == 400, (
-        f"path traversal not rejected: got {r.status_code} body={r.text!r}"
-    )
+    assert r.status_code == 400, f"path traversal not rejected: got {r.status_code} body={r.text!r}"
 
 
 def test_uploaded_markdown_with_raw_html_is_escaped(http) -> None:

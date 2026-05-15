@@ -15,7 +15,7 @@ tasks:
 
   test:
     desc: Run all bats tests (requires bats-core; integration tests need Docker)
-    cmd: bats tests/
+    cmd: bats tests/integration/
 
   # --- Lifecycle ---
   provision:

@@ -7,6 +7,7 @@ Behavior is controlled via env vars set on the compose service:
 - STUB_PORTS_JSON: JSON for GET /serial/ports/detailed response.
   Default returns one Arduino-shaped port.
 """
+
 from __future__ import annotations
 
 import json
@@ -58,12 +59,25 @@ def _flash_response(port: str, outcome: str) -> dict[str, Any]:
     if outcome == "rolled_back_test_failed":
         base["stages"]["test"] = {"status": "failed", "duration_ms": 50, "error": "mismatch"}
         base["stages"]["rollback"] = {"status": "ok", "duration_ms": 200, "verify_status": "ok"}
-        base["test_result"] = {"sent": "010203", "expected": "aabbcc", "received": "0000", "match": False}
+        base["test_result"] = {
+            "sent": "010203",
+            "expected": "aabbcc",
+            "received": "0000",
+            "match": False,
+        }
     elif outcome == "rolled_back_verify_failed":
-        base["stages"]["verify"] = {"status": "failed", "duration_ms": 100, "first_mismatch_offset": "0x010"}
+        base["stages"]["verify"] = {
+            "status": "failed",
+            "duration_ms": 100,
+            "first_mismatch_offset": "0x010",
+        }
         base["stages"]["rollback"] = {"status": "ok", "duration_ms": 200, "verify_status": "ok"}
     elif outcome == "failed_preflight":
-        base["stages"]["preflight"] = {"status": "failed", "duration_ms": 10, "error": "stub-induced preflight failure"}
+        base["stages"]["preflight"] = {
+            "status": "failed",
+            "duration_ms": 10,
+            "error": "stub-induced preflight failure",
+        }
         base["stages"]["backup"] = {"status": "skipped"}
         base["stages"]["erase"] = {"status": "skipped"}
         base["stages"]["program"] = {"status": "skipped"}
@@ -77,12 +91,21 @@ def _flash_response(port: str, outcome: str) -> dict[str, Any]:
         base["backup"] = None
     elif outcome == "failed_no_recovery":
         base["stages"]["verify"] = {"status": "failed", "duration_ms": 100}
-        base["stages"]["rollback"] = {"status": "failed", "duration_ms": 200, "verify_status": "failed"}
+        base["stages"]["rollback"] = {
+            "status": "failed",
+            "duration_ms": 200,
+            "verify_status": "failed",
+        }
         base["recovery_hint"] = "use an ISP programmer; backup preserved with -LOCKED- marker"
     elif outcome == "success":
         # success: include test=ok with positive result
         base["stages"]["test"] = {"status": "ok", "duration_ms": 50}
-        base["test_result"] = {"sent": "010203", "expected": "aabbcc", "received": "aabbcc", "match": True}
+        base["test_result"] = {
+            "sent": "010203",
+            "expected": "aabbcc",
+            "received": "aabbcc",
+            "match": True,
+        }
     return base
 
 

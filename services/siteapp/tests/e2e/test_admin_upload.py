@@ -3,6 +3,7 @@
 Bearer token is read from /run/secrets/agent_upload_token inside the
 container (mounted from fixtures/agent_upload_token == 'e2e-test-token').
 """
+
 from __future__ import annotations
 
 import io
