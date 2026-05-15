@@ -3,15 +3,32 @@
 Non-obvious rules for this repo. Operational how-tos live in README; CI mechanics are in `.github/workflows/`.
 
 Design + plan docs:
-- `docs/superpowers/specs/2026-05-12-cicd-design.md`
-- `docs/superpowers/plans/2026-05-12-cicd.md`
+- `docs/superpowers/specs/2026-05-12-cicd-design.md` — baseline CI/CD (release-please, GHCR, deploy)
+- `docs/superpowers/specs/2026-05-15-per-service-isolation-design.md` — the per-service split (architecture this repo currently follows)
+- `docs/adding-a-service.md` — checklist for adding a new service (do this, in order)
+
+## Architecture philosophy
+
+The repo is a "Swiss-knife" lab platform: a set of independent containerised services plus the platform (compose templates, scripts, integration tests) that ties them together. The structure makes growth cheap: adding a new service is mechanical (see `docs/adding-a-service.md`), each service ships independently, and CI parallelises per service.
+
+**Invariants future work MUST preserve:**
+
+- **Each service lives at `services/<name>/`** with its own `VERSION`, `CHANGELOG.md`, `Dockerfile`, `pyproject.toml`, `build.sh`, `app/`, `tests/` (unit), and `tests/e2e/` (service-level e2e against the running container with stubs for upstream deps). Do NOT scatter a service across the repo.
+- **Each service has its own CI workflow** `.github/workflows/pr-<name>.yml`. It always triggers on `pull_request` (no workflow-level `paths:` filter) and gates steps internally via `dorny/paths-filter@v3`. Docs-only PRs fast-skip in <30s. Required-check name is `pr-<name> / <name>`.
+- **Each service is its own release-please component** in `release-please-config.json` + `.release-please-manifest.json`. Commits route to components by **path**, not by Conventional Commits scope. Tag format: `<name>-vX.Y.Z`. The `platform` component (`.`) has `exclude-paths: ["services/<name>", ...]` so service-only changes don't bump platform.
+- **`compose/` is platform-only.** It holds `Caddyfile.tmpl`, `docker-compose.yml.tmpl`, `chisel-users.json.tmpl`, `pins.yaml`, `grafana/`, `loki/`, `VERSION`. **Never put service source code under `compose/<name>/`** — that's the old layout, deliberately renamed.
+- **Three test layers, separate locations:**
+  1. **Unit** in `services/<name>/tests/test_*.py` — pure logic, no containers.
+  2. **Service e2e** in `services/<name>/tests/e2e/` — one container via `docker compose`, stubs for upstream deps, runs in the service's own CI workflow. **Behavior tests live here**, not in bats.
+  3. **Platform integration** in `tests/integration/*.bats` — the *thin* "everything wires together" tier. One fake-VPS bring-up per bats file. Asserts cross-service wiring (Caddy routing, deploy, ops scripts). **Do not add per-service behavior tests here** — they belong in the service's e2e tier.
 
 ## Branch & release rules
 
-- **`main` is protected. Squash-merge only, linear history.** No direct pushes, no merge-commit, no rebase-merge — release-please depends on squash. Required checks: `pr-title`, `verify`.
+- **`main` is protected. Squash-merge only, linear history.** No direct pushes, no merge-commit, no rebase-merge — release-please depends on squash. Required checks: `pr-title`, `pr-siteapp / siteapp`, `pr-flasher / flasher`, `pr-platform / platform`. Adding a service adds another required check; update branch protection in lockstep.
 - **PR titles follow Conventional Commits** (`feat fix chore docs refactor test perf build ci revert`, scope optional). The title becomes the squash subject and is what release-please scans for the version bump.
-- **Don't bump versions by hand.** release-please owns `services/siteapp/VERSION`. Don't strip the `# x-release-please-version` annotation — it's the rewrite anchor.
+- **Don't bump versions by hand.** release-please owns `services/<name>/VERSION` and `compose/VERSION`. Don't strip the `# x-release-please-version` annotation — it's the rewrite anchor.
 - **Don't manually push release-tagged images to GHCR.** CI is the only path; manual pushes break the Sigstore attestation.
+- **`separate-pull-requests: true`** in `release-please-config.json` — release-please opens one PR per component (e.g. `chore(main): release siteapp 0.3.2`). Don't combine.
 
 ## Config split
 
@@ -27,14 +44,17 @@ Design + plan docs:
 
 ## Testing
 
-- **`verify` is path-gated** via `dorny/paths-filter@v3` — docs-only PRs skip all expensive steps. If you change `pr.yml`, everything re-runs.
-- **siteapp behavior tests (`services/siteapp/tests/e2e/`) are NOT run in CI's siteapp workflow unless `services/siteapp/**` changed.** If you touch siteapp routing/auth/upload/safety, the pr-siteapp workflow exercises them automatically.
+- **Per-service workflows are path-gated** via `dorny/paths-filter@v3` inside the workflow — docs-only PRs fast-skip all heavy steps. Required-check still reports because workflows always trigger.
+- **Service behavior tests live in `services/<name>/tests/e2e/`**, NOT in bats. They run in `pr-<name>.yml`'s e2e step against the just-built image. If you touch a service's routing/auth/upload/safety, its `pr-<name>` workflow exercises the e2e suite automatically.
   ```bash
-  bats tests/integration/test_routes_smoke.bats   # Caddy routing smoke
-  # For siteapp behavior tests (auth, safety, uploads), run service e2e:
-  cd services/siteapp && uv run pytest tests/e2e/
+  bats tests/integration/test_routes_smoke.bats   # Caddy routing smoke (cross-service wiring only)
+  cd services/siteapp && uv run pytest tests/e2e/  # siteapp behaviour
+  cd services/flasher && uv run pytest tests/e2e/  # flasher behaviour
   ```
-- **Don't change `pr.yml`'s required checks** without updating branch protection's required-checks list in lockstep.
+- **`pr-platform.yml`'s bats step is a 5-cell matrix** (`cheap`, `deploy`, `ops`, `provision`, `routes-smoke`) running in parallel. The `platform` aggregator job is the only required check; matrix cells aren't individually required. Adding a fake-VPS-bringing bats file? Add a matrix cell.
+- **Bats files that spin up the fake-VPS MUST have the `compose_images_available` skip pattern** (mirror `test_routes_smoke.bats:11-14`). Quay.io/Docker Hub anonymous pulls flake; skip gracefully rather than hard-fail.
+- **Release-please PRs default to skip `pr-platform`'s bats** unless labelled `run-integration`. The real integration is the actual VPS deploy on merge (with `verify deployed version` healthcheck for siteapp releases).
+- **When you add or rename a workflow** that becomes a required check, update branch protection's required-check list in lockstep. The legacy `verify` stub trick is the migration template if you need a no-op transitional check.
 
 ## Server-info API
 
