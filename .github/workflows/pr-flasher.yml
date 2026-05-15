@@ -1,0 +1,105 @@
+name: pr-flasher
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: pr-flasher-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  flasher:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: changed
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            src:
+              - 'services/flasher/**'
+              - '.github/workflows/pr-flasher.yml'
+
+      - if: steps.changed.outputs.src != 'true'
+        run: echo "no flasher changes; skipping all steps"
+
+      - if: steps.changed.outputs.src == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: services/flasher/.python-version
+          cache: pip
+
+      - name: install uv
+        if: steps.changed.outputs.src == 'true'
+        run: pip install uv
+
+      - name: deps
+        if: steps.changed.outputs.src == 'true'
+        working-directory: services/flasher
+        run: uv sync --frozen
+
+      - name: ruff check
+        if: steps.changed.outputs.src == 'true'
+        working-directory: services/flasher
+        run: uv run ruff check app tests
+
+      - name: ruff format check
+        if: steps.changed.outputs.src == 'true'
+        working-directory: services/flasher
+        run: uv run ruff format --check app tests
+
+      - name: pytest (unit)
+        if: steps.changed.outputs.src == 'true'
+        working-directory: services/flasher
+        run: uv run pytest -v
+
+      - name: setup Node
+        if: steps.changed.outputs.src == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: services/flasher/web/package-lock.json
+
+      - name: SPA install
+        if: steps.changed.outputs.src == 'true'
+        working-directory: services/flasher/web
+        run: npm ci --no-audit --no-fund
+
+      - name: SPA type-check
+        if: steps.changed.outputs.src == 'true'
+        working-directory: services/flasher/web
+        run: npx tsc --noEmit
+
+      - name: SPA build
+        if: steps.changed.outputs.src == 'true'
+        working-directory: services/flasher/web
+        run: npm run build
+
+      - name: docker buildx setup
+        if: steps.changed.outputs.src == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: image build (no push)
+        if: steps.changed.outputs.src == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: services/flasher
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: lab-bridge-flasher:pr-${{ github.event.pull_request.number }}
+
+      - name: pytest (e2e)
+        if: steps.changed.outputs.src == 'true'
+        working-directory: services/flasher
+        env:
+          FLASHER_TEST_IMAGE: lab-bridge-flasher:pr-${{ github.event.pull_request.number }}
+        run: uv run pytest tests/e2e/ -v
