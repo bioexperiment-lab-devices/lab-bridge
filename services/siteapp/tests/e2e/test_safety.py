@@ -50,7 +50,9 @@ def test_uploaded_markdown_with_raw_html_is_escaped(http) -> None:
     data = {"target": "", "csrf": csrf}
     up = http.post("/admin/docs/upload", files=files, data=data)
     # Successful upload redirects to /admin/docs; follow redirect
-    assert up.status_code in (200, 302, 303), f"upload failed: {up.status_code} {up.text}"
+    # Admin upload returns 303 (See Other) on success; httpx.Client doesn't
+    # follow redirects by default so this is the terminal status.
+    assert up.status_code == 303, f"upload failed: {up.status_code} {up.text}"
 
     rendered = http.get("/docs/xss-test")
     assert rendered.status_code == 200

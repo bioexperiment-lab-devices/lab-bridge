@@ -12,7 +12,8 @@ TOKEN = "e2e-test-token"
 
 
 def test_upload_succeeds_with_valid_token(http) -> None:
-    files = {"binary": ("agent.exe", io.BytesIO(b"\x00\x01\x02FAKE_EXE"), "application/octet-stream")}
+    payload = b"\x00\x01\x02FAKE_EXE"
+    files = {"binary": ("agent.exe", io.BytesIO(payload), "application/octet-stream")}
     data = {"version": "1.2.3"}
     r = http.post(
         "/api/agent/upload",
@@ -23,8 +24,8 @@ def test_upload_succeeds_with_valid_token(http) -> None:
     assert r.status_code == 200
     body = r.json()
     assert body["version"] == "1.2.3"
-    assert body["size"] == 11
-    # sha256 of b"\x00\x01\x02FAKE_EXE"
+    assert body["size"] == len(payload)
+    # sha256 hex of payload has 64 chars
     assert len(body["sha256"]) == 64
 
 
