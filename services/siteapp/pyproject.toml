@@ -1,7 +1,7 @@
 [project]
 name = "siteapp"
 version = "0.1.0"
-description = "Public docs + agent downloads + admin for lab-bridge."
+description = "Public docs + agent download page for lab-bridge."
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.115,<0.116",

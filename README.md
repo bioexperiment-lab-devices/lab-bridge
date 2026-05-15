@@ -2,7 +2,7 @@
 
 Self-hosted lab portal: shared JupyterLab + chisel reverse tunnels that
 bring NAT'd lab instruments onto the notebook network, with an operator
-admin panel, public docs, and a Windows-agent download page in front.
+public docs (deployed from git), a Windows-agent download page, and an operator firmware-flashing UI (/flash/*) in front.
 VPS provisioning + Docker Compose stack.
 
 The public root (`https://<vps-host>/`) lands on a docs welcome page;
@@ -30,7 +30,6 @@ One Docker Compose stack on `labnet`:
 - **caddy** — public entrypoint on 80/443, TLS via Let's Encrypt. Route map:
   - `/` → 302 redirect to `/docs/` (the welcome page)
   - `/docs/*`, `/download/*`, `/_static/*`, `/api/agent/upload` → siteapp
-  - `/admin/*` → siteapp behind basic_auth (single user `admin`)
   - `/grafana/*` → grafana
   - everything else → jupyter (`/lab`, `/login`, `/api/sessions`, …)
 - **jupyter** — JupyterLab; cookie-based shared-password auth (not edge
@@ -38,9 +37,10 @@ One Docker Compose stack on `labnet`:
 - **chisel** — public on `chisel.listen_port`; reverse tunnels for device
   ports + a forward tunnel to `loki:3100` for log push.
 - **siteapp** — Python (FastAPI) service that serves the public docs portal
-  at `/docs/*`, the Windows agent download page at `/download/agent`, and an
-  operator-only admin upload UI at `/admin/*` (Caddy basic_auth). CI uploads
+  at `/docs/*`, the Windows agent download page at `/download/agent`. CI uploads
   new agent builds via `POST /api/agent/upload` with a static bearer token.
+  Public docs live in `public_docs/` at the repo root and ship to the VPS via
+  the `deploy-public-docs` workflow on every push to main.
 - **loki** + **grafana** — internal only; Loki has no published port, only
   reachable via Grafana on `labnet` and via chisel-tunneled clients.
 
@@ -51,7 +51,7 @@ task doctor                                   # check local prerequisites
 cp config.example.yaml config.yaml            # then edit with your VPS details
 task secrets:set-jupyter-password             # set the shared JupyterLab password
 task secrets:set-grafana-password             # set the Grafana admin password
-task secrets:set-admin-password               # password for the admin upload UI
+task secrets:set-admin-password               # bcrypt hash for /flash/* operator gate
 task secrets:rotate-agent-upload-token        # token CI uses to publish agent builds
 task secrets:add-client -- microscope-1 9001  # add a lab device
 task provision                                # first-time VPS setup
@@ -66,7 +66,6 @@ After deploy:
 - `https://<vps-host>/` — public welcome page (docs portal landing)
 - `https://<vps-host>/lab` — JupyterLab; everyone uses the shared password
 - `https://<vps-host>/grafana/` — Grafana login (separate password)
-- `https://<vps-host>/admin/` — operator admin panel (basic_auth)
 
 Auth is handled by JupyterLab itself (cookie-based) rather than HTTP
 Basic Auth at the edge — basic_auth re-prompts on every WebSocket upgrade
@@ -105,7 +104,7 @@ download page at `/download/agent`. Both routes carve out a public surface
 in front of JupyterLab without disturbing JupyterLab's cookie auth or
 Grafana's login.
 
-- Operator uploads markdown via `/admin/*` (Caddy basic_auth).
+- Operator commits markdown to `public_docs/` on main; the `deploy-public-docs` workflow rsyncs to the VPS.
 - CI publishes a new agent build via `POST /api/agent/upload` with a
   bearer token. Uploads stream to disk; the binary is atomically renamed
   into place so concurrent downloads never see a half-written file.
