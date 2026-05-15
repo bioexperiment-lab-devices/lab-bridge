@@ -19,4 +19,4 @@ docker buildx build \
     .
 echo
 echo "Pushed $SITEAPP_IMAGE"
-echo "Bump compose/siteapp/VERSION and commit to pin this tag."
+echo "Bump services/siteapp/VERSION and commit to pin this tag."

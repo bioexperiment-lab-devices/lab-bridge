@@ -19,4 +19,4 @@ docker buildx build \
     .
 echo
 echo "Pushed $FLASHER_IMAGE"
-echo "Bump compose/flasher/VERSION and commit to pin this tag."
+echo "Bump services/flasher/VERSION and commit to pin this tag."

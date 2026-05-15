@@ -61,9 +61,9 @@ jobs:
               - 'config.example.yaml'
               - 'Taskfile.yml'
             siteapp:
-              - 'compose/siteapp/**'
+              - 'services/siteapp/**'
             flasher:
-              - 'compose/flasher/**'
+              - 'services/flasher/**'
             workflow:
               - '.github/workflows/pr.yml'
 
@@ -124,7 +124,7 @@ jobs:
       - uses: actions/setup-python@v5
         if: steps.changes.outputs.siteapp == 'true' || steps.changes.outputs.workflow == 'true'
         with:
-          python-version-file: compose/siteapp/.python-version
+          python-version-file: services/siteapp/.python-version
           cache: pip
 
       - name: install uv
@@ -133,22 +133,22 @@ jobs:
 
       - name: siteapp deps
         if: steps.changes.outputs.siteapp == 'true' || steps.changes.outputs.workflow == 'true'
-        working-directory: compose/siteapp
+        working-directory: services/siteapp
         run: uv sync --frozen
 
       - name: ruff check
         if: steps.changes.outputs.siteapp == 'true' || steps.changes.outputs.workflow == 'true'
-        working-directory: compose/siteapp
+        working-directory: services/siteapp
         run: uv run ruff check app tests
 
       - name: ruff format check
         if: steps.changes.outputs.siteapp == 'true' || steps.changes.outputs.workflow == 'true'
-        working-directory: compose/siteapp
+        working-directory: services/siteapp
         run: uv run ruff format --check app tests
 
       - name: pytest
         if: steps.changes.outputs.siteapp == 'true' || steps.changes.outputs.workflow == 'true'
-        working-directory: compose/siteapp
+        working-directory: services/siteapp
         run: uv run pytest -v
 
       - name: docker buildx setup
@@ -159,7 +159,7 @@ jobs:
         if: steps.changes.outputs.siteapp == 'true' || steps.changes.outputs.workflow == 'true'
         uses: docker/build-push-action@v6
         with:
-          context: compose/siteapp
+          context: services/siteapp
           platforms: linux/amd64
           push: false
           load: true
@@ -173,7 +173,7 @@ jobs:
       - uses: actions/setup-python@v5
         if: steps.changes.outputs.flasher == 'true' && steps.changes.outputs.siteapp != 'true' && steps.changes.outputs.workflow != 'true'
         with:
-          python-version-file: compose/flasher/.python-version
+          python-version-file: services/flasher/.python-version
           cache: pip
 
       - name: install uv (flasher)
@@ -182,22 +182,22 @@ jobs:
 
       - name: flasher deps
         if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
-        working-directory: compose/flasher
+        working-directory: services/flasher
         run: uv sync --frozen
 
       - name: flasher ruff check
         if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
-        working-directory: compose/flasher
+        working-directory: services/flasher
         run: uv run ruff check app tests
 
       - name: flasher ruff format check
         if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
-        working-directory: compose/flasher
+        working-directory: services/flasher
         run: uv run ruff format --check app tests
 
       - name: flasher pytest
         if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
-        working-directory: compose/flasher
+        working-directory: services/flasher
         run: uv run pytest -v
 
       - name: setup Node
@@ -206,21 +206,21 @@ jobs:
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: compose/flasher/web/package-lock.json
+          cache-dependency-path: services/flasher/web/package-lock.json
 
       - name: flasher SPA install
         if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
-        working-directory: compose/flasher/web
+        working-directory: services/flasher/web
         run: npm ci --no-audit --no-fund
 
       - name: flasher SPA type-check
         if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
-        working-directory: compose/flasher/web
+        working-directory: services/flasher/web
         run: npx tsc --noEmit
 
       - name: flasher SPA build
         if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
-        working-directory: compose/flasher/web
+        working-directory: services/flasher/web
         run: npm run build
 
       - name: docker buildx setup (flasher)
@@ -231,7 +231,7 @@ jobs:
         if: steps.changes.outputs.flasher == 'true' || steps.changes.outputs.workflow == 'true'
         uses: docker/build-push-action@v6
         with:
-          context: compose/flasher
+          context: services/flasher
           platforms: linux/amd64
           push: false
           load: true

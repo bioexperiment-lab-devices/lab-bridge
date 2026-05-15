@@ -10,7 +10,7 @@ Design + plan docs:
 
 - **`main` is protected. Squash-merge only, linear history.** No direct pushes, no merge-commit, no rebase-merge — release-please depends on squash. Required checks: `pr-title`, `verify`.
 - **PR titles follow Conventional Commits** (`feat fix chore docs refactor test perf build ci revert`, scope optional). The title becomes the squash subject and is what release-please scans for the version bump.
-- **Don't bump versions by hand.** release-please owns `compose/siteapp/VERSION`. Don't strip the `# x-release-please-version` annotation — it's the rewrite anchor.
+- **Don't bump versions by hand.** release-please owns `services/siteapp/VERSION`. Don't strip the `# x-release-please-version` annotation — it's the rewrite anchor.
 - **Don't manually push release-tagged images to GHCR.** CI is the only path; manual pushes break the Sigstore attestation.
 
 ## Config split
@@ -28,7 +28,7 @@ Design + plan docs:
 ## Testing
 
 - **`verify` is path-gated** via `dorny/paths-filter@v3` — docs-only PRs skip all expensive steps. If you change `pr.yml`, everything re-runs.
-- **siteapp bats suites (`tests/test_siteapp_*.bats`) are NOT run in CI** (too slow — each does a full fake-VPS deploy). If you touch `compose/siteapp/` routing/auth/upload/safety, run them locally before opening the PR:
+- **siteapp bats suites (`tests/test_siteapp_*.bats`) are NOT run in CI** (too slow — each does a full fake-VPS deploy). If you touch `services/siteapp/` routing/auth/upload/safety, run them locally before opening the PR:
   ```bash
   bats tests/test_siteapp_auth.bats tests/test_siteapp_routing.bats \
        tests/test_siteapp_safety.bats tests/test_siteapp_uploads.bats

@@ -328,8 +328,8 @@ EOF
     ! grep -qE 'handle /api/clients' <<< "$output"
 }
 
-@test "render_compose: SITEAPP_IMAGE is composed from pins.yaml + compose/siteapp/VERSION" {
-    mkdir -p "$BATS_TEST_TMPDIR/compose/siteapp"
+@test "render_compose: SITEAPP_IMAGE is composed from pins.yaml + services/siteapp/VERSION" {
+    mkdir -p "$BATS_TEST_TMPDIR/services/siteapp" "$BATS_TEST_TMPDIR/compose"
     cat > "$BATS_TEST_TMPDIR/compose/pins.yaml" <<'PINS'
 jupyter_image: jup:1
 chisel_image: chi:1
@@ -344,7 +344,7 @@ remote_root: /srv/lb
 notebooks_path: /srv/lb/nb
 ssh_port: 22
 PINS
-    echo "1.2.3 # x-release-please-version" > "$BATS_TEST_TMPDIR/compose/siteapp/VERSION"
+    echo "1.2.3 # x-release-please-version" > "$BATS_TEST_TMPDIR/services/siteapp/VERSION"
     cat > "$BATS_TEST_TMPDIR/config.yaml" <<'CFG'
 vps: { host: 1.2.3.4, ssh_user: deploy }
 jupyter: { password_hash: sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567 }
@@ -361,7 +361,7 @@ CFG
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
         export LDS_PINS_FILE='$BATS_TEST_TMPDIR/compose/pins.yaml'
-        export LDS_SITEAPP_VERSION_FILE='$BATS_TEST_TMPDIR/compose/siteapp/VERSION'
+        export LDS_SITEAPP_VERSION_FILE='$BATS_TEST_TMPDIR/services/siteapp/VERSION'
         load_config '$BATS_TEST_TMPDIR/config.yaml'
         render_compose '$BATS_TEST_TMPDIR/compose.tmpl' '$BATS_TEST_TMPDIR/out'
         cat '$BATS_TEST_TMPDIR/out'

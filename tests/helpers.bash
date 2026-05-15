@@ -51,9 +51,9 @@ load_siteapp_test_image() {
     local fixture_tag
     local repo version
     repo="$(yq -e '.siteapp_image_repo' "$ROOT/tests/fixtures/valid_pins.yaml")"
-    version="$(awk 'NF { print $1; exit }' "$ROOT/compose/siteapp/VERSION")"
+    version="$(awk 'NF { print $1; exit }' "$ROOT/services/siteapp/VERSION")"
     fixture_tag="${repo}:${version}"
-    docker build --load -q -t "$fixture_tag" "$ROOT/compose/siteapp" >&2 || return 1
+    docker build --load -q -t "$fixture_tag" "$ROOT/services/siteapp" >&2 || return 1
     _save_and_load_into_fake_vps "$fixture_tag"
 }
 
@@ -65,9 +65,9 @@ load_flasher_test_image() {
     local fixture_tag
     local repo version
     repo="$(yq -e '.flasher_image_repo' "$ROOT/tests/fixtures/valid_pins.yaml")"
-    version="$(awk 'NF { print $1; exit }' "$ROOT/compose/flasher/VERSION")"
+    version="$(awk 'NF { print $1; exit }' "$ROOT/services/flasher/VERSION")"
     fixture_tag="${repo}:${version}"
-    docker build --load -q -t "$fixture_tag" "$ROOT/compose/flasher" >&2 || return 1
+    docker build --load -q -t "$fixture_tag" "$ROOT/services/flasher" >&2 || return 1
     _save_and_load_into_fake_vps "$fixture_tag"
 }
 

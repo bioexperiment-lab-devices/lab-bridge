@@ -10,7 +10,7 @@ for the design.
 ## Local development
 
 ```bash
-cd compose/siteapp
+cd services/siteapp
 uv sync
 SITE_DATA=$(pwd)/sample_data uv run uvicorn app.main:app --reload
 ```

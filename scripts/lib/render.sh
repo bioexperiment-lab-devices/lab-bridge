@@ -4,7 +4,7 @@
 # load_config having been called.
 
 # _siteapp_image — print ghcr.io/<owner>/lab-bridge-siteapp:<version>
-# Reads compose/siteapp/VERSION (override via LDS_SITEAPP_VERSION_FILE for tests).
+# Reads services/siteapp/VERSION (override via LDS_SITEAPP_VERSION_FILE for tests).
 # VERSION path is resolved REPO-ROOT-RELATIVE via this script's location,
 # not relative to the pins file location.
 _siteapp_image() {
@@ -14,7 +14,7 @@ _siteapp_image() {
         # scripts/lib/render.sh → repo root is two levels up.
         local script_dir
         script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        version_file="$script_dir/../../compose/siteapp/VERSION"
+        version_file="$script_dir/../../services/siteapp/VERSION"
     fi
     [[ -f "$version_file" ]] || die "siteapp VERSION file not found: $version_file"
     local version
@@ -24,14 +24,14 @@ _siteapp_image() {
 }
 
 # _flasher_image — print ghcr.io/<owner>/lab-bridge-flasher:<version>
-# Reads compose/flasher/VERSION (override via LDS_FLASHER_VERSION_FILE for tests).
+# Reads services/flasher/VERSION (override via LDS_FLASHER_VERSION_FILE for tests).
 _flasher_image() {
     local repo="${FLASHER_IMAGE_REPO:?FLASHER_IMAGE_REPO not set — did load_config run?}"
     local version_file="${LDS_FLASHER_VERSION_FILE:-}"
     if [[ -z "$version_file" ]]; then
         local script_dir
         script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        version_file="$script_dir/../../compose/flasher/VERSION"
+        version_file="$script_dir/../../services/flasher/VERSION"
     fi
     [[ -f "$version_file" ]] || die "flasher VERSION file not found: $version_file"
     local version

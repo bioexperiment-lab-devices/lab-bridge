@@ -50,7 +50,7 @@ task secrets:add-client -- microscope-1 9001  # add a lab device
 task provision                                # first-time VPS setup
 
 # Publish the siteapp image to GHCR (or your registry) — see "Publishing the
-# siteapp image" below. The image tag is pinned in compose/siteapp/VERSION.
+# siteapp image" below. The image tag is pinned in services/siteapp/VERSION.
 
 task deploy                                   # render configs + bring up stack
 ```
@@ -132,7 +132,7 @@ Two files control the image reference — no `config.yaml` field is involved:
 
 - **`compose/pins.yaml`** → `siteapp_image_repo` — the GHCR repository path
   (e.g. `ghcr.io/<owner>/lab-bridge-siteapp`).
-- **`compose/siteapp/VERSION`** — the image tag (e.g. `0.2.0`).
+- **`services/siteapp/VERSION`** — the image tag (e.g. `0.2.0`).
 
 `task siteapp:build-and-push` reads both and builds
 `${siteapp_image_repo}:${VERSION}` — no environment variables needed.
@@ -142,8 +142,8 @@ an environment with a writable `GITHUB_TOKEN`):
 
 ```bash
 # 1. Bump the version
-echo "0.2.0" > compose/siteapp/VERSION
-git add compose/siteapp/VERSION && git commit -m "chore(siteapp): bump version to 0.2.0"
+echo "0.2.0" > services/siteapp/VERSION
+git add services/siteapp/VERSION && git commit -m "chore(siteapp): bump version to 0.2.0"
 
 # 2. Build and push
 task siteapp:build-and-push
@@ -167,7 +167,7 @@ on the VPS with a read-only token.
 - `config.example.yaml` — copy to `config.yaml` (gitignored) and fill in
 - `compose/` — Docker Compose template, Caddyfile template, Loki config
   template, Grafana provisioning (datasource + dashboard JSON)
-- `compose/siteapp/` — Python source for the siteapp service (Dockerfile,
+- `services/siteapp/` — Python source for the siteapp service (Dockerfile,
   pyproject.toml, app/, templates/, static/, tests/), plus `build.sh` for
   GHCR publish
 - `.github/workflows/` — CI: `pr.yml` (PR gate), `release-please.yml` (release + deploy), `ghcr-cleanup.yml` (monthly retention). See `docs/superpowers/specs/2026-05-12-cicd-design.md`.
