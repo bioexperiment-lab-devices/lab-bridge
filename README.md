@@ -15,6 +15,13 @@ Design docs:
   Loki/Grafana for client log forwarding
 - `docs/superpowers/specs/2026-05-01-public-docs-and-agent-downloads-design.md` —
   public docs portal + Windows agent download
+- `docs/superpowers/specs/2026-05-15-per-service-isolation-design.md` —
+  the current `services/<name>/` layout, multi-component release-please,
+  per-service parallel CI
+
+For adding a new service to the stack, follow `docs/adding-a-service.md`
+(checklist mirroring siteapp/flasher). The "Architecture philosophy"
+section in `CLAUDE.md` summarises the invariants the repo enforces.
 
 ## What runs on the VPS
 
