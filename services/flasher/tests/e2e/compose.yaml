@@ -1,0 +1,33 @@
+services:
+  stub-serialhop:
+    build: ./stub_serialhop
+    expose:
+      - "9000"
+    environment:
+      STUB_FLASH_OUTCOME: "${STUB_FLASH_OUTCOME:-success}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:9000/serial/ports/detailed').status==200 else 1)\""]
+      interval: 1s
+      timeout: 2s
+      retries: 30
+
+  flasher:
+    image: ${FLASHER_TEST_IMAGE:-lab-bridge-flasher:e2e}
+    ports:
+      - "127.0.0.1:8002:8000"
+    environment:
+      LAB_BRIDGE_VERSION: "e2e-test"
+      LAB_BRIDGE_GIT_SHA: "test"
+      FLASHER_CLIENTS_FILE: /etc/flasher/clients.json
+      # Point flasher's SerialHop client at the stub instead of `chisel`.
+      FLASHER_CHISEL_HOST: stub-serialhop
+    volumes:
+      - ./fixtures/clients.json:/etc/flasher/clients.json:ro
+    depends_on:
+      stub-serialhop:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz').status==200 else 1)\""]
+      interval: 1s
+      timeout: 2s
+      retries: 30

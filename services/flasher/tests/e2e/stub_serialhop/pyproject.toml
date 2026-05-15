@@ -1,0 +1,8 @@
+[project]
+name = "stub-serialhop"
+version = "0.0.1"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115,<0.116",
+    "uvicorn[standard]>=0.30,<0.31",
+]

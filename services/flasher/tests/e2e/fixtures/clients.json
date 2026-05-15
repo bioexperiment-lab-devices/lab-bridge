@@ -1,0 +1,6 @@
+{
+  "alice_machine": {
+    "port": 9000,
+    "password_sha256": "ignored-by-flasher"
+  }
+}
