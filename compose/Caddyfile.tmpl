@@ -30,17 +30,8 @@ https://__VPS_HOST__ {
         reverse_proxy siteapp:8000
     }
 
-    # Admin panel — basic_auth scoped here ONLY. Mobile-WS issue does not
-    # apply: this surface is plain HTTP file uploads, no kernels.
-    handle /admin* {
-        basic_auth {
-            admin __ADMIN_BCRYPT_HASH__
-        }
-        reverse_proxy siteapp:8000
-    }
-
-    # Flasher service — operator firmware-flashing UI. Same single-admin
-    # basic_auth boundary as /admin/*; the flasher itself trusts whoever
+    # Flasher service — operator firmware-flashing UI. Caddy basic_auth
+    # is the single trust boundary; the flasher itself trusts whoever
     # Caddy let through.
     handle /flash* {
         basic_auth {
