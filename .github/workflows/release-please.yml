@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       rollback_to:
-        description: 'Tag to redeploy (e.g. v0.4.1). Leave empty for a normal release-please run.'
+        description: 'Component-prefixed tag to redeploy (e.g. siteapp-v0.4.1 or platform-v0.5.0). Leave empty for a normal release-please run.'
         required: false
 
 concurrency:
@@ -26,8 +26,15 @@ jobs:
     if: github.event_name == 'push' || github.event.inputs.rollback_to == ''
     runs-on: ubuntu-latest
     outputs:
-      release_created: ${{ steps.rp.outputs.release_created }}
-      tag_name:        ${{ steps.rp.outputs.tag_name }}
+      siteapp_released: ${{ steps.rp.outputs['services/siteapp--release_created'] }}
+      siteapp_tag:      ${{ steps.rp.outputs['services/siteapp--tag_name'] }}
+      siteapp_version:  ${{ steps.rp.outputs['services/siteapp--version'] }}
+      flasher_released: ${{ steps.rp.outputs['services/flasher--release_created'] }}
+      flasher_tag:      ${{ steps.rp.outputs['services/flasher--tag_name'] }}
+      flasher_version:  ${{ steps.rp.outputs['services/flasher--version'] }}
+      platform_released: ${{ steps.rp.outputs['.--release_created'] }}
+      platform_tag:      ${{ steps.rp.outputs['.--tag_name'] }}
+      platform_version:  ${{ steps.rp.outputs['.--version'] }}
     steps:
       - id: app-token
         uses: actions/create-github-app-token@v3
@@ -42,30 +49,29 @@ jobs:
           manifest-file: .release-please-manifest.json
           token: ${{ steps.app-token.outputs.token }}
 
-  release-build:
-    name: release-build
+  release-build-siteapp:
+    name: release-build-siteapp
     needs: release-please
     if: |
-      (github.event_name == 'push' && needs.release-please.outputs.release_created == 'true')
-      || (github.event_name == 'workflow_dispatch' && github.event.inputs.rollback_to != '')
+      (github.event_name == 'push' && needs.release-please.outputs.siteapp_released == 'true')
+      || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.rollback_to, 'siteapp-v'))
     runs-on: ubuntu-latest
     steps:
-      - name: resolve deploy ref
+      - name: resolve ref
         id: ref
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             tag="${{ github.event.inputs.rollback_to }}"
             mode=rollback
           else
-            tag="${{ needs.release-please.outputs.tag_name }}"
+            tag="${{ needs.release-please.outputs.siteapp_tag }}"
             mode=release
           fi
-          version="${tag#v}"
+          version="${tag#siteapp-v}"
           echo "tag=$tag"           >> "$GITHUB_OUTPUT"
           echo "version=$version"   >> "$GITHUB_OUTPUT"
           echo "mode=$mode"         >> "$GITHUB_OUTPUT"
           echo "image=ghcr.io/${{ github.repository_owner }}/lab-bridge-siteapp:$version" >> "$GITHUB_OUTPUT"
-          echo "flasher_image=ghcr.io/${{ github.repository_owner }}/lab-bridge-flasher:$version" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v4
         with:
@@ -99,7 +105,7 @@ jobs:
             LAB_BRIDGE_VERSION=${{ steps.ref.outputs.version }}
             LAB_BRIDGE_GIT_SHA=${{ github.sha }}
 
-      - name: attest build provenance
+      - name: attest siteapp build provenance
         if: steps.ref.outputs.mode == 'release'
         uses: actions/attest-build-provenance@v4
         with:
@@ -107,9 +113,61 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
+      - name: deploy + verify
+        uses: ./.github/actions/deploy-stack
+        with:
+          vps_host:              ${{ vars.VPS_HOST }}
+          vps_ssh_user:          ${{ vars.VPS_SSH_USER }}
+          vps_ssh_key:           ${{ secrets.VPS_SSH_KEY }}
+          jupyter_password_hash: ${{ secrets.JUPYTER_PASSWORD_HASH }}
+          admin_password_hash:   ${{ secrets.ADMIN_PASSWORD_HASH }}
+          grafana_password:      ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          agent_upload_token:    ${{ secrets.AGENT_UPLOAD_TOKEN }}
+          verify_siteapp_version: ${{ steps.ref.outputs.version }}
+
+  release-build-flasher:
+    name: release-build-flasher
+    needs: release-please
+    if: |
+      (github.event_name == 'push' && needs.release-please.outputs.flasher_released == 'true')
+      || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.rollback_to, 'flasher-v'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: resolve ref
+        id: ref
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            tag="${{ github.event.inputs.rollback_to }}"
+            mode=rollback
+          else
+            tag="${{ needs.release-please.outputs.flasher_tag }}"
+            mode=release
+          fi
+          version="${tag#flasher-v}"
+          echo "tag=$tag"           >> "$GITHUB_OUTPUT"
+          echo "version=$version"   >> "$GITHUB_OUTPUT"
+          echo "mode=$mode"         >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${{ github.repository_owner }}/lab-bridge-flasher:$version" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.tag }}
+
+      - name: log in to GHCR
+        if: steps.ref.outputs.mode == 'release'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: set up buildx
+        if: steps.ref.outputs.mode == 'release'
+        uses: docker/setup-buildx-action@v3
+
       - name: build & push flasher image
         if: steps.ref.outputs.mode == 'release'
-        id: build-flasher
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: services/flasher
@@ -117,7 +175,7 @@ jobs:
           push: true
           provenance: false
           tags: |
-            ${{ steps.ref.outputs.flasher_image }}
+            ${{ steps.ref.outputs.image }}
             ghcr.io/${{ github.repository_owner }}/lab-bridge-flasher:latest
           build-args: |
             LAB_BRIDGE_VERSION=${{ steps.ref.outputs.version }}
@@ -128,58 +186,49 @@ jobs:
         uses: actions/attest-build-provenance@v4
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/lab-bridge-flasher
-          subject-digest: ${{ steps.build-flasher.outputs.digest }}
+          subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
-      - name: install rsync, envsubst, yq
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y rsync gettext-base
-          sudo wget -q https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
-          sudo chmod +x /usr/local/bin/yq
-
-      - name: load SSH key
-        uses: webfactory/ssh-agent@v0.9.0
+      - name: deploy + verify
+        uses: ./.github/actions/deploy-stack
         with:
-          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+          vps_host:              ${{ vars.VPS_HOST }}
+          vps_ssh_user:          ${{ vars.VPS_SSH_USER }}
+          vps_ssh_key:           ${{ secrets.VPS_SSH_KEY }}
+          jupyter_password_hash: ${{ secrets.JUPYTER_PASSWORD_HASH }}
+          admin_password_hash:   ${{ secrets.ADMIN_PASSWORD_HASH }}
+          grafana_password:      ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          agent_upload_token:    ${{ secrets.AGENT_UPLOAD_TOKEN }}
 
-      - name: render CI config.yaml
-        env:
-          VPS_HOST: ${{ vars.VPS_HOST }}
-          VPS_SSH_USER: ${{ vars.VPS_SSH_USER }}
-          JUPYTER_PASSWORD_HASH: ${{ secrets.JUPYTER_PASSWORD_HASH }}
-          ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
+  release-platform:
+    name: release-platform
+    needs: release-please
+    if: |
+      (github.event_name == 'push' && needs.release-please.outputs.platform_released == 'true')
+      || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.rollback_to, 'platform-v'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: resolve ref
+        id: ref
         run: |
-          mkdir -p compose/grafana compose/siteapp
-          envsubst < compose/config.ci.yaml.tmpl > config.ci.rendered.yaml
-          # Materialize secret files deploy.sh expects to find on disk.
-          printf '%s' "${{ secrets.GRAFANA_ADMIN_PASSWORD }}" > compose/grafana/admin_password
-          printf '%s' "${{ secrets.AGENT_UPLOAD_TOKEN }}"   > compose/siteapp/agent_upload_token
-          chmod 0600 compose/grafana/admin_password compose/siteapp/agent_upload_token
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            tag="${{ github.event.inputs.rollback_to }}"
+          else
+            tag="${{ needs.release-please.outputs.platform_tag }}"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
-      - name: deploy to VPS (stack-only)
-        env:
-          VPS_HOST: ${{ vars.VPS_HOST }}
-          VPS_SSH_USER: ${{ vars.VPS_SSH_USER }}
-          LDS_CONFIG: ${{ github.workspace }}/config.ci.rendered.yaml
-          LDS_STACK_ONLY: '1'
-          LDS_REQUIRE_VAULT: '1'
-          LDS_SSH_OPTS: '-o StrictHostKeyChecking=accept-new'
-        run: bash scripts/deploy.sh
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.tag }}
 
-      - name: verify deployed version
-        env:
-          VPS_HOST: ${{ vars.VPS_HOST }}
-        run: |
-          set -euo pipefail
-          for i in $(seq 1 30); do
-            body="$(curl -sk "https://$VPS_HOST/api/public/server-info")" || true
-            if echo "$body" | jq -e --arg v "${{ steps.ref.outputs.version }}" '.version == $v' >/dev/null; then
-              echo "verified: server reports version ${{ steps.ref.outputs.version }}"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "::error::server-info did not report expected version ${{ steps.ref.outputs.version }} after 60s"
-          echo "last body: $body"
-          exit 1
+      - name: deploy
+        uses: ./.github/actions/deploy-stack
+        with:
+          vps_host:              ${{ vars.VPS_HOST }}
+          vps_ssh_user:          ${{ vars.VPS_SSH_USER }}
+          vps_ssh_key:           ${{ secrets.VPS_SSH_KEY }}
+          jupyter_password_hash: ${{ secrets.JUPYTER_PASSWORD_HASH }}
+          admin_password_hash:   ${{ secrets.ADMIN_PASSWORD_HASH }}
+          grafana_password:      ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          agent_upload_token:    ${{ secrets.AGENT_UPLOAD_TOKEN }}
