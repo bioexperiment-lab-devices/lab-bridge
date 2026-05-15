@@ -2,7 +2,7 @@
 # Caddy routing smoke test — one fake-VPS bring-up, all curl assertions.
 #
 # Asserts only the *route map* (which public path reaches which backend
-# service) and the *Caddy-edge auth gates* (/admin/ and /flash/ basic_auth).
+# service) and the *Caddy-edge auth gate* (/flash/ basic_auth).
 # Behavior assertions live in services/<name>/tests/e2e/.
 
 load helpers
