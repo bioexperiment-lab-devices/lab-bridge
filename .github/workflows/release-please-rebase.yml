@@ -1,0 +1,118 @@
+name: release-please-rebase
+
+# When one component's release-please PR merges, its sibling release-please
+# PRs are left with a stale .release-please-manifest.json — every component
+# shares that one file, and release-please-action does NOT auto-rebase the
+# open siblings ("PR #X remained the same" in the logs). The PR then sits
+# unmergeable until a human resolves the conflict by hand.
+#
+# This workflow fires after every successful release-please run, finds the
+# still-open sibling release PRs, and rewrites each one's manifest to:
+#   (main's current manifest) with only THIS PR's own component path
+#   overridden to keep its own version bump.
+#
+# That's exactly what a hand-resolution would do. Branch protection on main
+# isn't affected — we only force-push the release-please branches.
+
+on:
+  workflow_run:
+    workflows: ["release-please"]
+    types: [completed]
+
+concurrency:
+  group: release-please-rebase-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  rebase:
+    # Only chain off real push-triggered release-please runs that actually
+    # succeeded. Manual rollback dispatches and failed runs are out of scope.
+    if: |
+      github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'push'
+      && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: rewrite manifest on each open sibling release-please branch
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+
+          MAIN_MANIFEST=$(cat .release-please-manifest.json)
+          git config user.name  "lab-bridge release-please bot"
+          git config user.email "release-please-bot@users.noreply.github.com"
+
+          mapfile -t prs < <(
+            gh pr list --state open --json number,headRefName \
+              | jq -c '.[] | select(.headRefName | startswith("release-please--branches--main--components--"))'
+          )
+
+          if [[ ${#prs[@]} -eq 0 ]]; then
+            echo "no open release-please PRs — nothing to rebase"
+            exit 0
+          fi
+
+          for pr in "${prs[@]}"; do
+            num=$(jq -r .number      <<<"$pr")
+            ref=$(jq -r .headRefName <<<"$pr")
+            pkg=${ref##*--}
+            path=$(jq -r --arg pkg "$pkg" \
+              '.packages | to_entries[] | select(.value["package-name"] == $pkg) | .key' \
+              release-please-config.json)
+
+            if [[ -z "$path" || "$path" == "null" ]]; then
+              echo "::warning::skipping $ref — no package matching '$pkg' in release-please-config.json"
+              continue
+            fi
+
+            echo "=== considering $ref (PR #$num, path=$path) ==="
+
+            git fetch origin "refs/heads/$ref:refs/heads/$ref"
+            git checkout "$ref"
+
+            own=$(jq -r --arg p "$path" '.[$p]' .release-please-manifest.json)
+            if [[ -z "$own" || "$own" == "null" ]]; then
+              echo "::warning::skipping $ref — branch manifest has no value for path '$path'"
+              git checkout main
+              continue
+            fi
+
+            # New manifest = main's current state, with only THIS PR's own
+            # version bump preserved. Pretty-print to byte-match the format
+            # release-please-action writes (2-space indent, trailing newline).
+            jq --arg p "$path" --arg v "$own" '.[$p] = $v' <<<"$MAIN_MANIFEST" \
+              > .release-please-manifest.json
+
+            if git diff --quiet .release-please-manifest.json; then
+              echo "$ref already in sync with main"
+              git checkout main
+              continue
+            fi
+
+            git commit -am "chore: rebase manifest onto main after sibling release"
+            if git push origin "HEAD:refs/heads/$ref"; then
+              echo "rebased $ref onto main"
+            else
+              # A racing release-please push or a force-push elsewhere will
+              # land us here. The next release-please run re-triggers us,
+              # so we exit nonzero on the loop but the system self-heals.
+              echo "::warning::push to $ref failed — likely raced with release-please; will re-attempt on next run"
+            fi
+            git checkout main
+          done
