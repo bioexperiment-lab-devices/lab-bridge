@@ -175,4 +175,19 @@ def make_router(settings: Settings, conn_factory, blobs_root: Path) -> APIRouter
                     },
                 )
 
+    @router.get("/api/backups/{backup_id}/flashes")
+    async def backup_flashes(
+        backup_id: str, limit: int = 50, before: str | None = None
+    ) -> dict[str, Any]:
+        from app.flashes import list_flashes
+
+        async with conn_factory() as conn:
+            return await list_flashes(
+                conn,
+                source_kind="backup",
+                source_id=backup_id,
+                limit=limit,
+                before=before,
+            )
+
     return router

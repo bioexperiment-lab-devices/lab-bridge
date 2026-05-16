@@ -252,4 +252,19 @@ def make_router(settings: Settings, conn_factory, blobs_root: Path) -> APIRouter
             )
         return row
 
+    @router.get("/api/firmware/{firmware_id}/flashes")
+    async def operator_flashes(
+        firmware_id: str, limit: int = 50, before: str | None = None
+    ) -> dict[str, Any]:
+        from app.flashes import list_flashes
+
+        async with conn_factory() as conn:
+            return await list_flashes(
+                conn,
+                source_kind="firmware",
+                source_id=firmware_id,
+                limit=limit,
+                before=before,
+            )
+
     return router
