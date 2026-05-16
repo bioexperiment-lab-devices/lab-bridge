@@ -24,6 +24,14 @@ def _chisel_host_default(monkeypatch) -> str:
     return "chisel"
 
 
+@pytest.fixture(autouse=True)
+def _data_dir_default(tmp_path: Path, monkeypatch) -> Path:
+    d = tmp_path / "flasher_data"
+    d.mkdir()
+    monkeypatch.setenv("FLASHER_DATA_DIR", str(d))
+    return d
+
+
 @pytest.fixture
 def clients_file(_clients_file_default: Path) -> Path:
     """Re-export of the autouse fixture for tests that want to write to it."""
