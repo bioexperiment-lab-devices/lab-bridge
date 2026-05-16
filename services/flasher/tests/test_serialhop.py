@@ -43,10 +43,11 @@ async def test_get_ports_raises_upstream_unreachable_on_connect_error() -> None:
 
 
 @pytest.mark.asyncio
-async def test_disconnect_port_targets_port_path() -> None:
+async def test_disconnect_port_sends_port_query() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
-        assert request.url.path == "/devices/disconnect/COM3"
+        assert request.url.path == "/devices/disconnect"
+        assert request.url.params["port"] == "COM3"
         return httpx.Response(200, json={"released": 1})
 
     client = _make_client(handler)

@@ -183,7 +183,7 @@ def _seed_firmware(http_app) -> str:
 
 def _stub_serialhop(respx_mock) -> None:
     """Match all SerialHop calls in tests; return a happy success."""
-    respx_mock.post(host="chisel", port=9000, path__regex=r"/devices/disconnect/.*").mock(
+    respx_mock.post(host="chisel", port=9000, path="/devices/disconnect").mock(
         return_value=httpx.Response(200, json={"released": 0})
     )
     respx_mock.post(host="chisel", port=9000, path__regex=r"/flash/.*").mock(
