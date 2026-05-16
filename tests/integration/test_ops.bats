@@ -33,6 +33,9 @@ setup_file() {
     export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
     printf 'testtok' > "$LDS_AGENT_TOKEN_FILE"
     chmod 600 "$LDS_AGENT_TOKEN_FILE"
+    export LDS_FLASHER_UPLOAD_TOKEN_FILE="$TMPDIR/flasher_upload_token"
+    printf 'flashertok' > "$LDS_FLASHER_UPLOAD_TOKEN_FILE"
+    chmod 600 "$LDS_FLASHER_UPLOAD_TOKEN_FILE"
     # provision.sh installs Docker inside the fake-VPS; must happen before
     # load_siteapp_test_image (which uses `docker exec ... docker load`).
     bash "$ROOT/scripts/provision.sh"
@@ -67,6 +70,9 @@ setup() {
     export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
     printf 'testtok' > "$LDS_AGENT_TOKEN_FILE"
     chmod 600 "$LDS_AGENT_TOKEN_FILE"
+    export LDS_FLASHER_UPLOAD_TOKEN_FILE="$TMPDIR/flasher_upload_token"
+    printf 'flashertok' > "$LDS_FLASHER_UPLOAD_TOKEN_FILE"
+    chmod 600 "$LDS_FLASHER_UPLOAD_TOKEN_FILE"
     # Docker is already installed and siteapp image pre-loaded by setup_file().
     # provision.sh is idempotent — this is fast on subsequent calls.
     bash "$ROOT/scripts/provision.sh"

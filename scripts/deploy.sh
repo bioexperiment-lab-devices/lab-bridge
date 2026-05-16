@@ -93,6 +93,7 @@ main() {
         --exclude='loki_data/'
         --exclude='grafana_data/'
         --exclude='site_data/'
+        --exclude='flasher_data/'
     )
     if [[ "${LDS_STACK_ONLY:-}" == "1" ]]; then
         rsync_excludes+=(--exclude='chisel/users.json' --exclude='siteapp/clients.json')

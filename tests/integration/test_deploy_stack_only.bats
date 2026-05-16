@@ -13,6 +13,9 @@ setup() {
     printf 'testtok' > "$TMPDIR/agent_upload_token"
     chmod 600 "$TMPDIR/agent_upload_token"
     export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
+    printf 'flashertok' > "$TMPDIR/flasher_upload_token"
+    chmod 600 "$TMPDIR/flasher_upload_token"
+    export LDS_FLASHER_UPLOAD_TOKEN_FILE="$TMPDIR/flasher_upload_token"
 }
 teardown() { teardown_tmpdir; }
 
