@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import importlib
+import sqlite3
+import uuid
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
 from app.backups import (
     BackupInUse,
@@ -240,3 +244,115 @@ async def test_download_backup_bytes(ctx) -> None:
     )
     body = await download_backup_bytes(ctx["blobs_dir"], backup_id=bid)
     assert body == ":00000001FF\n"
+
+
+@pytest.fixture
+def http_app(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv("FLASHER_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("FLASHER_CLIENTS_FILE", str(tmp_path / "clients.json"))
+    monkeypatch.setenv("FLASHER_UPLOAD_TOKEN", "test-token")
+    (tmp_path / "clients.json").write_text("{}", encoding="utf-8")
+    import app.main as m
+
+    importlib.reload(m)
+    with TestClient(m.app) as c:
+        yield c, tmp_path
+
+
+def _seed_backup(http_app) -> str:
+    """Seed a backup row directly in SQLite (no flash flow yet)."""
+    client, tmp_path = http_app
+    bid = uuid.uuid4().hex
+    with sqlite3.connect(tmp_path / "flasher.db") as conn:
+        conn.execute(
+            "INSERT INTO flashes (id, status, client, port_name, port_snapshot_json, "
+            "source_kind, source_id, firmware_sha256, firmware_name, skip_backup, started_at) "
+            "VALUES ('seed-flash', 'done', 'c', 'COM3', '{}', 'firmware', 'fid', 'sha', 'n', 0, '2026-01-01T00:00:00Z')"
+        )
+        conn.execute(
+            "INSERT INTO backups (id, name, sha256, size_bytes, client, port_name, "
+            "source_flash_id, captured_at) "
+            "VALUES (?, 'b', 'abc', 12, 'c', 'COM3', 'seed-flash', '2026-01-02T00:00:00Z')",
+            (bid,),
+        )
+        conn.commit()
+    (tmp_path / "blobs" / "backups").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "blobs" / "backups" / f"{bid}.hex").write_text(":00000001FF\n")
+    return bid
+
+
+def test_list_backups(http_app) -> None:
+    client, _ = http_app
+    _seed_backup(http_app)
+    r = client.get("/flash/api/backups")
+    assert r.status_code == 200
+    assert len(r.json()["items"]) == 1
+
+
+def test_get_backup(http_app) -> None:
+    client, _ = http_app
+    bid = _seed_backup(http_app)
+    r = client.get(f"/flash/api/backups/{bid}")
+    assert r.status_code == 200
+    assert r.json()["id"] == bid
+
+
+def test_patch_backup(http_app) -> None:
+    client, _ = http_app
+    bid = _seed_backup(http_app)
+    r = client.patch(f"/flash/api/backups/{bid}", json={"name": "known good", "test_command": "01"})
+    assert r.status_code == 200
+    assert r.json()["name"] == "known good"
+
+
+def test_delete_backup(http_app) -> None:
+    client, _ = http_app
+    bid = _seed_backup(http_app)
+    r = client.delete(f"/flash/api/backups/{bid}")
+    assert r.status_code == 200
+
+
+def test_bulk_delete_backups(http_app) -> None:
+    client, _ = http_app
+    a = _seed_backup(http_app)
+    # Make a second backup with a different sha.
+    _, tmp_path = http_app
+    b = uuid.uuid4().hex
+    with sqlite3.connect(tmp_path / "flasher.db") as conn:
+        conn.execute(
+            "INSERT INTO backups (id, name, sha256, size_bytes, client, port_name, "
+            "source_flash_id, captured_at) "
+            "VALUES (?, 'b2', 'def', 12, 'c', 'COM3', 'seed-flash', '2026-01-02T00:00:00Z')",
+            (b,),
+        )
+        conn.commit()
+    r = client.post("/flash/api/backups/bulk-delete", json={"ids": [a, b, "missing"]})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["deleted"] == 2
+    assert any(x["id"] == "missing" for x in body["refused"])
+
+
+def test_download_backup(http_app) -> None:
+    client, _ = http_app
+    bid = _seed_backup(http_app)
+    r = client.get(f"/flash/api/backups/{bid}/download")
+    assert r.status_code == 200
+    assert r.text == ":00000001FF\n"
+
+
+def test_promote_backup_creates_firmware(http_app) -> None:
+    client, _ = http_app
+    bid = _seed_backup(http_app)
+    r = client.post(
+        f"/flash/api/backups/{bid}/promote",
+        json={"name": "pump from backup", "copy_test_pair": True},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["name"] == "pump from backup"
+    assert body["source_backup_id"] == bid
+    # Firmware blob now has the same bytes as the backup.
+    fid = body["id"]
+    r = client.get(f"/flash/api/firmware/{fid}/download")
+    assert r.text == ":00000001FF\n"
