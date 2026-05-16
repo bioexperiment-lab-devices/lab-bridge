@@ -1,9 +1,9 @@
 interface Props {
   skipBackup: boolean
-  onChange: (skipBackup: boolean) => void
+  onSkipBackupChange: (skipBackup: boolean) => void
 }
 
-export function FlashOptions({ skipBackup, onChange }: Props) {
+export function FlashOptions({ skipBackup, onSkipBackupChange }: Props) {
   return (
     <section className="step">
       <header>
@@ -13,7 +13,7 @@ export function FlashOptions({ skipBackup, onChange }: Props) {
         <input
           type="checkbox"
           checked={skipBackup}
-          onChange={(e) => onChange(e.target.checked)}
+          onChange={(e) => onSkipBackupChange(e.target.checked)}
         />
         Skip backup
       </label>

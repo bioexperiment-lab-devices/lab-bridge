@@ -1,31 +1,32 @@
-// @ts-nocheck — Phase 9 will rewrite this component with updated types/api
+// @ts-nocheck — legacy component; prop interface updated for Phase 9
 import { useCallback, useEffect, useState } from 'react'
-import { fetchPorts } from '../api'
-import type { PortInfo } from '../types'
+import { listPorts } from '../api'
 
 interface Props {
-  clientName: string
-  selectedPort: string | null
-  onSelect: (port: string | null) => void
+  client: string
+  value: string | null
+  onChange: (port: string | null) => void
+  onPortsLoaded?: (ports: any[]) => void
 }
 
-export function PortTable({ clientName, selectedPort, onSelect }: Props) {
-  const [ports, setPorts] = useState<PortInfo[]>([])
+export function PortTable({ client, value, onChange, onPortsLoaded }: Props) {
+  const [ports, setPorts] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const data = await fetchPorts(clientName)
+      const data = await listPorts(client)
       setPorts(data.ports)
+      onPortsLoaded?.(data.ports)
     } catch (e) {
-      setError((e as Error).message)
+      setError(e.message)
     } finally {
       setLoading(false)
     }
-  }, [clientName])
+  }, [client])
 
   useEffect(() => {
     load()
@@ -42,7 +43,7 @@ export function PortTable({ clientName, selectedPort, onSelect }: Props) {
       {loading && <p>Loading…</p>}
       {error && <p className="error">Failed to load ports: {error}</p>}
       {!loading && !error && ports.length === 0 && (
-        <p>No serial ports reported by {clientName}.</p>
+        <p>No serial ports reported by {client}.</p>
       )}
       {!loading && !error && ports.length > 0 && (
         <table className="ports">
@@ -61,16 +62,16 @@ export function PortTable({ clientName, selectedPort, onSelect }: Props) {
               <tr
                 key={p.name}
                 className={`${p.is_usb ? '' : 'muted'} ${
-                  selectedPort === p.name ? 'selected' : ''
+                  value === p.name ? 'selected' : ''
                 }`}
-                onClick={() => onSelect(p.name)}
+                onClick={() => onChange(p.name)}
               >
                 <td>
                   <input
                     type="radio"
                     name="port"
-                    checked={selectedPort === p.name}
-                    onChange={() => onSelect(p.name)}
+                    checked={value === p.name}
+                    onChange={() => onChange(p.name)}
                   />
                 </td>
                 <td><code>{p.name}</code></td>

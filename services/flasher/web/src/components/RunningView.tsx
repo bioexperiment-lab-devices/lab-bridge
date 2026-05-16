@@ -1,14 +1,11 @@
-// @ts-nocheck — Phase 9 will rewrite this component with updated types/api
+// @ts-nocheck — legacy component; prop interface updated for Phase 9
 import { useEffect, useState } from 'react'
-import { fetchFlashJob } from '../api'
-import type { FlashJob } from '../types'
 
 interface Props {
-  jobId: string
-  clientName: string
-  portName: string
-  firmwareFilename: string
-  onComplete: (job: FlashJob) => void
+  started: string
+  client: string
+  port: string
+  firmwareName: string
 }
 
 function formatElapsed(ms: number): string {
@@ -18,49 +15,20 @@ function formatElapsed(ms: number): string {
   return `${mm}:${ss}`
 }
 
-export function RunningView({
-  jobId,
-  clientName,
-  portName,
-  firmwareFilename,
-  onComplete,
-}: Props) {
+export function RunningView({ started, client, port, firmwareName }: Props) {
   const [elapsedMs, setElapsedMs] = useState(0)
 
   useEffect(() => {
-    const start = Date.now()
-    const tick = setInterval(() => setElapsedMs(Date.now() - start), 1000)
+    const startTime = new Date(started).getTime() || Date.now()
+    const tick = setInterval(() => setElapsedMs(Date.now() - startTime), 1000)
     return () => clearInterval(tick)
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    const poll = async () => {
-      while (!cancelled) {
-        try {
-          const job = await fetchFlashJob(jobId)
-          if (cancelled) return
-          if (job.status !== 'running') {
-            onComplete(job)
-            return
-          }
-        } catch {
-          // Soft-ignore one-off poll failures; next interval may recover.
-        }
-        await new Promise((r) => setTimeout(r, 1500))
-      }
-    }
-    poll()
-    return () => {
-      cancelled = true
-    }
-  }, [jobId, onComplete])
+  }, [started])
 
   return (
     <section className="running-view">
       <h2>Flashing…</h2>
       <p className="running-meta">
-        <code>{clientName}</code> · <code>{portName}</code> · {firmwareFilename}
+        <code>{client}</code> · <code>{port}</code> · {firmwareName}
       </p>
       <div className="progress-bar" aria-label="flashing in progress">
         <div className="progress-bar-inner" />
