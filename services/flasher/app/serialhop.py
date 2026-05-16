@@ -111,8 +111,8 @@ class SerialHopClient:
     async def get_ports_detailed(self) -> dict:
         return await self._request("GET", "/serial/ports/detailed")
 
-    async def disconnect_devices(self) -> dict:
-        return await self._request("POST", "/devices/disconnect")
+    async def disconnect_port(self, port: str) -> dict:
+        return await self._request("POST", f"/devices/disconnect/{port}")
 
     async def flash(
         self,

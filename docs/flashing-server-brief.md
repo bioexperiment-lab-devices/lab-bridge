@@ -31,21 +31,22 @@ Bootloader entry is triggered automatically by the service via a DTR pulse on th
 
 ## Endpoints
 
-### `POST /devices/disconnect`
+### `POST /devices/disconnect/{port}`
 
-Close every serial handle the service currently holds and empty its in-memory device registry. The service's prior knowledge of which port hosts which device is lost; the caller will need to re-run `POST /discover` (see `python-client-brief.md`) to repopulate it.
+Close the serial handle (if any) that the service currently holds on `{port}` and remove that port's entry from the in-memory device registry. Other ports — and their discovered-device bindings — are left untouched. The caller will need to re-run `POST /discover` (see `python-client-brief.md`) to re-bind a device on this port.
 
-This is the precondition for a flash: a flash refuses (`409`) while any device is registered.
+This is the precondition for a flash: a flash refuses (`409 registry not empty`) while a device is still registered against the target port.
 
+- **Path parameter:** `{port}` is the OS port name as returned by `GET /serial/ports/detailed` (e.g. `COM3`). Non-Windows hosts that use `/`-containing names must URL-encode (`%2Fdev%2Fcu.usbmodemXYZ`).
 - **Request body:** none.
 - **Query parameters:** none.
 - **Gating:** always available; not gated by `flashing.enabled`.
 - **Response (200):**
   ```json
-  { "released": 3 }
+  { "released": 1 }
   ```
-  `released` is the number of devices that were in the registry before the call. `0` on an empty registry.
-- **Errors:** none under normal operation. Idempotent; safe to call repeatedly.
+  `released` is `1` if the named port was registered (and is now released), or `0` if the port was not in the registry. Idempotent; safe to call repeatedly.
+- **Errors:** none under normal operation. An unknown port name still returns `200 {"released": 0}`.
 
 ### `GET /serial/ports/detailed`
 
@@ -132,7 +133,7 @@ Flash an Intel-HEX firmware image onto the AVR connected to `{port}`. Each call 
   | 400 | `invalid request body` | Body unparseable, firmware empty, firmware > 32 256 B, firmware not valid Intel HEX, `test_command` / `expected_response` asymmetric, hex parse fails, numeric param out of range |
   | 403 | `flashing disabled` | Server configured with `flashing.enabled: false` |
   | 404 | `port not found` | `{port}` is not in the current OS-level port list |
-  | 409 | `registry not empty` | The service still holds at least one discovered device. Caller must `POST /devices/disconnect` first. |
+  | 409 | `registry not empty` | The service still holds a discovered device on `{port}`. Caller must `POST /devices/disconnect/{port}` first. |
   | 409 | `discovery in progress` | A `POST /discover` is in flight. |
   | 409 | `flash in flight` | Another `POST /flash/{port}` is already running (single-flight mutex). |
   | 500 | `list ports failed` | OS-level port enumeration failed during preflight. |
@@ -222,7 +223,7 @@ The disk-resident backups are only visible to processes on the lab machine. Inli
 ## Concurrency
 
 - One `POST /flash/{port}` at a time per service instance. A second concurrent call returns `409 flash in flight` immediately (before any port I/O).
-- `POST /devices/disconnect` and `GET /serial/ports/detailed` can run any time and do not block each other.
+- `POST /devices/disconnect/{port}` and `GET /serial/ports/detailed` can run any time and do not block each other.
 - A `POST /discover` racing with `POST /flash/{port}` is detected at preflight: if discovery is in flight when flash starts, flash returns `409 discovery in progress`; if flash is in flight when discovery starts, discovery silently skips the locked port (its standard behavior for any busy port).
 
 ## Timing budget

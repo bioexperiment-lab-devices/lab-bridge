@@ -11,7 +11,7 @@ from app.serialhop import SerialHopError, UpstreamErrorResponse, UpstreamUnreach
 
 
 class _SerialHopLike(Protocol):
-    async def disconnect_devices(self) -> dict: ...
+    async def disconnect_port(self, port: str) -> dict: ...
     async def flash(self, **kwargs: Any) -> dict: ...
 
 
@@ -35,7 +35,7 @@ async def run_flash_job(
     """
     started = time.monotonic()
     try:
-        await client.disconnect_devices()
+        await client.disconnect_port(port)
         kwargs: dict[str, Any] = {"port": port, "firmware": firmware}
         if test_command is not None and expected_response is not None:
             kwargs["test_command"] = test_command

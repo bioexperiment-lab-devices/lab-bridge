@@ -15,11 +15,11 @@ class _StubClient:
 
     def __init__(self, flash_response: dict | Exception) -> None:
         self._flash_response = flash_response
-        self.disconnect_calls = 0
+        self.disconnect_calls: list[str] = []
         self.flash_calls: list[dict] = []
 
-    async def disconnect_devices(self) -> dict:
-        self.disconnect_calls += 1
+    async def disconnect_port(self, port: str) -> dict:
+        self.disconnect_calls.append(port)
         return {"released": 0}
 
     async def flash(self, **kwargs: Any) -> dict:
@@ -92,7 +92,7 @@ async def test_run_flash_job_writes_done_and_saves_backup(ctx) -> None:
     assert row["status"] == "done"
     assert row["outcome"] == "success"
     assert row["backup_id"] is not None
-    assert stub.disconnect_calls == 1
+    assert stub.disconnect_calls == ["COM3"]
     assert (ctx["blobs_root"] / "backups" / f"{row['backup_id']}.hex").exists()
 
 

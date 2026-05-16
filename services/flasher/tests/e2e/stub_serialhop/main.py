@@ -128,8 +128,8 @@ def get_ports() -> dict:
     return DEFAULT_PORTS
 
 
-@app.post("/devices/disconnect")
-def disconnect() -> dict:
+@app.post("/devices/disconnect/{port}")
+def disconnect(port: str) -> dict:
     return {"released": 0}
 
 
