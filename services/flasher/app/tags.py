@@ -43,9 +43,7 @@ async def list_tags(conn: aiosqlite.Connection) -> list[dict[str, Any]]:
         "FROM tags t ORDER BY t.name COLLATE NOCASE ASC"
     )
     rows = await cur.fetchall()
-    return [
-        {"id": r[0], "name": r[1], "created_at": r[2], "firmware_count": r[3]} for r in rows
-    ]
+    return [{"id": r[0], "name": r[1], "created_at": r[2], "firmware_count": r[3]} for r in rows]
 
 
 async def rename_tag(conn: aiosqlite.Connection, *, tag_id: str, name: str) -> None:

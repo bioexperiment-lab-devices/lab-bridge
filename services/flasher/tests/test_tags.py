@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 import pytest
@@ -53,7 +52,7 @@ async def test_rename_tag(db) -> None:
 
 @pytest.mark.asyncio
 async def test_rename_duplicate_name_raises(db) -> None:
-    a = await create_tag(db, name="pump")
+    await create_tag(db, name="pump")
     b = await create_tag(db, name="motor")
     with pytest.raises(DuplicateTagName):
         await rename_tag(db, tag_id=b["id"], name="pump")
