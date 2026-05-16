@@ -210,6 +210,7 @@ jobs:
           grafana_password:      ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           agent_upload_token:    ${{ secrets.AGENT_UPLOAD_TOKEN }}
           flasher_upload_token:  ${{ secrets.FLASHER_UPLOAD_TOKEN }}
+          verify_flasher_version: ${{ steps.ref.outputs.version }}
 
   release-platform:
     name: release-platform
@@ -229,7 +230,9 @@ jobs:
           else
             tag="${{ needs.release-please.outputs.platform_tag }}"
           fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          version="${tag#platform-v}"
+          echo "tag=$tag"         >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v4
         with:
@@ -246,3 +249,4 @@ jobs:
           grafana_password:      ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           agent_upload_token:    ${{ secrets.AGENT_UPLOAD_TOKEN }}
           flasher_upload_token:  ${{ secrets.FLASHER_UPLOAD_TOKEN }}
+          verify_platform_version: ${{ steps.ref.outputs.version }}

@@ -14,6 +14,14 @@ inputs:
     description: "When set, assert server-info.version == this value after deploy. Omit for platform/flasher releases."
     required: false
     default: ""
+  verify_flasher_version:
+    description: "When set, assert the running lab-bridge-flasher-1 container's image tag matches this value."
+    required: false
+    default: ""
+  verify_platform_version:
+    description: "When set, assert /srv/lab-bridge/VERSION (the rsynced platform marker) matches this value."
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -60,7 +68,7 @@ runs:
         LDS_SSH_OPTS: '-o StrictHostKeyChecking=accept-new'
       run: bash scripts/deploy.sh
 
-    - name: verify deployed version
+    - name: verify deployed siteapp version
       if: inputs.verify_siteapp_version != ''
       shell: bash
       env:
@@ -78,4 +86,48 @@ runs:
         done
         echo "::error::server-info did not report expected version $EXPECTED_VERSION after 60s"
         echo "last body: $body"
+        exit 1
+
+    - name: verify deployed flasher version
+      if: inputs.verify_flasher_version != ''
+      shell: bash
+      env:
+        VPS_HOST: ${{ inputs.vps_host }}
+        VPS_SSH_USER: ${{ inputs.vps_ssh_user }}
+        EXPECTED_VERSION: ${{ inputs.verify_flasher_version }}
+      run: |
+        set -euo pipefail
+        image=""
+        for i in $(seq 1 30); do
+          image="$(ssh -o StrictHostKeyChecking=accept-new "$VPS_SSH_USER@$VPS_HOST" \
+            "docker inspect --format '{{.Config.Image}}' lab-bridge-flasher-1" 2>/dev/null || true)"
+          if [[ "$image" == *":$EXPECTED_VERSION" ]]; then
+            echo "verified: flasher container running $image"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "::error::flasher container did not reach image tag :$EXPECTED_VERSION after 60s (last seen: '$image')"
+        exit 1
+
+    - name: verify deployed platform version
+      if: inputs.verify_platform_version != ''
+      shell: bash
+      env:
+        VPS_HOST: ${{ inputs.vps_host }}
+        VPS_SSH_USER: ${{ inputs.vps_ssh_user }}
+        EXPECTED_VERSION: ${{ inputs.verify_platform_version }}
+      run: |
+        set -euo pipefail
+        version=""
+        for i in $(seq 1 30); do
+          version="$(ssh -o StrictHostKeyChecking=accept-new "$VPS_SSH_USER@$VPS_HOST" \
+            "cat /srv/lab-bridge/VERSION 2>/dev/null" || true)"
+          if [[ "$version" == "$EXPECTED_VERSION" ]]; then
+            echo "verified: platform stack at version $EXPECTED_VERSION"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "::error::platform VERSION marker mismatch after 60s (expected: $EXPECTED_VERSION, got: '$version')"
         exit 1
