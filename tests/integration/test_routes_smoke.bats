@@ -105,9 +105,11 @@ _through_caddy() {
     [[ "$code" != "502" && "$code" != "503" ]] || { echo "got: $code"; false; }
 }
 
-# Helper: dump full response headers through Caddy. Used to distinguish
-# Caddy's basic_auth challenge (WWW-Authenticate: Basic) from the flasher
-# app's bearer-token 401 (no such header).
+# Helper: dump full response headers through Caddy. Caddy v2's basic_auth
+# directive does NOT emit WWW-Authenticate by design (to avoid browser
+# auto-popups), so we discriminate via Content-Type: only the flasher app's
+# JSONResponse-based 401 sets `Content-Type: application/json`; Caddy's
+# basic_auth 401 returns an empty body with no JSON content-type.
 _caddy_headers() {
     docker exec lds-fake-vps bash -c "
         cd /srv/lab-bridge && docker compose exec -T caddy sh -c '
@@ -116,16 +118,17 @@ _caddy_headers() {
     " || true
 }
 
-@test "/flash/api/v1/firmware reaches flasher without basic_auth" {
+@test "/flash/api/v1/firmware reaches flasher (JSON 401 — Caddy bypassed)" {
     # Bearer-auth endpoint: Caddy passes through; flasher returns 401 with
-    # JSON {error: 'bearer required'} — no WWW-Authenticate: Basic header.
+    # application/json content-type. If Caddy intercepted with basic_auth,
+    # the response would lack a JSON content-type.
     headers="$(_caddy_headers 'https://127.0.0.1/flash/api/v1/firmware?sha256=deadbeef')"
-    [[ "$headers" != *"WWW-Authenticate: Basic"* ]] || { echo "$headers"; false; }
+    [[ "$headers" == *"Content-Type: application/json"* ]] || { echo "$headers"; false; }
 }
 
-@test "/flash/ is still gated by basic_auth (WWW-Authenticate header)" {
-    # Operator UI: Caddy emits basic_auth challenge before the request ever
-    # reaches flasher.
+@test "/flash/ is still gated by basic_auth (Caddy 401, no JSON body)" {
+    # Operator UI: Caddy returns 401 with an empty body before the request
+    # reaches flasher. A reverse of the JSON content-type assertion above.
     headers="$(_caddy_headers 'https://127.0.0.1/flash/')"
-    [[ "$headers" == *"WWW-Authenticate: Basic"* ]] || { echo "$headers"; false; }
+    [[ "$headers" != *"Content-Type: application/json"* ]] || { echo "$headers"; false; }
 }
