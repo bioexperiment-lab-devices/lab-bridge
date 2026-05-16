@@ -5,11 +5,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from fastapi.testclient import TestClient
 
 pytestmark = pytest.mark.skip(reason="rewritten in Phase 6")
-
-import pytest
-from fastapi.testclient import TestClient
 
 from app import routes
 from app.serialhop import UpstreamErrorResponse, UpstreamUnreachable

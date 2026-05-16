@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator
@@ -23,13 +24,11 @@ async def connect(db_path: Path) -> AsyncIterator[aiosqlite.Connection]:
         await conn.execute("PRAGMA synchronous=NORMAL")
         await conn.execute("PRAGMA foreign_keys=ON")
         await conn.execute("PRAGMA busy_timeout=5000")
-        await conn.commit()
+        # PRAGMAs are non-transactional; no commit needed.
         yield conn
     finally:
         await conn.close()
 
-
-import re
 
 _MIGRATION_RE = re.compile(r"^(\d+)_.+\.sql$")
 
@@ -44,9 +43,14 @@ async def migrate(db_path: Path, *, migrations_dir: Path = MIGRATIONS_DIR) -> in
 
     Idempotent: re-runs are no-ops once every file is applied. A failing
     migration leaves the schema_version unchanged and rolls back its DDL.
+
+    Migration files MUST NOT contain semicolons except as statement
+    terminators — no semicolons inside SQL comments, string literals, or
+    trigger bodies. The runner splits on `;` and a stray semicolon will
+    produce a misleading parse error.
     """
     files: list[tuple[int, Path]] = []
-    for p in sorted(migrations_dir.glob("*.sql")):
+    for p in migrations_dir.glob("*.sql"):
         m = _MIGRATION_RE.match(p.name)
         if not m:
             continue
@@ -81,13 +85,9 @@ async def migrate(db_path: Path, *, migrations_dir: Path = MIGRATIONS_DIR) -> in
                 await conn.execute("BEGIN")
                 for stmt in statements:
                     await conn.execute(stmt)
-                if version == files[0][0] and not has_table:
-                    # Migration 1 just created schema_version + inserted a seed row;
-                    # overwrite that seed to the migration's version.
-                    await conn.execute("UPDATE schema_version SET version = ?", (version,))
+                await conn.execute("UPDATE schema_version SET version = ?", (version,))
+                if not has_table:
                     has_table = True
-                else:
-                    await conn.execute("UPDATE schema_version SET version = ?", (version,))
                 await conn.commit()
                 current = version
             except Exception:

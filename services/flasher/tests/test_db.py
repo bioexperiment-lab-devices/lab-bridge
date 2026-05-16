@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import aiosqlite
 import pytest
 
 from app.db import connect, migrate, MIGRATIONS_DIR

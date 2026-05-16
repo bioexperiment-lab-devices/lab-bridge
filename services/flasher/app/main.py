@@ -3,7 +3,6 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-import aiosqlite
 from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException
 from fastapi.responses import FileResponse, JSONResponse

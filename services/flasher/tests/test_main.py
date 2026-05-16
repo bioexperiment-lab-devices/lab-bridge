@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import asyncio
+import sqlite3
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+
+from app.db import migrate
 
 
 @pytest.fixture
@@ -25,18 +29,12 @@ def test_app_boot_creates_database_file(app, tmp_path: Path) -> None:
     assert (tmp_path / "flasher.db").exists()
 
 
-import sqlite3
-
-
 def test_app_boot_sweeps_running_flashes_to_interrupted(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("FLASHER_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("FLASHER_CLIENTS_FILE", str(tmp_path / "clients.json"))
     (tmp_path / "clients.json").write_text("{}", encoding="utf-8")
 
     # Build a DB with one "running" flash row, simulating a server crash.
-    import asyncio
-    from app.db import migrate
-
     db_path = tmp_path / "flasher.db"
     asyncio.run(migrate(db_path))
     with sqlite3.connect(db_path) as conn:
