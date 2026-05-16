@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { getFirmware, listFirmwareFlashes, listTags, patchFirmware } from "../api";
 import { FirmwareRecord, FlashRowSummary, Tag } from "../types";
 import { StatsCard } from "./StatsCard";
-import { TagChip } from "./TagChip";
 
 interface Props {
   firmwareId: string;
