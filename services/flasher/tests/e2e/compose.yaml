@@ -21,8 +21,11 @@ services:
       FLASHER_CLIENTS_FILE: /etc/flasher/clients.json
       # Point flasher's SerialHop client at the stub instead of `chisel`.
       FLASHER_CHISEL_HOST: stub-serialhop
+      FLASHER_DATA_DIR: /var/lib/flasher
+      FLASHER_UPLOAD_TOKEN: e2e-token
     volumes:
       - ./fixtures/clients.json:/etc/flasher/clients.json:ro
+      - flasher_data:/var/lib/flasher
     depends_on:
       stub-serialhop:
         condition: service_healthy
@@ -31,3 +34,6 @@ services:
       interval: 1s
       timeout: 2s
       retries: 30
+
+volumes:
+  flasher_data:

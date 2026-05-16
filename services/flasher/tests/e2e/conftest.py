@@ -62,6 +62,11 @@ def flasher_url() -> str:
 
 
 @pytest.fixture(scope="session")
+def bearer_headers() -> dict:
+    return {"Authorization": "Bearer e2e-token"}
+
+
+@pytest.fixture(scope="session")
 def http(flasher_url: str) -> httpx.Client:
     with httpx.Client(base_url=flasher_url, timeout=10.0) as client:
         yield client
