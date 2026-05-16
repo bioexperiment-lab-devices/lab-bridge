@@ -473,3 +473,29 @@ details pre {
   color: var(--accent-fg);
   border-color: var(--accent);
 }
+
+/* ── Tab shell ─────────────────────────────────────────────────── */
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  background: var(--surface);
+}
+
+.tab-bar-button {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--muted-fg);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab-bar-button:hover { color: var(--fg); }
+.tab-bar-button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.tab-pane { padding: 1.5rem; }

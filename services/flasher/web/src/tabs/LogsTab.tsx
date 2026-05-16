@@ -1,0 +1,3 @@
+export function LogsTab() {
+  return <div className="tab-pane"><h2>Logs</h2><p>(coming in Phase 8)</p></div>;
+}
