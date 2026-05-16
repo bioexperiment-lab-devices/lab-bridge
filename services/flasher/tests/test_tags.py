@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import importlib
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
 from app.db import connect, migrate
 from app.tags import (
@@ -117,3 +119,51 @@ async def test_set_firmware_tags_unknown_id_raises(db) -> None:
     await db.commit()
     with pytest.raises(TagNotFound):
         await set_firmware_tags(db, firmware_id="f1", tag_ids=["no-such-tag"])
+
+
+@pytest.fixture
+def http_app(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv("FLASHER_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("FLASHER_CLIENTS_FILE", str(tmp_path / "clients.json"))
+    monkeypatch.setenv("FLASHER_UPLOAD_TOKEN", "test-token")
+    (tmp_path / "clients.json").write_text("{}", encoding="utf-8")
+    import app.main as m
+
+    importlib.reload(m)
+    with TestClient(m.app) as c:
+        yield c
+
+
+def test_post_tag_then_list(http_app: TestClient) -> None:
+    r = http_app.post("/flash/api/tags", json={"name": "pump"})
+    assert r.status_code == 200
+    assert r.json()["name"] == "pump"
+    r = http_app.get("/flash/api/tags")
+    assert [t["name"] for t in r.json()["items"]] == ["pump"]
+
+
+def test_post_duplicate_name_400(http_app: TestClient) -> None:
+    http_app.post("/flash/api/tags", json={"name": "pump"})
+    r = http_app.post("/flash/api/tags", json={"name": "pump"})
+    assert r.status_code == 400
+    assert r.json()["error"] == "name in use"
+
+
+def test_patch_rename(http_app: TestClient) -> None:
+    tid = http_app.post("/flash/api/tags", json={"name": "pump"}).json()["id"]
+    r = http_app.patch(f"/flash/api/tags/{tid}", json={"name": "pumps"})
+    assert r.status_code == 200
+    assert r.json()["name"] == "pumps"
+
+
+def test_delete_tag(http_app: TestClient) -> None:
+    tid = http_app.post("/flash/api/tags", json={"name": "pump"}).json()["id"]
+    r = http_app.delete(f"/flash/api/tags/{tid}")
+    assert r.status_code == 200
+    r = http_app.get("/flash/api/tags")
+    assert r.json()["items"] == []
+
+
+def test_delete_unknown_404(http_app: TestClient) -> None:
+    r = http_app.delete("/flash/api/tags/no-such-id")
+    assert r.status_code == 404

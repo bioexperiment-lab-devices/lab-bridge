@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Callable
+from typing import AsyncIterator
 
 import aiosqlite
 from fastapi import APIRouter
@@ -10,9 +10,7 @@ from app.config import Settings
 from app.db import connect
 
 from app.routes import firmware as firmware_routes
-
-
-ConnFactory = Callable[[], "asynccontextmanager[aiosqlite.Connection]"]
+from app.routes import tags as tags_routes
 
 
 def make_router(settings: Settings) -> APIRouter:
@@ -26,4 +24,5 @@ def make_router(settings: Settings) -> APIRouter:
 
     router = APIRouter()
     router.include_router(firmware_routes.make_router(settings, conn_factory, blobs_root))
+    router.include_router(tags_routes.make_router(settings, conn_factory))
     return router
