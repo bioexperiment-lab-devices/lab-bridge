@@ -28,7 +28,9 @@ setup_file() {
     printf 'testpw' > "$LDS_GRAFANA_PASSWORD_FILE"
     export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
     printf 'smoke-tok' > "$LDS_AGENT_TOKEN_FILE"
-    chmod 600 "$LDS_GRAFANA_PASSWORD_FILE" "$LDS_AGENT_TOKEN_FILE"
+    export LDS_FLASHER_UPLOAD_TOKEN_FILE="$TMPDIR/flasher_upload_token"
+    printf 'flasher-smoke-tok' > "$LDS_FLASHER_UPLOAD_TOKEN_FILE"
+    chmod 600 "$LDS_GRAFANA_PASSWORD_FILE" "$LDS_AGENT_TOKEN_FILE" "$LDS_FLASHER_UPLOAD_TOKEN_FILE"
     bash "$ROOT/scripts/provision.sh"
     load_siteapp_test_image
     load_flasher_test_image
@@ -101,4 +103,32 @@ _through_caddy() {
     # Just verify the fall-through path reaches a backend, not a Caddy error.
     code="$(_through_caddy 'https://127.0.0.1/some/random/path')"
     [[ "$code" != "502" && "$code" != "503" ]] || { echo "got: $code"; false; }
+}
+
+# Helper: curl through Caddy with a Bearer Authorization header. With a valid
+# flasher bearer token the bearer endpoint succeeds past auth and the response
+# code reflects the app's own validation (e.g., 404 for an unknown sha256).
+# A Caddy basic_auth intercept would still return 401 regardless of the
+# bearer header. Token matches what setup_file() wrote to LDS_FLASHER_UPLOAD_TOKEN_FILE.
+_through_caddy_with_bearer() {
+    docker exec lds-fake-vps bash -c "
+        cd /srv/lab-bridge && docker compose exec -T caddy sh -c '
+            wget --no-check-certificate --header \"Authorization: Bearer flasher-smoke-tok\" -q -O /dev/null -S \"$1\" 2>&1 | awk \"/HTTP/ {print \\\$2}\" | head -n1
+        '
+    "
+}
+
+@test "/flash/api/v1/firmware reaches flasher (404 with bearer — Caddy bypassed)" {
+    # With the runtime bearer token the request passes auth in flasher and
+    # we get 404 (no firmware with sha256=deadbeef). If Caddy intercepted
+    # with basic_auth, the response would be 401 regardless of bearer.
+    code="$(_through_caddy_with_bearer 'https://127.0.0.1/flash/api/v1/firmware?sha256=deadbeef')"
+    [[ "$code" == "404" ]] || { echo "got: $code"; false; }
+}
+
+@test "/flash/ is still gated by basic_auth (401 even with bearer)" {
+    # Bearer header is meaningless to Caddy's basic_auth challenge — the
+    # request never reaches flasher.
+    code="$(_through_caddy_with_bearer 'https://127.0.0.1/flash/')"
+    [[ "$code" == "401" ]] || { echo "got: $code"; false; }
 }

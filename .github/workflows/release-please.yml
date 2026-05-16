@@ -123,6 +123,7 @@ jobs:
           admin_password_hash:   ${{ secrets.ADMIN_PASSWORD_HASH }}
           grafana_password:      ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           agent_upload_token:    ${{ secrets.AGENT_UPLOAD_TOKEN }}
+          flasher_upload_token:  ${{ secrets.FLASHER_UPLOAD_TOKEN }}
           verify_siteapp_version: ${{ steps.ref.outputs.version }}
 
   release-build-flasher:
@@ -199,6 +200,7 @@ jobs:
           admin_password_hash:   ${{ secrets.ADMIN_PASSWORD_HASH }}
           grafana_password:      ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           agent_upload_token:    ${{ secrets.AGENT_UPLOAD_TOKEN }}
+          flasher_upload_token:  ${{ secrets.FLASHER_UPLOAD_TOKEN }}
 
   release-platform:
     name: release-platform
@@ -232,3 +234,4 @@ jobs:
           admin_password_hash:   ${{ secrets.ADMIN_PASSWORD_HASH }}
           grafana_password:      ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           agent_upload_token:    ${{ secrets.AGENT_UPLOAD_TOKEN }}
+          flasher_upload_token:  ${{ secrets.FLASHER_UPLOAD_TOKEN }}

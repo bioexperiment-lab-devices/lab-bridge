@@ -10,6 +10,8 @@ Behavior is controlled via env vars set on the compose service:
 
 from __future__ import annotations
 
+import hashlib
+import itertools
 import json
 import os
 from typing import Any
@@ -17,6 +19,12 @@ from typing import Any
 from fastapi import FastAPI
 
 app = FastAPI()
+
+# Per-call counter so each /flash call returns a unique backup. In real
+# operation the backup bytes come from the device's existing firmware and
+# vary between flashes; the stub mimics that to keep sha256 dedup tests
+# meaningful (e.g., bulk-delete of two distinct backups).
+_flash_counter = itertools.count(1)
 
 
 DEFAULT_PORTS = {
@@ -36,6 +44,9 @@ DEFAULT_PORTS = {
 
 
 def _flash_response(port: str, outcome: str) -> dict[str, Any]:
+    seq = next(_flash_counter)
+    backup_hex = f":00000001FF{seq:08X}\n"
+    backup_sha = hashlib.sha256(backup_hex.encode()).hexdigest()
     base: dict[str, Any] = {
         "outcome": outcome,
         "port": port,
@@ -49,10 +60,10 @@ def _flash_response(port: str, outcome: str) -> dict[str, Any]:
             "rollback": {"status": "n/a"},
         },
         "backup": {
-            "hex": ":00000001FF\n",
-            "saved_path": "/tmp/stub.hex",
-            "sha256": "0" * 64,
-            "size_bytes": 12,
+            "hex": backup_hex,
+            "saved_path": f"/tmp/stub-{seq}.hex",
+            "sha256": backup_sha,
+            "size_bytes": len(backup_hex.encode()),
             "scope": "flash_only",
         },
     }

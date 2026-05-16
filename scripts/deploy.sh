@@ -62,6 +62,13 @@ main() {
     mkdir -p "$stage/siteapp"
     install -m 644 "$tokfile" "$stage/siteapp/agent_upload_token"
 
+    # Flasher upload token — required at deploy time. Same pattern as the agent
+    # upload token above: bind-mounted Docker secret, mode 0644 on the staged copy.
+    local flashertokfile="${LDS_FLASHER_UPLOAD_TOKEN_FILE:-$REPO_ROOT/compose/flasher/upload_token}"
+    [[ -f "$flashertokfile" ]] || die "flasher upload token not found at $flashertokfile — run: task secrets:rotate-flasher-upload-token"
+    mkdir -p "$stage/flasher"
+    install -m 644 "$flashertokfile" "$stage/flasher/upload_token"
+
     # Public docs — tracked in git at repo root, copied into the staged
     # tree so the existing rsync ships them to ~/lab-bridge/siteapp/docs/
     # on the VPS, where compose mounts them read-only at /srv/docs.
@@ -86,6 +93,7 @@ main() {
         --exclude='loki_data/'
         --exclude='grafana_data/'
         --exclude='site_data/'
+        --exclude='flasher_data/'
     )
     if [[ "${LDS_STACK_ONLY:-}" == "1" ]]; then
         rsync_excludes+=(--exclude='chisel/users.json' --exclude='siteapp/clients.json')

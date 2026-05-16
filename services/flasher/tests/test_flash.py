@@ -1,278 +1,204 @@
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any
+
 import pytest
 
-from app.flash import JobStore, run_flash_job
-from app.serialhop import UpstreamErrorResponse, UpstreamUnreachable
+from app.db import connect, migrate
+from app.flash import run_flash_job
+from app.flashes import create_running_flash, get_flash
 
 
-def test_job_store_starts_empty() -> None:
-    store = JobStore(capacity=3)
-    assert store.current() is None
+class _StubClient:
+    """In-memory stand-in for SerialHopClient."""
 
-
-def test_create_returns_unique_ids() -> None:
-    store = JobStore(capacity=3)
-    a = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    b = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    assert a != b
-
-
-def test_current_returns_most_recent_running() -> None:
-    store = JobStore(capacity=3)
-    store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    latest = store.create(client="x", port="COM4", firmware_sha256="bb", firmware_size=10)
-    current = store.current()
-    assert current is not None
-    assert current["job_id"] == latest
-    assert current["status"] == "running"
-
-
-def test_current_returns_none_when_only_done_jobs() -> None:
-    store = JobStore(capacity=3)
-    a = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    store.complete(a, result={"outcome": "success"})
-    assert store.current() is None
-
-
-def test_current_returns_none_when_only_error_jobs() -> None:
-    store = JobStore(capacity=3)
-    a = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    store.fail(a, error_code="upstream unreachable", detail="boom")
-    # Refreshing the SPA must not re-mount the result view from a stale
-    # error job — that traps the operator.
-    assert store.current() is None
-
-
-def test_current_returns_running_even_when_a_newer_job_is_done() -> None:
-    # Edge: the most-recently-inserted job already terminated, but an older
-    # one is still running. current() should still surface the running one.
-    # In practice this can't happen (single-flight in production), but the
-    # invariant is "current returns *a* running job if any exist".
-    store = JobStore(capacity=3)
-    older = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    newer = store.create(client="x", port="COM4", firmware_sha256="bb", firmware_size=10)
-    store.complete(newer, result={"outcome": "success"})
-    current = store.current()
-    assert current is not None
-    assert current["job_id"] == older
-    assert current["status"] == "running"
-
-
-def test_complete_marks_done_with_result() -> None:
-    store = JobStore(capacity=3)
-    job_id = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    store.complete(job_id, result={"outcome": "success"})
-    record = store.get(job_id)
-    assert record is not None
-    assert record["status"] == "done"
-    assert record["result"] == {"outcome": "success"}
-
-
-def test_fail_marks_error_with_code_and_detail() -> None:
-    store = JobStore(capacity=3)
-    job_id = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    store.fail(job_id, error_code="upstream unreachable", detail="connection refused")
-    record = store.get(job_id)
-    assert record is not None
-    assert record["status"] == "error"
-    assert record["error_code"] == "upstream unreachable"
-    assert record["detail"] == "connection refused"
-
-
-def test_capacity_prunes_oldest_first() -> None:
-    store = JobStore(capacity=2)
-    a = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    b = store.create(client="x", port="COM4", firmware_sha256="bb", firmware_size=10)
-    c = store.create(client="x", port="COM5", firmware_sha256="cc", firmware_size=10)
-    assert store.get(a) is None
-    assert store.get(b) is not None
-    assert store.get(c) is not None
-
-
-def test_get_unknown_returns_none() -> None:
-    store = JobStore(capacity=3)
-    assert store.get("nope") is None
-
-
-class _FakeClient:
-    def __init__(self, *, disconnect_result=None, flash_result=None, raise_on_flash=None) -> None:
-        self.disconnect_result = disconnect_result or {"released": 0}
-        self.flash_result = flash_result
-        self.raise_on_flash = raise_on_flash
-        self.calls: list[tuple[str, dict]] = []
+    def __init__(self, flash_response: dict | Exception) -> None:
+        self._flash_response = flash_response
+        self.disconnect_calls = 0
+        self.flash_calls: list[dict] = []
 
     async def disconnect_devices(self) -> dict:
-        self.calls.append(("disconnect", {}))
-        return self.disconnect_result
+        self.disconnect_calls += 1
+        return {"released": 0}
 
-    async def flash(self, **kwargs) -> dict:
-        self.calls.append(("flash", kwargs))
-        if self.raise_on_flash is not None:
-            raise self.raise_on_flash
-        assert self.flash_result is not None
-        return self.flash_result
+    async def flash(self, **kwargs: Any) -> dict:
+        self.flash_calls.append(kwargs)
+        if isinstance(self._flash_response, Exception):
+            raise self._flash_response
+        return self._flash_response
 
 
-@pytest.mark.asyncio
-async def test_run_flash_job_success() -> None:
-    store = JobStore(capacity=3)
-    job_id = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    fake = _FakeClient(flash_result={"outcome": "success", "port": "COM3", "stages": {}})
+@pytest.fixture
+async def ctx(tmp_path: Path):
+    db_path = tmp_path / "flasher.db"
+    blobs_root = tmp_path / "blobs"
+    (blobs_root / "backups").mkdir(parents=True)
+    (blobs_root / "firmware").mkdir(parents=True)
+    await migrate(db_path)
 
-    await run_flash_job(
-        store=store,
-        job_id=job_id,
-        client=fake,
-        port="COM3",
-        firmware=":00000001FF\n",
-        test_command=None,
-        expected_response=None,
-    )
+    from contextlib import asynccontextmanager
 
-    record = store.get(job_id)
-    assert record is not None
-    assert record["status"] == "done"
-    assert record["result"]["outcome"] == "success"
-    assert [c[0] for c in fake.calls] == ["disconnect", "flash"]
+    @asynccontextmanager
+    async def conn_factory():
+        async with connect(db_path) as conn:
+            yield conn
+
+    yield {"db_path": db_path, "blobs_root": blobs_root, "conn_factory": conn_factory}
 
 
 @pytest.mark.asyncio
-async def test_run_flash_job_passes_test_pair_when_provided() -> None:
-    store = JobStore(capacity=3)
-    job_id = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    fake = _FakeClient(flash_result={"outcome": "success", "port": "COM3", "stages": {}})
-
-    await run_flash_job(
-        store=store,
-        job_id=job_id,
-        client=fake,
-        port="COM3",
-        firmware=":00000001FF\n",
-        test_command="010203",
-        expected_response="aabbcc",
-    )
-
-    flash_kwargs = next(c for c in fake.calls if c[0] == "flash")[1]
-    assert flash_kwargs["test_command"] == "010203"
-    assert flash_kwargs["expected_response"] == "aabbcc"
-
-
-@pytest.mark.asyncio
-async def test_run_flash_job_forwards_skip_backup() -> None:
-    store = JobStore(capacity=3)
-    job_id = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    fake = _FakeClient(flash_result={"outcome": "success", "port": "COM3", "stages": {}})
-
-    await run_flash_job(
-        store=store,
-        job_id=job_id,
-        client=fake,
-        port="COM3",
-        firmware=":00000001FF\n",
-        test_command=None,
-        expected_response=None,
-        skip_backup=True,
-    )
-
-    flash_kwargs = next(c for c in fake.calls if c[0] == "flash")[1]
-    assert flash_kwargs.get("skip_backup") is True
-
-
-@pytest.mark.asyncio
-async def test_run_flash_job_omits_skip_backup_by_default() -> None:
-    store = JobStore(capacity=3)
-    job_id = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    fake = _FakeClient(flash_result={"outcome": "success", "port": "COM3", "stages": {}})
-
-    await run_flash_job(
-        store=store,
-        job_id=job_id,
-        client=fake,
-        port="COM3",
-        firmware=":00000001FF\n",
-        test_command=None,
-        expected_response=None,
-    )
-
-    flash_kwargs = next(c for c in fake.calls if c[0] == "flash")[1]
-    assert "skip_backup" not in flash_kwargs
-
-
-@pytest.mark.asyncio
-async def test_run_flash_job_marks_error_on_upstream_unreachable() -> None:
-    store = JobStore(capacity=3)
-    job_id = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    fake = _FakeClient(raise_on_flash=UpstreamUnreachable(detail="connection refused"))
-
-    await run_flash_job(
-        store=store,
-        job_id=job_id,
-        client=fake,
-        port="COM3",
-        firmware=":00000001FF\n",
-        test_command=None,
-        expected_response=None,
-    )
-
-    record = store.get(job_id)
-    assert record is not None
-    assert record["status"] == "error"
-    assert record["error_code"] == "upstream unreachable"
-    assert "connection refused" in record["detail"]
-
-
-@pytest.mark.asyncio
-async def test_run_flash_job_marks_error_on_unexpected_exception() -> None:
-    """Safety net: any uncaught exception must terminate the job.
-
-    Without this, a bug in the SerialHop wrapper or an asyncio cancellation
-    leaves the job in `running` forever and the SPA polls indefinitely on
-    every page load.
-    """
-    store = JobStore(capacity=3)
-    job_id = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    fake = _FakeClient(raise_on_flash=AttributeError("nope"))
-
-    await run_flash_job(
-        store=store,
-        job_id=job_id,
-        client=fake,
-        port="COM3",
-        firmware=":00000001FF\n",
-        test_command=None,
-        expected_response=None,
-    )
-
-    record = store.get(job_id)
-    assert record is not None
-    assert record["status"] == "error"
-    assert record["error_code"] == "internal error"
-    assert "nope" in record["detail"]
-
-
-@pytest.mark.asyncio
-async def test_run_flash_job_propagates_serialhop_error_envelope() -> None:
-    store = JobStore(capacity=3)
-    job_id = store.create(client="x", port="COM3", firmware_sha256="aa", firmware_size=10)
-    fake = _FakeClient(
-        raise_on_flash=UpstreamErrorResponse(
-            status_code=409, error_code="flash in flight", detail="busy"
+async def test_run_flash_job_writes_done_and_saves_backup(ctx) -> None:
+    async with connect(ctx["db_path"]) as conn:
+        fid = await create_running_flash(
+            conn,
+            client="c",
+            port_name="COM3",
+            port_snapshot={"vid": "2341", "pid": "0043", "serial_number": "", "product": "u"},
+            source_kind="firmware",
+            source_id="fw-1",
+            firmware_sha256="abc",
+            firmware_name="x",
+            test_command_used=None,
+            expected_response_used=None,
+            skip_backup=False,
         )
-    )
-
+    response = {
+        "outcome": "success",
+        "port": "COM3",
+        "stages": {"preflight": {"status": "ok"}},
+        "backup": {
+            "hex": ":00000001FF\n",
+            "sha256": "bbb",
+            "size_bytes": 12,
+            "saved_path": "/x",
+            "scope": "flash_only",
+        },
+    }
+    stub = _StubClient(response)
     await run_flash_job(
-        store=store,
-        job_id=job_id,
-        client=fake,
+        conn_factory=ctx["conn_factory"],
+        blobs_root=ctx["blobs_root"],
+        flash_id=fid,
+        client=stub,
         port="COM3",
         firmware=":00000001FF\n",
         test_command=None,
         expected_response=None,
+        skip_backup=False,
     )
+    async with connect(ctx["db_path"]) as conn:
+        row = await get_flash(conn, flash_id=fid)
+    assert row["status"] == "done"
+    assert row["outcome"] == "success"
+    assert row["backup_id"] is not None
+    assert stub.disconnect_calls == 1
+    assert (ctx["blobs_root"] / "backups" / f"{row['backup_id']}.hex").exists()
 
-    record = store.get(job_id)
-    assert record is not None
-    assert record["status"] == "error"
-    assert record["error_code"] == "flash in flight"
-    assert record["detail"] == "busy"
+
+@pytest.mark.asyncio
+async def test_run_flash_job_dedup_reuses_existing_backup(ctx) -> None:
+    # First flash writes the backup row.
+    async with connect(ctx["db_path"]) as conn:
+        a = await create_running_flash(
+            conn,
+            client="c",
+            port_name="COM3",
+            port_snapshot={},
+            source_kind="firmware",
+            source_id="fw-1",
+            firmware_sha256="abc",
+            firmware_name="x",
+            test_command_used=None,
+            expected_response_used=None,
+            skip_backup=False,
+        )
+        b = await create_running_flash(
+            conn,
+            client="c",
+            port_name="COM3",
+            port_snapshot={},
+            source_kind="firmware",
+            source_id="fw-1",
+            firmware_sha256="abc",
+            firmware_name="x",
+            test_command_used=None,
+            expected_response_used=None,
+            skip_backup=False,
+        )
+    resp = {
+        "outcome": "success",
+        "stages": {},
+        "backup": {
+            "hex": ":00000001FF\n",
+            "sha256": "same",
+            "size_bytes": 12,
+            "saved_path": "/x",
+            "scope": "flash_only",
+        },
+    }
+    await run_flash_job(
+        conn_factory=ctx["conn_factory"],
+        blobs_root=ctx["blobs_root"],
+        flash_id=a,
+        client=_StubClient(resp),
+        port="COM3",
+        firmware="hex",
+        test_command=None,
+        expected_response=None,
+        skip_backup=False,
+    )
+    await run_flash_job(
+        conn_factory=ctx["conn_factory"],
+        blobs_root=ctx["blobs_root"],
+        flash_id=b,
+        client=_StubClient(resp),
+        port="COM3",
+        firmware="hex",
+        test_command=None,
+        expected_response=None,
+        skip_backup=False,
+    )
+    async with connect(ctx["db_path"]) as conn:
+        ra = await get_flash(conn, flash_id=a)
+        rb = await get_flash(conn, flash_id=b)
+    assert ra["backup_id"] == rb["backup_id"]
+    # Only one backup row was created.
+    blobs = list((ctx["blobs_root"] / "backups").iterdir())
+    assert len(blobs) == 1
+
+
+@pytest.mark.asyncio
+async def test_run_flash_job_upstream_unreachable(ctx) -> None:
+    from app.serialhop import UpstreamUnreachable
+
+    async with connect(ctx["db_path"]) as conn:
+        fid = await create_running_flash(
+            conn,
+            client="c",
+            port_name="COM3",
+            port_snapshot={},
+            source_kind="firmware",
+            source_id="fw-1",
+            firmware_sha256="abc",
+            firmware_name="x",
+            test_command_used=None,
+            expected_response_used=None,
+            skip_backup=False,
+        )
+    stub = _StubClient(UpstreamUnreachable(detail="connection refused"))
+    await run_flash_job(
+        conn_factory=ctx["conn_factory"],
+        blobs_root=ctx["blobs_root"],
+        flash_id=fid,
+        client=stub,
+        port="COM3",
+        firmware="hex",
+        test_command=None,
+        expected_response=None,
+        skip_backup=False,
+    )
+    async with connect(ctx["db_path"]) as conn:
+        row = await get_flash(conn, flash_id=fid)
+    assert row["status"] == "error"
+    assert row["error_code"] == "upstream unreachable"

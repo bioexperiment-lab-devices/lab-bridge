@@ -1,15 +1,12 @@
 import { asciiPreview, formatHexBytes, hexByteCount, isValidHex, normalizeHex } from '../hex'
 
-export interface TestPair {
-  command: string
-  expected_response: string
-}
-
 interface Props {
-  enabled: boolean
-  pair: TestPair
-  onToggle: (enabled: boolean) => void
-  onChange: (pair: TestPair) => void
+  command: string
+  expectedResponse: string
+  onCommandChange: (v: string) => void
+  onExpectedChange: (v: string) => void
+  runTest: boolean
+  onRunTestChange: (v: boolean) => void
 }
 
 function HexInput({
@@ -48,7 +45,7 @@ function HexInput({
   )
 }
 
-export function TestPairEditor({ enabled, pair, onToggle, onChange }: Props) {
+export function TestPairEditor({ command, expectedResponse, onCommandChange, onExpectedChange, runTest, onRunTestChange }: Props) {
   return (
     <section className="step">
       <header>
@@ -56,27 +53,27 @@ export function TestPairEditor({ enabled, pair, onToggle, onChange }: Props) {
         <label className="switch">
           <input
             type="checkbox"
-            checked={enabled}
-            onChange={(e) => onToggle(e.target.checked)}
+            checked={runTest}
+            onChange={(e) => onRunTestChange(e.target.checked)}
           />
-          {enabled ? 'On' : 'Off'}
+          {runTest ? 'On' : 'Off'}
         </label>
       </header>
-      {enabled && (
+      {runTest && (
         <div className="hex-pair">
           <HexInput
             label="test_command"
-            value={pair.command}
-            onChange={(v) => onChange({ ...pair, command: v })}
+            value={command}
+            onChange={onCommandChange}
           />
           <HexInput
             label="expected_response"
-            value={pair.expected_response}
-            onChange={(v) => onChange({ ...pair, expected_response: v })}
+            value={expectedResponse}
+            onChange={onExpectedChange}
           />
         </div>
       )}
-      {!enabled && (
+      {!runTest && (
         <p className="muted-text">
           The flash will succeed on byte-verify alone. No payload will be sent
           to the device after programming.

@@ -88,8 +88,13 @@ services:
     environment:
       FLASHER_CLIENTS_FILE: /etc/flasher/clients.json
       FLASHER_CHISEL_HOST: chisel
+      FLASHER_DATA_DIR: /var/lib/flasher
+      FLASHER_UPLOAD_TOKEN__FILE: /run/secrets/flasher_upload_token
     volumes:
       - ./siteapp/clients.json:/etc/flasher/clients.json:ro
+      - ./flasher_data:/var/lib/flasher
+    secrets:
+      - flasher_upload_token
     networks: [labnet]
 
 networks:
@@ -101,3 +106,5 @@ secrets:
     file: ./grafana/admin_password
   agent_upload_token:
     file: ./siteapp/agent_upload_token
+  flasher_upload_token:
+    file: ./flasher/upload_token

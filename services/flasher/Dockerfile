@@ -30,7 +30,8 @@ COPY app ./app
 COPY --from=web-builder /web/dist ./app/static
 
 RUN useradd --uid 10001 --create-home flasher && \
-    chown -R flasher:flasher /app
+    mkdir -p /var/lib/flasher && \
+    chown -R flasher:flasher /app /var/lib/flasher
 USER flasher
 
 ENV PYTHONPATH=/app

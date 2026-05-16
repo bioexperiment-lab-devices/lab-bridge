@@ -30,9 +30,11 @@ https://__VPS_HOST__ {
         reverse_proxy siteapp:8000
     }
 
-    # Flasher service — operator firmware-flashing UI. Caddy basic_auth
-    # is the single trust boundary; the flasher itself trusts whoever
-    # Caddy let through.
+    # Flasher bearer-auth automation. Caddy passes through; flasher verifies the token.
+    handle /flash/api/v1/* {
+        reverse_proxy flasher:8000
+    }
+    # Flasher operator UI + operator API. Caddy enforces basic_auth.
     handle /flash* {
         basic_auth {
             admin __ADMIN_BCRYPT_HASH__

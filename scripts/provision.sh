@@ -85,6 +85,7 @@ sudo mkdir -p \
     "$REMOTE_ROOT/loki_data" \
     "$REMOTE_ROOT/grafana_data" \
     "$REMOTE_ROOT/site_data" \
+    "$REMOTE_ROOT/flasher_data" \
     "$NOTEBOOKS_PATH"
 sudo chown -R "$USER:$USER" "$REMOTE_ROOT"
 sudo chown -R 1000:100 "$NOTEBOOKS_PATH"
@@ -96,6 +97,10 @@ sudo chown -R 472:472   "$REMOTE_ROOT/grafana_data"
 # siteapp also uses uid 10001 (matching the Dockerfile's `siteapp` user).
 # Distinct directory from loki_data so the two services don't share state.
 sudo chown -R 10001:10001 "$REMOTE_ROOT/site_data"
+# flasher uses uid 10001 (matching the Dockerfile's `flasher` user). The
+# bind mount at /var/lib/flasher needs to be writable by that user before
+# the container's first SQLite open.
+sudo chown -R 10001:10001 "$REMOTE_ROOT/flasher_data"
 log "ok"
 REMOTE
 

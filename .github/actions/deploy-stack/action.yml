@@ -9,6 +9,7 @@ inputs:
   admin_password_hash:   { required: true }
   grafana_password:      { required: true }
   agent_upload_token:    { required: true }
+  flasher_upload_token:  { required: true }
   verify_siteapp_version:
     description: "When set, assert server-info.version == this value after deploy. Omit for platform/flasher releases."
     required: false
@@ -35,16 +36,18 @@ runs:
       env:
         ADMIN_PASSWORD_HASH: ${{ inputs.admin_password_hash }}
         AGENT_UPLOAD_TOKEN: ${{ inputs.agent_upload_token }}
+        FLASHER_UPLOAD_TOKEN: ${{ inputs.flasher_upload_token }}
         GRAFANA_PASSWORD: ${{ inputs.grafana_password }}
         JUPYTER_PASSWORD_HASH: ${{ inputs.jupyter_password_hash }}
         VPS_HOST: ${{ inputs.vps_host }}
         VPS_SSH_USER: ${{ inputs.vps_ssh_user }}
       run: |
-        mkdir -p compose/grafana compose/siteapp
+        mkdir -p compose/grafana compose/siteapp compose/flasher
         envsubst < compose/config.ci.yaml.tmpl > config.ci.rendered.yaml
         printf '%s' "$GRAFANA_PASSWORD" > compose/grafana/admin_password
         printf '%s' "$AGENT_UPLOAD_TOKEN" > compose/siteapp/agent_upload_token
-        chmod 0600 compose/grafana/admin_password compose/siteapp/agent_upload_token
+        printf '%s' "$FLASHER_UPLOAD_TOKEN" > compose/flasher/upload_token
+        chmod 0600 compose/grafana/admin_password compose/siteapp/agent_upload_token compose/flasher/upload_token
 
     - name: deploy to VPS (stack-only)
       shell: bash

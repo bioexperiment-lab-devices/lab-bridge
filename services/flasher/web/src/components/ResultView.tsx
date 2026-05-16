@@ -1,94 +1,42 @@
-import { useState } from 'react'
-import { HexDiff } from './HexDiff'
-import { StageStrip } from './StageStrip'
-import type { FlashDone, FlashErrored, Outcome } from '../types'
+import { useState } from "react";
+import { FlashRowDetail } from "../types";
 
-type Props = {
-  job: FlashDone | FlashErrored
-  onRetry: () => void
-  onFlashAnother: () => void
-  onDone: () => void
+interface Props {
+  row: FlashRowDetail;
 }
 
-function outcomeBadge(outcome: Outcome | 'error'): { label: string; color: 'green' | 'amber' | 'red' } {
-  if (outcome === 'success') return { label: 'success', color: 'green' }
-  if (outcome === 'failed_no_recovery') return { label: outcome, color: 'red' }
-  if (outcome === 'error') return { label: 'error', color: 'red' }
-  return { label: outcome, color: 'amber' }
+function outcomeColor(outcome: string | null): "green" | "amber" | "red" {
+  if (outcome === "success") return "green";
+  if (outcome === "failed_no_recovery" || outcome === "error") return "red";
+  return "amber";
 }
 
-export function ResultView({ job, onRetry, onFlashAnother, onDone }: Props) {
-  const [rawOpen, setRawOpen] = useState(false)
+export function ResultView({ row }: Props) {
+  const [rawOpen, setRawOpen] = useState(false);
 
-  if (job.status === 'error') {
-    const badge = outcomeBadge('error')
-    return (
-      <section className="result-view">
-        <div className={`badge badge-${badge.color}`}>{badge.label}</div>
-        <h2>{job.error_code}</h2>
-        <p>{job.detail}</p>
-        <details open={rawOpen} onToggle={(e) => setRawOpen((e.target as HTMLDetailsElement).open)}>
-          <summary>Raw JSON</summary>
-          <pre>{JSON.stringify(job, null, 2)}</pre>
-        </details>
-        <div className="actions">
-          <button type="button" className="primary" onClick={onRetry}>
-            Back to form (retry)
-          </button>
-          <button type="button" onClick={onDone}>Done</button>
-        </div>
-      </section>
-    )
-  }
+  const color = outcomeColor(row.outcome ?? row.status);
+  const label = row.outcome ?? row.status;
 
-  const result = job.result
-  const badge = outcomeBadge(result.outcome)
-  const isSuccess = result.outcome === 'success'
   return (
     <section className="result-view">
-      <div className={`badge badge-${badge.color}`}>{result.outcome}</div>
-      {result.recovery_hint && (
-        <p className="recovery-hint">⚠ {result.recovery_hint}</p>
-      )}
-      <StageStrip stages={result.stages} />
-
-      {result.test_result && (
-        <HexDiff
-          expected={result.test_result.expected}
-          received={result.test_result.received}
-        />
-      )}
-
-      {result.backup && (
-        <dl className="backup-meta">
-          <dt>Backup saved to</dt>
-          <dd><code>{result.backup.saved_path}</code></dd>
-          <dt>SHA-256</dt>
-          <dd><code>{result.backup.sha256.slice(0, 32)}…</code></dd>
-          <dt>Size</dt>
-          <dd>{result.backup.size_bytes.toLocaleString()} bytes (Intel HEX text)</dd>
-          <dt>Scope</dt>
-          <dd>{result.backup.scope} (EEPROM not captured)</dd>
-        </dl>
-      )}
-
-      <details open={rawOpen} onToggle={(e) => setRawOpen((e.target as HTMLDetailsElement).open)}>
-        <summary>Raw JSON</summary>
-        <pre>{JSON.stringify(result, null, 2)}</pre>
-      </details>
-
-      <div className="actions">
-        {isSuccess ? (
-          <button type="button" className="primary" onClick={onFlashAnother}>
-            Flash another
-          </button>
-        ) : (
-          <button type="button" className="primary" onClick={onRetry}>
-            Back to form (retry)
-          </button>
-        )}
-        <button type="button" onClick={onDone}>Done</button>
-      </div>
+      <div className={`badge badge-${color}`}>{label}</div>
+      {row.error_code ? <h2>{row.error_code}</h2> : null}
+      {row.error_detail ? <p>{row.error_detail}</p> : null}
+      <dl className="flash-meta">
+        <dt>Client</dt><dd>{row.client}</dd>
+        <dt>Port</dt><dd>{row.port_name}</dd>
+        <dt>Firmware</dt><dd>{row.firmware_name}</dd>
+        <dt>Started</dt><dd>{row.started_at}</dd>
+        {row.finished_at ? <><dt>Finished</dt><dd>{row.finished_at}</dd></> : null}
+        {row.duration_ms != null ? <><dt>Duration</dt><dd>{row.duration_ms} ms</dd></> : null}
+        {row.backup_id ? <><dt>Backup ID</dt><dd>{row.backup_id}</dd></> : null}
+      </dl>
+      {row.result ? (
+        <details open={rawOpen} onToggle={(e) => setRawOpen((e.target as HTMLDetailsElement).open)}>
+          <summary>Raw result JSON</summary>
+          <pre>{JSON.stringify(row.result, null, 2)}</pre>
+        </details>
+      ) : null}
     </section>
-  )
+  );
 }

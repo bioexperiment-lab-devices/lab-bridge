@@ -1,45 +1,46 @@
 from conftest import wait_for_terminal
 
 
-VALID_FIRMWARE_HEX = ":100000000C9461000C947E000C947E000C947E0099\n:00000001FF\n"
-
-
 def test_flash_happy_path_returns_success_outcome(http) -> None:
-    """POST /flash/api/flash returns a job_id; polling /api/flash/<id>
-    eventually returns a record whose result.outcome is 'success'.
-
-    Note: JobStore._snapshot() uses 'status' (not 'state') with terminal
-    values 'done' and 'error'.
+    """POST /flash/api/flash with a firmware source returns a job_id; polling
+    /api/flash/<id> eventually reports status='done' with result.outcome=success.
     """
+    fid = http.post(
+        "/flash/api/firmware",
+        json={"name": "happy", "firmware": ":00000001FF\n"},
+    ).json()["id"]
+
     r = http.post(
         "/flash/api/flash",
         json={
             "client": "alice_machine",
             "port": "COM3",
-            "firmware": VALID_FIRMWARE_HEX,
-            "test": {"command": "010203", "expected_response": "aabbcc"},
+            "source": {"kind": "firmware", "id": fid},
         },
     )
-    assert r.status_code == 200
+    assert r.status_code == 200, r.text
     job_id = r.json()["job_id"]
-    assert job_id
 
     body = wait_for_terminal(http, job_id)
     assert body["status"] == "done", body
     assert body["result"]["outcome"] == "success"
 
-
-def test_flash_rejects_empty_firmware(http) -> None:
-    r = http.post(
-        "/flash/api/flash",
-        json={"client": "alice_machine", "port": "COM3", "firmware": ""},
-    )
-    assert r.status_code == 400
+    http.delete(f"/flash/api/firmware/{fid}")
 
 
 def test_flash_rejects_unknown_client(http) -> None:
+    fid = http.post(
+        "/flash/api/firmware",
+        json={"name": "reject", "firmware": ":00000001FF\n"},
+    ).json()["id"]
     r = http.post(
         "/flash/api/flash",
-        json={"client": "nobody", "port": "COM3", "firmware": VALID_FIRMWARE_HEX},
+        json={
+            "client": "nobody",
+            "port": "COM3",
+            "source": {"kind": "firmware", "id": fid},
+        },
     )
     assert r.status_code == 400
+    assert r.json()["error"] == "unknown client"
+    http.delete(f"/flash/api/firmware/{fid}")

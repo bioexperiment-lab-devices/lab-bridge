@@ -1,113 +1,103 @@
-export interface ClientSummary {
-  name: string
-  port: number
+export interface ClientEntry {
+  name: string;
+  port: number;
+  online: boolean;
 }
 
-export interface ClientsResponse {
-  clients: ClientSummary[]
+export interface PortRow {
+  name: string;
+  is_usb: boolean;
+  vid: string;
+  pid: string;
+  serial_number: string;
+  product: string;
+  discovered: boolean;
+  device_id: string;
 }
 
-export interface PortInfo {
-  name: string
-  is_usb: boolean
-  vid: string
-  pid: string
-  serial_number: string
-  product: string
-  discovered: boolean
-  device_id: string
+export interface Tag { id: string; name: string; created_at: string; firmware_count?: number; }
+
+export interface FlashStats {
+  total: number;
+  successes: number;
+  rollbacks: number;
+  failures: number;
+  last_flashed_at: string | null;
+  last_flashed_client: string | null;
+  last_flashed_port: string | null;
 }
 
-export interface PortsResponse {
-  ports: PortInfo[]
+export interface FirmwareRecord {
+  id: string;
+  name: string;
+  description: string;
+  sha256: string;
+  size_bytes: number;
+  original_filename: string | null;
+  test_command: string | null;
+  expected_response: string | null;
+  source_backup_id: string | null;
+  created_at: string;
+  tags: Tag[];
+  stats: FlashStats;
 }
 
-export type StageStatus = 'ok' | 'failed' | 'skipped' | 'n/a'
-
-export interface StageEntry {
-  status: StageStatus
-  duration_ms?: number
-  error?: string
-  first_mismatch_offset?: string
-  verify_status?: 'ok' | 'failed'
+export interface BackupRecord {
+  id: string;
+  name: string;
+  description: string;
+  sha256: string;
+  size_bytes: number;
+  client: string;
+  port_name: string;
+  vid: string | null;
+  pid: string | null;
+  serial_number: string | null;
+  product: string | null;
+  serialhop_saved_path: string | null;
+  test_command: string | null;
+  expected_response: string | null;
+  source_flash_id: string;
+  captured_at: string;
+  stats: FlashStats;
 }
 
-export type Outcome =
-  | 'success'
-  | 'rolled_back_verify_failed'
-  | 'rolled_back_test_failed'
-  | 'failed_preflight'
-  | 'failed_backup'
-  | 'failed_no_recovery'
+export type FlashStatus = "running" | "done" | "error" | "interrupted";
 
-export interface FlashStages {
-  preflight: StageEntry
-  backup: StageEntry
-  erase: StageEntry
-  program: StageEntry
-  verify: StageEntry
-  test: StageEntry
-  rollback: StageEntry
+export interface FlashRowSummary {
+  id: string;
+  status: FlashStatus;
+  outcome: string | null;
+  client: string;
+  port_name: string;
+  source_kind: "firmware" | "backup";
+  source_id: string;
+  firmware_name: string;
+  firmware_sha256: string;
+  started_at: string;
+  duration_ms: number | null;
+  operator_note: string;
 }
 
-export interface BackupInfo {
-  hex: string
-  saved_path: string
-  sha256: string
-  size_bytes: number
-  scope: 'flash_only'
+export interface FlashRowDetail extends FlashRowSummary {
+  port_snapshot: Record<string, string>;
+  test_command_used: string | null;
+  expected_response_used: string | null;
+  skip_backup: boolean;
+  finished_at: string | null;
+  result: any | null;
+  error_code: string | null;
+  error_detail: string | null;
+  backup_id: string | null;
 }
 
-export interface TestResult {
-  sent: string
-  expected: string
-  received: string
-  match: boolean
+export interface FlashFilters {
+  client?: string[];
+  outcome?: string[];
+  source_kind?: "firmware" | "backup";
+  source_id?: string;
+  since?: string;
+  until?: string;
 }
 
-export interface FlashResult {
-  outcome: Outcome
-  port: string
-  stages: FlashStages
-  backup?: BackupInfo
-  test_result?: TestResult
-  recovery_hint?: string
-}
-
-export interface FlashRunning {
-  job_id: string
-  status: 'running'
-  client: string
-  port: string
-  started_at: string
-  elapsed_ms: number
-}
-
-export interface FlashDone {
-  job_id: string
-  status: 'done'
-  client: string
-  port: string
-  started_at: string
-  result: FlashResult
-}
-
-export interface FlashErrored {
-  job_id: string
-  status: 'error'
-  client: string
-  port: string
-  started_at: string
-  error_code: string
-  detail: string
-}
-
-export type FlashJob = FlashRunning | FlashDone | FlashErrored
-
-export interface FlashRequestBody {
-  client: string
-  port: string
-  firmware: string
-  test: { command: string; expected_response: string } | null
-  skip_backup?: boolean
-}
+export type TabId = "flash" | "firmware" | "backups" | "logs";

@@ -44,6 +44,9 @@ tasks:
   "secrets:rotate-agent-upload-token":
     desc: Generate a new CI agent upload token (deploy to apply; old token stops working)
     cmd: bash scripts/secrets.sh rotate-agent-upload-token
+  "secrets:rotate-flasher-upload-token":
+    desc: Generate a new bearer token for the flasher upload API; mirrors to GH repo secret
+    cmd: bash scripts/secrets.sh rotate-flasher-upload-token
   "secrets:add-client":
     desc: Add a chisel client (lab device); generates a random password
     cmd: bash scripts/secrets.sh add-client {{.CLI_ARGS}}

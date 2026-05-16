@@ -1,17 +1,13 @@
 from __future__ import annotations
 
+import json
 import time
-import uuid
-from collections import OrderedDict
-from typing import Any, Literal, Protocol
+from pathlib import Path
+from typing import Any, Protocol
 
-from app.serialhop import (
-    SerialHopError,
-    UpstreamErrorResponse,
-    UpstreamUnreachable,
-)
-
-JobStatus = Literal["running", "done", "error"]
+from app.backups import capture_or_reuse_backup
+from app.flashes import set_terminal_done, set_terminal_error
+from app.serialhop import SerialHopError, UpstreamErrorResponse, UpstreamUnreachable
 
 
 class _SerialHopLike(Protocol):
@@ -19,95 +15,11 @@ class _SerialHopLike(Protocol):
     async def flash(self, **kwargs: Any) -> dict: ...
 
 
-class JobStore:
-    """Bounded in-memory job registry.
-
-    Keeps the N most recent jobs; older entries are pruned on insert.
-    Insertion order is preserved so .current() returns the most recent.
-    """
-
-    def __init__(self, capacity: int = 10) -> None:
-        self._capacity = capacity
-        self._jobs: OrderedDict[str, dict[str, Any]] = OrderedDict()
-
-    def create(
-        self,
-        *,
-        client: str,
-        port: str,
-        firmware_sha256: str,
-        firmware_size: int,
-    ) -> str:
-        job_id = uuid.uuid4().hex
-        self._jobs[job_id] = {
-            "job_id": job_id,
-            "status": "running",
-            "client": client,
-            "port": port,
-            "firmware_sha256": firmware_sha256,
-            "firmware_size": firmware_size,
-            "started_at_monotonic": time.monotonic(),
-            "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        }
-        while len(self._jobs) > self._capacity:
-            self._jobs.popitem(last=False)
-        return job_id
-
-    def get(self, job_id: str) -> dict[str, Any] | None:
-        record = self._jobs.get(job_id)
-        if record is None:
-            return None
-        return self._snapshot(record)
-
-    def current(self) -> dict[str, Any] | None:
-        """Return the most recent *running* job, or None.
-
-        Done and error jobs are session-only UI state — the SPA renders them
-        from in-memory React state for the duration of the tab. Returning a
-        terminated job here would re-mount the result view on every refresh,
-        trapping the operator on a screen they can't dismiss until 10 new
-        jobs roll out via the LRU.
-        """
-        if not self._jobs:
-            return None
-        for job_id in reversed(self._jobs):
-            record = self._jobs[job_id]
-            if record["status"] == "running":
-                return self._snapshot(record)
-        return None
-
-    def complete(self, job_id: str, *, result: dict) -> None:
-        self._jobs[job_id]["status"] = "done"
-        self._jobs[job_id]["result"] = result
-
-    def fail(self, job_id: str, *, error_code: str, detail: str) -> None:
-        self._jobs[job_id]["status"] = "error"
-        self._jobs[job_id]["error_code"] = error_code
-        self._jobs[job_id]["detail"] = detail
-
-    def _snapshot(self, record: dict[str, Any]) -> dict[str, Any]:
-        out = {
-            "job_id": record["job_id"],
-            "status": record["status"],
-            "client": record["client"],
-            "port": record["port"],
-            "started_at": record["started_at"],
-        }
-        if record["status"] == "running":
-            elapsed = time.monotonic() - record["started_at_monotonic"]
-            out["elapsed_ms"] = int(elapsed * 1000)
-        if record["status"] == "done":
-            out["result"] = record["result"]
-        if record["status"] == "error":
-            out["error_code"] = record["error_code"]
-            out["detail"] = record["detail"]
-        return out
-
-
 async def run_flash_job(
     *,
-    store: JobStore,
-    job_id: str,
+    conn_factory,
+    blobs_root: Path,
+    flash_id: str,
     client: _SerialHopLike,
     port: str,
     firmware: str,
@@ -115,11 +27,13 @@ async def run_flash_job(
     expected_response: str | None,
     skip_backup: bool = False,
 ) -> None:
-    """Run the disconnect -> flash sequence and write the outcome into the store.
+    """Run the disconnect -> flash sequence and write the outcome into the DB.
 
-    Never raises. Any exception is converted to a job-level error record so
-    the polling endpoint can surface it.
+    Never raises. Any exception is mapped onto the flash row's `status='error'`.
+    A successful flash that returns a `backup` sub-object auto-saves it (sha256
+    deduplicated) and links `backup_id` on the flash row.
     """
+    started = time.monotonic()
     try:
         await client.disconnect_devices()
         kwargs: dict[str, Any] = {"port": port, "firmware": firmware}
@@ -129,22 +43,77 @@ async def run_flash_job(
         if skip_backup:
             kwargs["skip_backup"] = True
         result = await client.flash(**kwargs)
-        store.complete(job_id, result=result)
+        duration_ms = int((time.monotonic() - started) * 1000)
+        backup_id: str | None = None
+        backup = result.get("backup") if isinstance(result, dict) else None
+        async with conn_factory() as conn:
+            if isinstance(backup, dict) and backup.get("hex") and backup.get("sha256"):
+                # Look up the originating flash row so we can echo its client/port/snapshot
+                # into the new backup row as metadata.
+                cur = await conn.execute(
+                    "SELECT client, port_name, port_snapshot_json FROM flashes WHERE id = ?",
+                    (flash_id,),
+                )
+                row = await cur.fetchone()
+                if row is not None:
+                    try:
+                        snapshot = json.loads(row[2] or "{}")
+                    except ValueError:
+                        snapshot = {}
+                    backup_id = await capture_or_reuse_backup(
+                        conn,
+                        blobs_dir=blobs_root / "backups",
+                        client=row[0],
+                        port_name=row[1],
+                        port_snapshot=snapshot,
+                        source_flash_id=flash_id,
+                        backup=backup,
+                    )
+            await set_terminal_done(
+                conn,
+                flash_id=flash_id,
+                outcome=str(result.get("outcome") or "") if isinstance(result, dict) else "",
+                result_json=json.dumps(result),
+                backup_id=backup_id,
+                duration_ms=duration_ms,
+            )
     except UpstreamErrorResponse as exc:
-        store.fail(job_id, error_code=exc.error_code, detail=exc.detail)
+        duration_ms = int((time.monotonic() - started) * 1000)
+        async with conn_factory() as conn:
+            await set_terminal_error(
+                conn,
+                flash_id=flash_id,
+                error_code=exc.error_code,
+                error_detail=exc.detail,
+                duration_ms=duration_ms,
+            )
     except UpstreamUnreachable as exc:
-        store.fail(job_id, error_code="upstream unreachable", detail=exc.detail)
+        duration_ms = int((time.monotonic() - started) * 1000)
+        async with conn_factory() as conn:
+            await set_terminal_error(
+                conn,
+                flash_id=flash_id,
+                error_code="upstream unreachable",
+                error_detail=exc.detail,
+                duration_ms=duration_ms,
+            )
     except SerialHopError as exc:
-        store.fail(job_id, error_code="upstream error", detail=str(exc))
+        duration_ms = int((time.monotonic() - started) * 1000)
+        async with conn_factory() as conn:
+            await set_terminal_error(
+                conn,
+                flash_id=flash_id,
+                error_code="upstream error",
+                error_detail=str(exc),
+                duration_ms=duration_ms,
+            )
     except Exception as exc:
-        # Last-resort safety net so a job never stays "running" forever in
-        # the in-memory store. Without this, an unexpected exception (e.g.
-        # an attribute error in the response parsing path, or asyncio
-        # cancellation) leaves the job in the running state, which makes
-        # the SPA's polling loop spin indefinitely and traps the operator
-        # on the running view across page reloads.
-        store.fail(
-            job_id,
-            error_code="internal error",
-            detail=str(exc) or type(exc).__name__,
-        )
+        duration_ms = int((time.monotonic() - started) * 1000)
+        async with conn_factory() as conn:
+            await set_terminal_error(
+                conn,
+                flash_id=flash_id,
+                error_code="internal error",
+                error_detail=str(exc) or type(exc).__name__,
+                duration_ms=duration_ms,
+            )
