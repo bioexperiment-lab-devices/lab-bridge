@@ -55,6 +55,23 @@ async def test_disconnect_port_sends_port_query() -> None:
 
 
 @pytest.mark.asyncio
+async def test_disconnect_port_url_encodes_unix_port_name() -> None:
+    # Linux/macOS port names contain "/" — the client must hand them to the
+    # SerialHop endpoint as a percent-encoded query value, not as path segments.
+    seen: dict = {}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen["wire_query"] = request.url.query.decode()
+        seen["decoded_port"] = request.url.params["port"]
+        return httpx.Response(200, json={"released": 1})
+
+    client = _make_client(handler)
+    await client.disconnect_port("/dev/cu.usbmodem14201")
+    assert seen["decoded_port"] == "/dev/cu.usbmodem14201"
+    assert "%2F" in seen["wire_query"]
+
+
+@pytest.mark.asyncio
 async def test_flash_sends_serialhop_shaped_body() -> None:
     seen: dict = {}
 

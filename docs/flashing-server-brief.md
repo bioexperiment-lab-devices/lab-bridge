@@ -50,6 +50,13 @@ This is the precondition for a flash: a flash refuses (`409 registry not empty`)
   - `400 invalid request` — `port` query parameter missing or empty.
   - An unknown (but well-formed) port name still returns `200 {"released": 0}`.
 
+Wire examples (Windows and macOS port names):
+
+```
+POST /devices/disconnect?port=COM3
+POST /devices/disconnect?port=%2Fdev%2Fcu.usbmodem14201
+```
+
 ### `GET /serial/ports/detailed`
 
 Return every serial port the OS enumerates, annotated with USB descriptors (vendor / product / serial number) and whether the port currently hosts a discovered device.
