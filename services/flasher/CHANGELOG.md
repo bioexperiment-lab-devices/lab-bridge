@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/flasher-v0.4.0...flasher-v0.5.0) (2026-05-16)
+
+
+### Features
+
+* **flasher:** firmware library, history, tabs, bearer upload ([#25](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/25)) ([a140816](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/a1408163ee45e623bfa03237754786a880a4e965))
+
 ## [0.4.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/flasher-v0.3.1...flasher-v0.4.0) (2026-05-16)
 
 
