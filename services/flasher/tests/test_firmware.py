@@ -4,6 +4,7 @@ import hashlib
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
 from app.db import connect, migrate
 from app.firmware import (
@@ -184,3 +185,167 @@ async def test_download_firmware_bytes(ctx) -> None:
     )
     data = await download_firmware_bytes(ctx["blobs_dir"], firmware_id=row["id"])
     assert data == ":00000001FF\n"
+
+
+@pytest.fixture
+def http_app(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv("FLASHER_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("FLASHER_CLIENTS_FILE", str(tmp_path / "clients.json"))
+    monkeypatch.setenv("FLASHER_UPLOAD_TOKEN", "test-token")
+    (tmp_path / "clients.json").write_text("{}", encoding="utf-8")
+    import importlib
+    import app.main as m
+
+    importlib.reload(m)
+    with TestClient(m.app) as c:
+        yield c
+
+
+def test_post_firmware_creates_record(http_app: TestClient) -> None:
+    r = http_app.post(
+        "/flash/api/firmware",
+        json={
+            "name": "pump v3",
+            "firmware": ":00000001FF\n",
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["name"] == "pump v3"
+    assert body["sha256"]
+    assert body["size_bytes"] > 0
+
+
+def test_post_firmware_rejects_empty_firmware(http_app: TestClient) -> None:
+    r = http_app.post("/flash/api/firmware", json={"name": "x", "firmware": ""})
+    assert r.status_code == 400
+    assert r.json()["error"] == "invalid request"
+
+
+def test_post_firmware_rejects_oversize(http_app: TestClient) -> None:
+    big = "A" * (256 * 1024 + 1)
+    r = http_app.post("/flash/api/firmware", json={"name": "x", "firmware": big})
+    assert r.status_code == 400
+    assert "exceeds" in r.json()["detail"]
+
+
+def test_get_firmware_returns_one(http_app: TestClient) -> None:
+    r = http_app.post("/flash/api/firmware", json={"name": "x", "firmware": ":00000001FF\n"})
+    fid = r.json()["id"]
+    r = http_app.get(f"/flash/api/firmware/{fid}")
+    assert r.status_code == 200
+    assert r.json()["id"] == fid
+
+
+def test_get_firmware_404(http_app: TestClient) -> None:
+    r = http_app.get("/flash/api/firmware/no-such-id")
+    assert r.status_code == 404
+
+
+def test_list_firmware_paginates(http_app: TestClient) -> None:
+    for i in range(3):
+        http_app.post(
+            "/flash/api/firmware", json={"name": f"name-{i}", "firmware": f":000000{i:02d}FF\n"}
+        )
+    r = http_app.get("/flash/api/firmware?limit=2")
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["items"]) == 2
+    assert body["next_before"]
+
+
+def test_patch_firmware_updates_fields(http_app: TestClient) -> None:
+    fid = http_app.post(
+        "/flash/api/firmware", json={"name": "x", "firmware": ":00000001FF\n"}
+    ).json()["id"]
+    r = http_app.patch(f"/flash/api/firmware/{fid}", json={"name": "y", "description": "d"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["name"] == "y"
+    assert body["description"] == "d"
+
+
+def test_delete_firmware_succeeds(http_app: TestClient) -> None:
+    fid = http_app.post(
+        "/flash/api/firmware", json={"name": "x", "firmware": ":00000001FF\n"}
+    ).json()["id"]
+    r = http_app.delete(f"/flash/api/firmware/{fid}")
+    assert r.status_code == 200
+    r = http_app.get(f"/flash/api/firmware/{fid}")
+    assert r.status_code == 404
+
+
+def test_delete_firmware_409_when_running_flash_references(http_app: TestClient, tmp_path) -> None:
+    fid = http_app.post(
+        "/flash/api/firmware", json={"name": "x", "firmware": ":00000001FF\n"}
+    ).json()["id"]
+    import sqlite3
+
+    db = tmp_path / "flasher.db"
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            "INSERT INTO flashes (id, status, client, port_name, port_snapshot_json, "
+            "source_kind, source_id, firmware_sha256, firmware_name, skip_backup, started_at) "
+            "VALUES ('jx', 'running', 'c', 'COM3', '{}', 'firmware', ?, 'sha', 'x', 0, '2026-01-01T00:00:00Z')",
+            (fid,),
+        )
+        conn.commit()
+    r = http_app.delete(f"/flash/api/firmware/{fid}")
+    assert r.status_code == 409
+    assert r.json()["error"] == "cannot delete: flash in flight"
+
+
+def test_download_firmware(http_app: TestClient) -> None:
+    fid = http_app.post(
+        "/flash/api/firmware",
+        json={"name": "x", "firmware": ":00000001FF\n", "original_filename": "x.hex"},
+    ).json()["id"]
+    r = http_app.get(f"/flash/api/firmware/{fid}/download")
+    assert r.status_code == 200
+    assert r.text == ":00000001FF\n"
+    assert "x.hex" in r.headers.get("content-disposition", "")
+
+
+def test_bearer_post_requires_token(http_app: TestClient) -> None:
+    r = http_app.post("/flash/api/v1/firmware", json={"name": "x", "firmware": ":00000001FF\n"})
+    assert r.status_code == 401
+    assert r.json()["error"] == "bearer required"
+
+
+def test_bearer_post_wrong_token(http_app: TestClient) -> None:
+    r = http_app.post(
+        "/flash/api/v1/firmware",
+        json={"name": "x", "firmware": ":00000001FF\n"},
+        headers={"Authorization": "Bearer wrong"},
+    )
+    assert r.status_code == 401
+    assert r.json()["error"] == "bearer invalid"
+
+
+def test_bearer_post_succeeds(http_app: TestClient) -> None:
+    r = http_app.post(
+        "/flash/api/v1/firmware",
+        json={"name": "x", "firmware": ":00000001FF\n"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert r.status_code == 200
+    assert r.json()["name"] == "x"
+
+
+def test_bearer_get_by_sha256(http_app: TestClient) -> None:
+    posted = http_app.post(
+        "/flash/api/v1/firmware",
+        json={"name": "x", "firmware": ":00000001FF\n"},
+        headers={"Authorization": "Bearer test-token"},
+    ).json()
+    r = http_app.get(
+        f"/flash/api/v1/firmware?sha256={posted['sha256']}",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert r.status_code == 200
+    assert r.json()["id"] == posted["id"]
+
+    r = http_app.get(
+        "/flash/api/v1/firmware?sha256=deadbeef", headers={"Authorization": "Bearer test-token"}
+    )
+    assert r.status_code == 404

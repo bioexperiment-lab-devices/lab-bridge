@@ -10,11 +10,13 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import load_settings
 from app.db import connect, migrate
+from app.routes import make_router
 
 STATIC_DIR = Path(__file__).parent / "static"
 
 settings = load_settings()
 app = FastAPI(title="lab-bridge flasher")
+app.include_router(make_router(settings), prefix="/flash")
 
 
 @app.on_event("startup")
