@@ -116,3 +116,35 @@ async def test_migrate_rolls_back_on_bad_sql(tmp_path: Path) -> None:
         assert (await cur.fetchone()) == (1,)
         cur = await conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='c'")
         assert (await cur.fetchone()) is None
+
+
+@pytest.mark.asyncio
+async def test_real_init_migration_creates_all_tables(tmp_path: Path) -> None:
+    db_path = tmp_path / "flasher.db"
+    version = await migrate(db_path)  # uses the package's MIGRATIONS_DIR
+    assert version >= 1
+
+    expected = {"schema_version", "firmware", "backups", "flashes", "tags", "firmware_tags"}
+    async with connect(db_path) as conn:
+        cur = await conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        names = {row[0] async for row in cur}
+    missing = expected - names
+    assert not missing, f"missing tables: {missing}"
+
+
+@pytest.mark.asyncio
+async def test_real_init_migration_indexes(tmp_path: Path) -> None:
+    db_path = tmp_path / "flasher.db"
+    await migrate(db_path)
+    async with connect(db_path) as conn:
+        cur = await conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%'"
+        )
+        names = {row[0] async for row in cur}
+    for needed in [
+        "idx_firmware_name", "idx_firmware_sha256",
+        "idx_backups_captured_at", "idx_backups_client_port",
+        "idx_flashes_started_at", "idx_flashes_source",
+        "idx_flashes_status", "idx_flashes_client", "idx_flashes_outcome",
+    ]:
+        assert needed in names, f"missing index: {needed}"
