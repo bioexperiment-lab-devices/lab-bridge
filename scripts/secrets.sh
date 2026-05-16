@@ -66,7 +66,7 @@ cmd_set_admin_password() {
     require_cmd docker
 
     local pw hash
-    pw="$(prompt_password "Admin panel password (used at /admin/*)")"
+    pw="$(prompt_password "Operator password (used at /flash/*)")"
     # Use the official Caddy image's hash-password subcommand to produce a
     # bcrypt hash. We pipe via stdin to avoid the password ever appearing on
     # the process command line. Caddy reads one newline-terminated line from

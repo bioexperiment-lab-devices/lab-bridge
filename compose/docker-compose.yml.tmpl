@@ -73,9 +73,11 @@ services:
       SITEAPP_AGENT_UPLOAD_TOKEN__FILE: /run/secrets/agent_upload_token
       SITEAPP_CLIENTS_FILE: /etc/siteapp/clients.json
       SITEAPP_CHISEL_LISTEN_PORT: __CHISEL_LISTEN_PORT__
+      SITEAPP_DOCS_DIR: /srv/docs
     volumes:
       - ./site_data:/data
       - ./siteapp/clients.json:/etc/siteapp/clients.json:ro
+      - ./siteapp/docs:/srv/docs:ro
     secrets:
       - agent_upload_token
     networks: [labnet]

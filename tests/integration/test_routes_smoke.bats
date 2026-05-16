@@ -2,7 +2,7 @@
 # Caddy routing smoke test — one fake-VPS bring-up, all curl assertions.
 #
 # Asserts only the *route map* (which public path reaches which backend
-# service) and the *Caddy-edge auth gates* (/admin/ and /flash/ basic_auth).
+# service) and the *Caddy-edge auth gate* (/flash/ basic_auth).
 # Behavior assertions live in services/<name>/tests/e2e/.
 
 load helpers
@@ -80,11 +80,6 @@ _through_caddy() {
 @test "/api/public/server-info routes to siteapp (200)" {
     code="$(_through_caddy 'https://127.0.0.1/api/public/server-info')"
     [[ "$code" == "200" ]] || { echo "got: $code"; false; }
-}
-
-@test "/admin/ is gated by basic_auth (401)" {
-    code="$(_through_caddy 'https://127.0.0.1/admin/')"
-    [[ "$code" == "401" ]] || { echo "got: $code"; false; }
 }
 
 @test "/flash/ is gated by basic_auth (401)" {

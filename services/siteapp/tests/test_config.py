@@ -36,39 +36,8 @@ def test_creates_subdirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setenv("SITE_DATA", str(tmp_path))
     monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
     s = load_settings()
-    assert (s.site_data / "docs").is_dir()
     assert (s.site_data / "agent" / "windows").is_dir()
     assert isinstance(s, Settings)
-
-
-def test_seeds_default_index_when_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SITE_DATA", str(tmp_path))
-    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
-    s = load_settings()
-    index = s.docs_root / "index.md"
-    assert index.is_file()
-    assert "lab-bridge" in index.read_text(encoding="utf-8")
-
-
-def test_does_not_overwrite_existing_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "docs" / "index.md").write_text("# Custom\n", encoding="utf-8")
-    monkeypatch.setenv("SITE_DATA", str(tmp_path))
-    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
-    load_settings()
-    assert (tmp_path / "docs" / "index.md").read_text(encoding="utf-8") == "# Custom\n"
-
-
-def test_seeds_default_icons_when_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Fresh deploy must seed every file under default_docs/, not just index.md.
-    Otherwise the seeded landing page renders with broken <img> references."""
-    monkeypatch.setenv("SITE_DATA", str(tmp_path))
-    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
-    s = load_settings()
-    # The richer default index references icons/*.svg via relative paths.
-    seeded_icon = s.docs_root / "icons" / "jupyter.svg"
-    assert seeded_icon.is_file()
-    assert seeded_icon.read_bytes().startswith(b"<")  # SVG / XML opening
 
 
 def test_clients_file_required(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -110,4 +79,30 @@ def test_chisel_listen_port_non_integer_raises(
     monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "tok")
     monkeypatch.setenv("SITEAPP_CHISEL_LISTEN_PORT", "not-a-number")
     with pytest.raises(ValueError):
+        load_settings()
+
+
+def test_docs_dir_required(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SITE_DATA", str(tmp_path))
+    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "tok")
+    monkeypatch.delenv("SITEAPP_DOCS_DIR", raising=False)
+    with pytest.raises(RuntimeError, match="SITEAPP_DOCS_DIR"):
+        load_settings()
+
+
+def test_docs_dir_stored(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    docs = tmp_path / "srv-docs"
+    docs.mkdir()
+    monkeypatch.setenv("SITE_DATA", str(tmp_path))
+    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "tok")
+    monkeypatch.setenv("SITEAPP_DOCS_DIR", str(docs))
+    settings = load_settings()
+    assert settings.docs_root == docs
+
+
+def test_docs_dir_must_exist(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SITE_DATA", str(tmp_path))
+    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "tok")
+    monkeypatch.setenv("SITEAPP_DOCS_DIR", str(tmp_path / "does-not-exist"))
+    with pytest.raises(RuntimeError, match="SITEAPP_DOCS_DIR"):
         load_settings()

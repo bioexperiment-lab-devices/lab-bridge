@@ -8,8 +8,9 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch) -> TestClient:
-    docs = tmp_path / "docs"
-    docs.mkdir()
+    docs = tmp_path / "docs-root"
+    # _docs_dir_default (conftest autouse) already created docs and set
+    # SITEAPP_DOCS_DIR=tmp_path/docs-root for us; we just populate it.
     (docs / "index.md").write_text("# Home\n\nWelcome\n", encoding="utf-8")
     (docs / "intro.md").write_text("# Intro\n\nhello world\n", encoding="utf-8")
     (docs / "intro.ru.md").write_text("# Введение\n\nпривет\n", encoding="utf-8")
@@ -81,7 +82,7 @@ def test_missing_returns_404(client: TestClient) -> None:
 
 
 def test_orphan_ru_only_returns_404(client: TestClient, tmp_path: Path) -> None:
-    (tmp_path / "docs" / "only.ru.md").write_text("# Только\n", encoding="utf-8")
+    (tmp_path / "docs-root" / "only.ru.md").write_text("# Только\n", encoding="utf-8")
     assert client.get("/docs/only").status_code == 404
 
 
@@ -120,27 +121,3 @@ def test_doc_static_disallowed_extension_is_404(client: TestClient) -> None:
 def test_doc_static_missing_file_is_404(client: TestClient) -> None:
     r = client.get("/docs/icons/nope.svg")
     assert r.status_code == 404
-
-
-def test_default_index_smoke(tmp_path: Path, monkeypatch) -> None:
-    """The shipped default_docs/index.md must render with all four
-    extensions active: alert div, mermaid pre, sanitized <img>, and
-    a working /docs/icons/jupyter.svg URL."""
-    monkeypatch.setenv("SITE_DATA", str(tmp_path))
-    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
-    from importlib import reload
-    import app.main
-
-    reload(app.main)
-    c = TestClient(app.main.app)
-
-    page = c.get("/docs/")
-    assert page.status_code == 200
-    assert '<div class="alert alert-note">' in page.text
-    assert '<pre class="mermaid">' in page.text
-    assert 'src="icons/jupyter.svg"' in page.text
-    assert "/_static/mermaid-init.js" in page.text
-
-    icon = c.get("/docs/icons/jupyter.svg")
-    assert icon.status_code == 200
-    assert icon.headers["content-type"].startswith("image/svg+xml")

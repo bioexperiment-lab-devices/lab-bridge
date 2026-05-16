@@ -33,7 +33,7 @@ tasks:
 
   # --- Secrets ---
   "secrets:set-admin-password":
-    desc: Set or rotate the /admin/* basic-auth password (prompts; deploy to apply)
+    desc: Set or rotate the /flash/* basic-auth password (operator gate; prompts; deploy to apply)
     cmd: bash scripts/secrets.sh set-admin-password
   "secrets:set-jupyter-password":
     desc: Set or rotate the shared JupyterLab password (prompts; deploy to apply)

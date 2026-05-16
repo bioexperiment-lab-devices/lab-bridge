@@ -62,6 +62,12 @@ main() {
     mkdir -p "$stage/siteapp"
     install -m 644 "$tokfile" "$stage/siteapp/agent_upload_token"
 
+    # Public docs — tracked in git at repo root, copied into the staged
+    # tree so the existing rsync ships them to ~/lab-bridge/siteapp/docs/
+    # on the VPS, where compose mounts them read-only at /srv/docs.
+    mkdir -p "$stage/siteapp/docs"
+    cp -R "$REPO_ROOT/public_docs/." "$stage/siteapp/docs/"
+
     # 2. Build SSH/rsync.
     local ssh_base rsync_e target
     ssh_base="ssh -p $VPS_SSH_PORT"
@@ -113,13 +119,12 @@ main() {
     # which 200-on-login does not.
     if [[ "${LDS_SKIP_HEALTHCHECK:-}" != "1" ]]; then
         log "waiting for HTTPS to respond..."
-        local i jupyter_status grafana_status docs_status download_status admin_status flash_status static_status public_status server_info_status
+        local i jupyter_status grafana_status docs_status download_status flash_status static_status public_status server_info_status
         for ((i=0; i<60; i++)); do
             jupyter_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/" || true)"
             grafana_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/grafana/login" || true)"
             docs_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/docs/" || true)"
             download_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/download/agent" || true)"
-            admin_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/admin/" || true)"
             flash_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/flash/" || true)"
             # /_static/site.css must reach siteapp (not the jupyter catchall) or
             # every siteapp page renders unstyled. Probe one known asset.
@@ -134,22 +139,20 @@ main() {
             # siteapp or the router wasn't mounted. Probed alongside /api/public/health
             # so a broken render fails the deploy.
             server_info_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/api/public/server-info" || true)"
-            # /admin/ MUST be 401 without creds. A 200 here is a security regression.
             if [[ "$jupyter_status" =~ ^[23][0-9][0-9]$ ]] \
                 && [[ "$grafana_status" == "200" ]] \
                 && [[ "$docs_status" == "200" ]] \
                 && [[ "$download_status" == "200" ]] \
-                && [[ "$admin_status" == "401" ]] \
                 && [[ "$flash_status" == "401" ]] \
                 && [[ "$static_status" == "200" ]] \
                 && [[ "$public_status" == "200" ]] \
                 && [[ "$server_info_status" == "200" ]]; then
-                log "deployed: jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, admin $admin_status, flash $flash_status, static $static_status, public $public_status, server_info $server_info_status"
+                log "deployed: jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, flash $flash_status, static $static_status, public $public_status, server_info $server_info_status"
                 return 0
             fi
             sleep 1
         done
-        warn "health check timed out (jupyter:$jupyter_status grafana:$grafana_status docs:$docs_status download:$download_status admin:$admin_status flash:$flash_status static:$static_status public:$public_status server_info:$server_info_status). Check: task logs"
+        warn "health check timed out (jupyter:$jupyter_status grafana:$grafana_status docs:$docs_status download:$download_status flash:$flash_status static:$static_status public:$public_status server_info:$server_info_status). Check: task logs"
         return 1
     fi
     log "deployed (healthcheck skipped)"

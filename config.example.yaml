@@ -15,7 +15,7 @@ jupyter:
   password_hash: "<run task secrets:set-jupyter-password>"
 
 siteapp:
-  # bcrypt hash for the admin panel — set via `task secrets:set-admin-password`.
+  # bcrypt hash for the operator-gated /flash/* UI — set via `task secrets:set-admin-password`.
   admin_password_hash: "<run task secrets:set-admin-password>"
 
 # Lab devices that connect inbound via chisel. Manage via `task secrets:add-client`.
