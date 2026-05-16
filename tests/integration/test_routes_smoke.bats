@@ -28,7 +28,9 @@ setup_file() {
     printf 'testpw' > "$LDS_GRAFANA_PASSWORD_FILE"
     export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
     printf 'smoke-tok' > "$LDS_AGENT_TOKEN_FILE"
-    chmod 600 "$LDS_GRAFANA_PASSWORD_FILE" "$LDS_AGENT_TOKEN_FILE"
+    export LDS_FLASHER_UPLOAD_TOKEN_FILE="$TMPDIR/flasher_upload_token"
+    printf 'flasher-smoke-tok' > "$LDS_FLASHER_UPLOAD_TOKEN_FILE"
+    chmod 600 "$LDS_GRAFANA_PASSWORD_FILE" "$LDS_AGENT_TOKEN_FILE" "$LDS_FLASHER_UPLOAD_TOKEN_FILE"
     bash "$ROOT/scripts/provision.sh"
     load_siteapp_test_image
     load_flasher_test_image
@@ -101,4 +103,29 @@ _through_caddy() {
     # Just verify the fall-through path reaches a backend, not a Caddy error.
     code="$(_through_caddy 'https://127.0.0.1/some/random/path')"
     [[ "$code" != "502" && "$code" != "503" ]] || { echo "got: $code"; false; }
+}
+
+# Helper: dump full response headers through Caddy. Used to distinguish
+# Caddy's basic_auth challenge (WWW-Authenticate: Basic) from the flasher
+# app's bearer-token 401 (no such header).
+_caddy_headers() {
+    docker exec lds-fake-vps bash -c "
+        cd /srv/lab-bridge && docker compose exec -T caddy sh -c '
+            wget --no-check-certificate -q -S -O /dev/null \"$1\" 2>&1
+        '
+    " || true
+}
+
+@test "/flash/api/v1/firmware reaches flasher without basic_auth" {
+    # Bearer-auth endpoint: Caddy passes through; flasher returns 401 with
+    # JSON {error: 'bearer required'} — no WWW-Authenticate: Basic header.
+    headers="$(_caddy_headers 'https://127.0.0.1/flash/api/v1/firmware?sha256=deadbeef')"
+    [[ "$headers" != *"WWW-Authenticate: Basic"* ]] || { echo "$headers"; false; }
+}
+
+@test "/flash/ is still gated by basic_auth (WWW-Authenticate header)" {
+    # Operator UI: Caddy emits basic_auth challenge before the request ever
+    # reaches flasher.
+    headers="$(_caddy_headers 'https://127.0.0.1/flash/')"
+    [[ "$headers" == *"WWW-Authenticate: Basic"* ]] || { echo "$headers"; false; }
 }
