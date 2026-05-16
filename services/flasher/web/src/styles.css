@@ -499,3 +499,29 @@ details pre {
 .tab-bar-button.active { color: var(--accent); border-bottom-color: var(--accent); }
 
 .tab-pane { padding: 1.5rem; }
+
+.two-pane .two-pane-body {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 16px;
+  padding: 16px;
+}
+.record-list ul { list-style: none; padding: 0; margin: 0; }
+.record-list li { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; }
+.record-list li.active { background: #eef5ff; }
+.firmware-source-picker .segment-bar button.active { font-weight: bold; }
+.firmware-source-picker .source-list { max-height: 200px; overflow-y: auto; }
+.tag-chip { display: inline-block; padding: 2px 6px; background: #eef; border-radius: 8px; margin-right: 4px; }
+.tag-chip.selected { background: #ccf; }
+.tag-chip-remove { border: none; background: none; color: #a00; cursor: pointer; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; z-index: 10; }
+.modal { background: #fff; padding: 16px; min-width: 400px; max-width: 80vw; max-height: 90vh; overflow: auto; }
+.drawer { position: fixed; top: 0; right: 0; width: 50vw; height: 100vh; background: #fff; padding: 16px; box-shadow: -2px 0 8px rgba(0,0,0,0.1); overflow: auto; z-index: 20; }
+.log-table table { width: 100%; border-collapse: collapse; }
+.log-table th, .log-table td { padding: 6px; border-bottom: 1px solid #eee; text-align: left; }
+.log-table tbody tr { cursor: pointer; }
+.log-table tbody tr:hover { background: #f6f6f6; }
+.muted { color: #888; }
+.error { color: #a00; }
+.flash-tab .flash-form { padding: 16px; }
+.flash-tab .flash-output { padding: 16px; border-top: 1px solid #ddd; }
