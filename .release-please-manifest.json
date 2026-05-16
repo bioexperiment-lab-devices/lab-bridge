@@ -1,5 +1,5 @@
 {
-  "services/siteapp": "0.3.1",
+  "services/siteapp": "0.4.0",
   "services/flasher": "0.4.0",
   ".": "0.4.0"
 }
