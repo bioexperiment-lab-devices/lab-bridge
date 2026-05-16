@@ -32,9 +32,11 @@ jobs:
       flasher_released: ${{ steps.rp.outputs['services/flasher--release_created'] }}
       flasher_tag:      ${{ steps.rp.outputs['services/flasher--tag_name'] }}
       flasher_version:  ${{ steps.rp.outputs['services/flasher--version'] }}
-      platform_released: ${{ steps.rp.outputs['.--release_created'] }}
-      platform_tag:      ${{ steps.rp.outputs['.--tag_name'] }}
-      platform_version:  ${{ steps.rp.outputs['.--version'] }}
+      # Root component `.` emits its outputs unprefixed (see release-please-action
+      # src/index.ts setPathOutput); sub-paths use the `<path>--<key>` form.
+      platform_released: ${{ steps.rp.outputs.release_created }}
+      platform_tag:      ${{ steps.rp.outputs.tag_name }}
+      platform_version:  ${{ steps.rp.outputs.version }}
     steps:
       - id: app-token
         uses: actions/create-github-app-token@v3
