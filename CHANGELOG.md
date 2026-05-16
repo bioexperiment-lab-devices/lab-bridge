@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/platform-v0.4.0...platform-v0.4.1) (2026-05-16)
+
+
+### Bug Fixes
+
+* **ci:** deploy-public-docs rsyncs to /srv/lab-bridge, not ~/lab-bridge ([#23](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/23)) ([431c56c](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/431c56c65ff5a97a174ee0bb21e91d55387cdd2a))
+
 ## [0.4.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/platform-v0.3.1...platform-v0.4.0) (2026-05-15)
 
 
