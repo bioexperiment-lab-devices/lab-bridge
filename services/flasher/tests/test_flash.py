@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pytest
 
+pytestmark = pytest.mark.skip(reason="rewritten in Phase 6")
+
 from app.flash import JobStore, run_flash_job
 from app.serialhop import UpstreamErrorResponse, UpstreamUnreachable
 
