@@ -129,7 +129,7 @@ def get_ports() -> dict:
 
 
 @app.post("/devices/disconnect")
-def disconnect() -> dict:
+def disconnect(port: str) -> dict:
     return {"released": 0}
 
 

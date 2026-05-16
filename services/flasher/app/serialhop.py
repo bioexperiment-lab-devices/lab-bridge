@@ -73,11 +73,12 @@ class SerialHopClient:
         path: str,
         *,
         json: dict | None = None,
+        params: dict | None = None,
         timeout_s: float = SHORT_REQUEST_TIMEOUT_S,
     ) -> dict:
         try:
             async with self._client(timeout_s=timeout_s) as client:
-                response = await client.request(method, path, json=json)
+                response = await client.request(method, path, json=json, params=params)
         except httpx.HTTPError as exc:
             raise UpstreamUnreachable(detail=str(exc) or type(exc).__name__) from exc
 
@@ -111,8 +112,8 @@ class SerialHopClient:
     async def get_ports_detailed(self) -> dict:
         return await self._request("GET", "/serial/ports/detailed")
 
-    async def disconnect_devices(self) -> dict:
-        return await self._request("POST", "/devices/disconnect")
+    async def disconnect_port(self, port: str) -> dict:
+        return await self._request("POST", "/devices/disconnect", params={"port": port})
 
     async def flash(
         self,
