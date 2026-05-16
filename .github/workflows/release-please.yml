@@ -54,9 +54,14 @@ jobs:
   release-build-siteapp:
     name: release-build-siteapp
     needs: release-please
+    # !failure() && !cancelled() lets this job run when `release-please` is
+    # skipped (workflow_dispatch rollback path), since the implicit success()
+    # precondition on `needs:` would otherwise also skip this job.
     if: |
-      (github.event_name == 'push' && needs.release-please.outputs.siteapp_released == 'true')
-      || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.rollback_to, 'siteapp-v'))
+      !failure() && !cancelled() && (
+        (github.event_name == 'push' && needs.release-please.outputs.siteapp_released == 'true')
+        || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.rollback_to, 'siteapp-v'))
+      )
     runs-on: ubuntu-latest
     steps:
       - name: resolve ref
@@ -132,8 +137,10 @@ jobs:
     name: release-build-flasher
     needs: release-please
     if: |
-      (github.event_name == 'push' && needs.release-please.outputs.flasher_released == 'true')
-      || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.rollback_to, 'flasher-v'))
+      !failure() && !cancelled() && (
+        (github.event_name == 'push' && needs.release-please.outputs.flasher_released == 'true')
+        || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.rollback_to, 'flasher-v'))
+      )
     runs-on: ubuntu-latest
     steps:
       - name: resolve ref
@@ -208,8 +215,10 @@ jobs:
     name: release-platform
     needs: release-please
     if: |
-      (github.event_name == 'push' && needs.release-please.outputs.platform_released == 'true')
-      || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.rollback_to, 'platform-v'))
+      !failure() && !cancelled() && (
+        (github.event_name == 'push' && needs.release-please.outputs.platform_released == 'true')
+        || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.rollback_to, 'platform-v'))
+      )
     runs-on: ubuntu-latest
     steps:
       - name: resolve ref
