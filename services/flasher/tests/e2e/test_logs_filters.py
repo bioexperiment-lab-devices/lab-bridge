@@ -2,12 +2,17 @@ from conftest import wait_for_terminal
 
 
 def test_logs_filter_by_client_and_outcome(http) -> None:
-    fid = http.post("/flash/api/firmware",
-                    json={"name": "logs", "firmware": ":00000001FF\n"}).json()["id"]
-    job = http.post("/flash/api/flash", json={
-        "client": "alice_machine", "port": "COM3",
-        "source": {"kind": "firmware", "id": fid},
-    }).json()
+    fid = http.post(
+        "/flash/api/firmware", json={"name": "logs", "firmware": ":00000001FF\n"}
+    ).json()["id"]
+    job = http.post(
+        "/flash/api/flash",
+        json={
+            "client": "alice_machine",
+            "port": "COM3",
+            "source": {"kind": "firmware", "id": fid},
+        },
+    ).json()
     wait_for_terminal(http, job["job_id"])
 
     r = http.get("/flash/api/flashes?client=alice_machine&outcome=success")

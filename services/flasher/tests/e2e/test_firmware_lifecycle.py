@@ -1,6 +1,5 @@
 def test_create_get_patch_delete(http) -> None:
-    r = http.post("/flash/api/firmware",
-                  json={"name": "fw-1", "firmware": ":00000001FF\n"})
+    r = http.post("/flash/api/firmware", json={"name": "fw-1", "firmware": ":00000001FF\n"})
     assert r.status_code == 200
     fid = r.json()["id"]
 
@@ -8,8 +7,7 @@ def test_create_get_patch_delete(http) -> None:
     assert r.status_code == 200
     assert r.json()["name"] == "fw-1"
 
-    r = http.patch(f"/flash/api/firmware/{fid}",
-                   json={"name": "fw-1-renamed", "description": "d"})
+    r = http.patch(f"/flash/api/firmware/{fid}", json={"name": "fw-1-renamed", "description": "d"})
     assert r.status_code == 200
     assert r.json()["name"] == "fw-1-renamed"
 
@@ -21,9 +19,10 @@ def test_create_get_patch_delete(http) -> None:
 
 
 def test_download_returns_bytes(http) -> None:
-    fid = http.post("/flash/api/firmware",
-                    json={"name": "fw-2", "firmware": ":00000001FF\n",
-                          "original_filename": "fw-2.hex"}).json()["id"]
+    fid = http.post(
+        "/flash/api/firmware",
+        json={"name": "fw-2", "firmware": ":00000001FF\n", "original_filename": "fw-2.hex"},
+    ).json()["id"]
     r = http.get(f"/flash/api/firmware/{fid}/download")
     assert r.status_code == 200
     assert r.text == ":00000001FF\n"
@@ -33,9 +32,10 @@ def test_download_returns_bytes(http) -> None:
 
 def test_tag_lifecycle(http) -> None:
     tid = http.post("/flash/api/tags", json={"name": "e2e-pump"}).json()["id"]
-    fid = http.post("/flash/api/firmware",
-                    json={"name": "f-with-tag", "firmware": ":00000001FF\n",
-                          "tags": [tid]}).json()["id"]
+    fid = http.post(
+        "/flash/api/firmware",
+        json={"name": "f-with-tag", "firmware": ":00000001FF\n", "tags": [tid]},
+    ).json()["id"]
     body = http.get(f"/flash/api/firmware/{fid}").json()
     assert [t["name"] for t in body["tags"]] == ["e2e-pump"]
     # Deleting the tag CASCADEs to firmware_tags but leaves the firmware row.

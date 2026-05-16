@@ -18,6 +18,7 @@ def app(monkeypatch, tmp_path: Path):
     # Re-import main after env vars are set so load_settings + startup runs fresh.
     import importlib
     import app.main as m
+
     importlib.reload(m)
     return m.app
 
@@ -48,6 +49,7 @@ def test_app_boot_sweeps_running_flashes_to_interrupted(monkeypatch, tmp_path: P
 
     import importlib
     import app.main as m
+
     importlib.reload(m)
 
     with TestClient(m.app) as client:

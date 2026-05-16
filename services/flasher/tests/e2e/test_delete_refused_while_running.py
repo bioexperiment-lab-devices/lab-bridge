@@ -6,12 +6,17 @@ def test_delete_firmware_refused_during_in_flight_flash(http, set_stub_outcome) 
     # Schedule the flash and immediately attempt a delete; the stub typically
     # finishes in ~0.5s. If your stub completes faster than the test window,
     # increase its sleep via env override.
-    fid = http.post("/flash/api/firmware",
-                    json={"name": "race", "firmware": ":00000001FF\n"}).json()["id"]
-    job = http.post("/flash/api/flash", json={
-        "client": "alice_machine", "port": "COM3",
-        "source": {"kind": "firmware", "id": fid},
-    }).json()
+    fid = http.post(
+        "/flash/api/firmware", json={"name": "race", "firmware": ":00000001FF\n"}
+    ).json()["id"]
+    job = http.post(
+        "/flash/api/flash",
+        json={
+            "client": "alice_machine",
+            "port": "COM3",
+            "source": {"kind": "firmware", "id": fid},
+        },
+    ).json()
     # Polling: while status is running, delete should be refused with 409.
     refused = False
     for _ in range(30):

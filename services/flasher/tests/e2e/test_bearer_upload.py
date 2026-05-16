@@ -1,7 +1,9 @@
 def test_bearer_post_succeeds(http, bearer_headers) -> None:
-    r = http.post("/flash/api/v1/firmware",
-                  json={"name": "ci-1", "firmware": ":00000001FF\n"},
-                  headers=bearer_headers)
+    r = http.post(
+        "/flash/api/v1/firmware",
+        json={"name": "ci-1", "firmware": ":00000001FF\n"},
+        headers=bearer_headers,
+    )
     assert r.status_code == 200
     fid = r.json()["id"]
     sha = r.json()["sha256"]
@@ -13,15 +15,16 @@ def test_bearer_post_succeeds(http, bearer_headers) -> None:
 
 
 def test_bearer_missing_token_401(http) -> None:
-    r = http.post("/flash/api/v1/firmware",
-                  json={"name": "x", "firmware": ":00000001FF\n"})
+    r = http.post("/flash/api/v1/firmware", json={"name": "x", "firmware": ":00000001FF\n"})
     assert r.status_code == 401
     assert r.json()["error"] == "bearer required"
 
 
 def test_bearer_wrong_token_401(http) -> None:
-    r = http.post("/flash/api/v1/firmware",
-                  json={"name": "x", "firmware": ":00000001FF\n"},
-                  headers={"Authorization": "Bearer wrong"})
+    r = http.post(
+        "/flash/api/v1/firmware",
+        json={"name": "x", "firmware": ":00000001FF\n"},
+        headers={"Authorization": "Bearer wrong"},
+    )
     assert r.status_code == 401
     assert r.json()["error"] == "bearer invalid"

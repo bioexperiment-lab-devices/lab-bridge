@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.db import connect, migrate, MIGRATIONS_DIR
+from app.db import connect, migrate
 
 
 @pytest.mark.asyncio
@@ -40,7 +40,9 @@ async def test_migrate_on_fresh_db_creates_schema_version(tmp_path: Path) -> Non
         cur = await conn.execute("SELECT version FROM schema_version")
         row = await cur.fetchone()
         assert row == (1,)
-        cur = await conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='demo'")
+        cur = await conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='demo'"
+        )
         assert (await cur.fetchone()) is not None
 
 
@@ -141,9 +143,14 @@ async def test_real_init_migration_indexes(tmp_path: Path) -> None:
         )
         names = {row[0] async for row in cur}
     for needed in [
-        "idx_firmware_name", "idx_firmware_sha256",
-        "idx_backups_captured_at", "idx_backups_client_port",
-        "idx_flashes_started_at", "idx_flashes_source",
-        "idx_flashes_status", "idx_flashes_client", "idx_flashes_outcome",
+        "idx_firmware_name",
+        "idx_firmware_sha256",
+        "idx_backups_captured_at",
+        "idx_backups_client_port",
+        "idx_flashes_started_at",
+        "idx_flashes_source",
+        "idx_flashes_status",
+        "idx_flashes_client",
+        "idx_flashes_outcome",
     ]:
         assert needed in names, f"missing index: {needed}"
