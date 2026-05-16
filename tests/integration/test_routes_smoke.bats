@@ -105,30 +105,30 @@ _through_caddy() {
     [[ "$code" != "502" && "$code" != "503" ]] || { echo "got: $code"; false; }
 }
 
-# Helper: dump full response headers through Caddy. Caddy v2's basic_auth
-# directive does NOT emit WWW-Authenticate by design (to avoid browser
-# auto-popups), so we discriminate via Content-Type: only the flasher app's
-# JSONResponse-based 401 sets `Content-Type: application/json`; Caddy's
-# basic_auth 401 returns an empty body with no JSON content-type.
-_caddy_headers() {
+# Helper: curl through Caddy with a Bearer Authorization header. With a valid
+# flasher bearer token the bearer endpoint succeeds past auth and the response
+# code reflects the app's own validation (e.g., 404 for an unknown sha256).
+# A Caddy basic_auth intercept would still return 401 regardless of the
+# bearer header. Token matches what setup_file() wrote to LDS_FLASHER_UPLOAD_TOKEN_FILE.
+_through_caddy_with_bearer() {
     docker exec lds-fake-vps bash -c "
         cd /srv/lab-bridge && docker compose exec -T caddy sh -c '
-            wget --no-check-certificate -q -S -O /dev/null \"$1\" 2>&1
+            wget --no-check-certificate --header \"Authorization: Bearer flasher-smoke-tok\" -q -O /dev/null -S \"$1\" 2>&1 | awk \"/HTTP/ {print \\\$2}\" | head -n1
         '
-    " || true
+    "
 }
 
-@test "/flash/api/v1/firmware reaches flasher (JSON 401 — Caddy bypassed)" {
-    # Bearer-auth endpoint: Caddy passes through; flasher returns 401 with
-    # application/json content-type. If Caddy intercepted with basic_auth,
-    # the response would lack a JSON content-type.
-    headers="$(_caddy_headers 'https://127.0.0.1/flash/api/v1/firmware?sha256=deadbeef')"
-    [[ "$headers" == *"Content-Type: application/json"* ]] || { echo "$headers"; false; }
+@test "/flash/api/v1/firmware reaches flasher (404 with bearer — Caddy bypassed)" {
+    # With the runtime bearer token the request passes auth in flasher and
+    # we get 404 (no firmware with sha256=deadbeef). If Caddy intercepted
+    # with basic_auth, the response would be 401 regardless of bearer.
+    code="$(_through_caddy_with_bearer 'https://127.0.0.1/flash/api/v1/firmware?sha256=deadbeef')"
+    [[ "$code" == "404" ]] || { echo "got: $code"; false; }
 }
 
-@test "/flash/ is still gated by basic_auth (Caddy 401, no JSON body)" {
-    # Operator UI: Caddy returns 401 with an empty body before the request
-    # reaches flasher. A reverse of the JSON content-type assertion above.
-    headers="$(_caddy_headers 'https://127.0.0.1/flash/')"
-    [[ "$headers" != *"Content-Type: application/json"* ]] || { echo "$headers"; false; }
+@test "/flash/ is still gated by basic_auth (401 even with bearer)" {
+    # Bearer header is meaningless to Caddy's basic_auth challenge — the
+    # request never reaches flasher.
+    code="$(_through_caddy_with_bearer 'https://127.0.0.1/flash/')"
+    [[ "$code" == "401" ]] || { echo "got: $code"; false; }
 }
