@@ -121,5 +121,3 @@ def test_doc_static_disallowed_extension_is_404(client: TestClient) -> None:
 def test_doc_static_missing_file_is_404(client: TestClient) -> None:
     r = client.get("/docs/icons/nope.svg")
     assert r.status_code == 404
-
-
