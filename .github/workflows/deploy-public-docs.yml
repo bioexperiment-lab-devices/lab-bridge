@@ -35,13 +35,14 @@ jobs:
           VPS_HOST: ${{ vars.VPS_HOST }}
           VPS_SSH_USER: ${{ vars.VPS_SSH_USER }}
         run: |
-          # Mirror public_docs/ to ~/lab-bridge/siteapp/docs/ on the VPS.
-          # The siteapp container mounts this directory read-only at /srv/docs
-          # and re-reads markdown on each request, so no service restart is
-          # needed — rsync alone makes new content live.
+          # Mirror public_docs/ to /srv/lab-bridge/siteapp/docs/ on the VPS.
+          # That path must match config.yaml's vps.remote_root + /siteapp/docs/,
+          # which is what compose mounts read-only at /srv/docs inside the
+          # siteapp container. siteapp re-reads markdown on each request, so
+          # no service restart is needed — rsync alone makes new content live.
           ssh -o StrictHostKeyChecking=accept-new "$VPS_SSH_USER@$VPS_HOST" \
-            "mkdir -p ~/lab-bridge/siteapp/docs"
+            "mkdir -p /srv/lab-bridge/siteapp/docs"
           rsync -az --delete \
             -e "ssh -o StrictHostKeyChecking=accept-new" \
             public_docs/ \
-            "$VPS_SSH_USER@$VPS_HOST:~/lab-bridge/siteapp/docs/"
+            "$VPS_SSH_USER@$VPS_HOST:/srv/lab-bridge/siteapp/docs/"
