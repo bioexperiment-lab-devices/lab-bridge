@@ -10,6 +10,7 @@ from app.config import Settings
 from app.db import connect
 
 from app.routes import backups as backups_routes
+from app.routes import clients as clients_routes
 from app.routes import firmware as firmware_routes
 from app.routes import flashes as flashes_routes
 from app.routes import tags as tags_routes
@@ -28,6 +29,7 @@ def make_router(settings: Settings) -> APIRouter:
             yield conn
 
     router = APIRouter()
+    router.include_router(clients_routes.make_router(settings))
     router.include_router(firmware_routes.make_router(settings, conn_factory, blobs_root))
     router.include_router(backups_routes.make_router(settings, conn_factory, blobs_root))
     router.include_router(tags_routes.make_router(settings, conn_factory))

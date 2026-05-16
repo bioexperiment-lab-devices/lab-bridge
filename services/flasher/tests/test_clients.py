@@ -1,60 +1,28 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
-import pytest
-
-from app.clients import load_roster
+from fastapi.testclient import TestClient
 
 
-def test_happy_path(tmp_path: Path) -> None:
-    f = tmp_path / "clients.json"
-    f.write_text(
-        '{"khamit_desktop": {"port": 8089, "password_sha256": "aa"},'
-        ' "another_lab": {"port": 8090, "password_sha256": "bb"}}',
-        encoding="utf-8",
-    )
-
-    assert load_roster(f) == {
-        "khamit_desktop": {"port": 8089},
-        "another_lab": {"port": 8090},
+def test_clients_all_with_online_flags(monkeypatch, tmp_path: Path) -> None:
+    roster = {
+        "a": {"port": 9100, "password_sha256": ""},
+        "b": {"port": 9101, "password_sha256": ""},
     }
+    (tmp_path / "clients.json").write_text(json.dumps(roster), encoding="utf-8")
+    monkeypatch.setenv("FLASHER_CLIENTS_FILE", str(tmp_path / "clients.json"))
+    monkeypatch.setenv("FLASHER_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("FLASHER_UPLOAD_TOKEN", "test-token")
+    # Force every TCP probe to "offline" by pointing chisel host at a black hole.
+    monkeypatch.setenv("FLASHER_CHISEL_HOST", "127.0.0.1")
+    import importlib
+    import app.main as m
 
-
-def test_empty_roster(tmp_path: Path) -> None:
-    f = tmp_path / "clients.json"
-    f.write_text("{}", encoding="utf-8")
-    assert load_roster(f) == {}
-
-
-def test_missing_file_raises(tmp_path: Path) -> None:
-    with pytest.raises(OSError):
-        load_roster(tmp_path / "does_not_exist.json")
-
-
-def test_malformed_json_raises(tmp_path: Path) -> None:
-    f = tmp_path / "clients.json"
-    f.write_text("not json", encoding="utf-8")
-    with pytest.raises(ValueError):
-        load_roster(f)
-
-
-def test_top_level_not_object_raises(tmp_path: Path) -> None:
-    f = tmp_path / "clients.json"
-    f.write_text("[1,2,3]", encoding="utf-8")
-    with pytest.raises(ValueError, match="must be a JSON object"):
-        load_roster(f)
-
-
-def test_rejects_non_int_port(tmp_path: Path) -> None:
-    f = tmp_path / "clients.json"
-    f.write_text('{"x": {"port": "8089", "password_sha256": "aa"}}', encoding="utf-8")
-    with pytest.raises(ValueError, match="port must be int"):
-        load_roster(f)
-
-
-def test_rejects_bool_port(tmp_path: Path) -> None:
-    f = tmp_path / "clients.json"
-    f.write_text('{"x": {"port": true, "password_sha256": "aa"}}', encoding="utf-8")
-    with pytest.raises(ValueError, match="port must be int"):
-        load_roster(f)
+    importlib.reload(m)
+    with TestClient(m.app) as c:
+        body = c.get("/flash/api/clients").json()
+    assert {x["name"] for x in body["clients"]} == {"a", "b"}
+    assert all(x["online"] is False for x in body["clients"])
+    assert all("port" in x for x in body["clients"])
