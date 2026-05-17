@@ -141,6 +141,8 @@ def make_router(settings: Settings, conn_factory, blobs_root: Path) -> APIRouter
     @router.patch("/api/firmware/{firmware_id}")
     async def operator_patch(firmware_id: str, body: _FirmwarePatch) -> dict[str, Any]:
         kwargs = body.model_dump(exclude_unset=True)
+        if "tags" in kwargs:
+            kwargs["tag_ids"] = kwargs.pop("tags")
         async with conn_factory() as conn:
             try:
                 return await update_firmware(conn, firmware_id=firmware_id, **kwargs)
