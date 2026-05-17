@@ -64,7 +64,11 @@ jobs:
     needs: changes
     if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Each cell brings up the fake VPS (compose pull + render + bringup) before
+    # its bats file runs. On the slowest GitHub runner allocations the `ops`
+    # cell has been observed near 15 min; bump the cap so a slow runner doesn't
+    # flake the gate. A genuinely stuck step will still trip the limit cleanly.
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
