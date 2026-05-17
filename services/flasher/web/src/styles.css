@@ -69,8 +69,18 @@
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; height: 100%; }
+html { margin: 0; padding: 0; height: 100%; }
+
+/*
+ * NOTE: padding-left on body is owned by index.html's inline <style> block,
+ * which sets `padding-left: var(--nav-width, 0)` for the platform navbar
+ * hook. We intentionally do NOT reset `padding` on body here — that would
+ * silently shadow the hook. `margin: 0` and `height: 100%` are folded
+ * directly into the body rule below.
+ */
 body {
+  margin: 0;
+  height: 100%;
   font-family: 'IBM Plex Sans', system-ui, sans-serif;
   font-size: 13px;
   line-height: 1.4;

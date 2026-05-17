@@ -1,0 +1,28 @@
+services:
+  stub:
+    build:
+      context: ./stub
+    networks: [testnet]
+
+  caddy:
+    image: ${CADDY_TEST_IMAGE:-lab-bridge-caddy:e2e}
+    # Start-order only; stub has no healthcheck. reverse_proxy retries
+    # upstream connections so this is fine in practice. If a stub
+    # healthcheck is ever added, add `condition: service_healthy` here.
+    depends_on: [stub]
+    ports:
+      - "127.0.0.1:18080:8080"
+    volumes:
+      - ./Caddyfile.fixture:/etc/caddy/Caddyfile:ro
+      - ./fixtures/shell:/srv/shell:ro
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+    networks: [testnet]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/_shared/navbar.js"]
+      interval: 1s
+      timeout: 2s
+      retries: 30
+
+networks:
+  testnet:
+    driver: bridge

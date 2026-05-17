@@ -32,7 +32,7 @@ main() {
     local stage="$_STAGE"
 
     log "rendering templates..."
-    mkdir -p "$stage/chisel" "$stage/loki" "$stage/grafana/provisioning" "$stage/siteapp"
+    mkdir -p "$stage/chisel" "$stage/loki" "$stage/grafana/provisioning" "$stage/siteapp" "$stage/shell"
     render_compose     "$REPO_ROOT/compose/docker-compose.yml.tmpl" "$stage/docker-compose.yml"
     render_caddyfile   "$REPO_ROOT/compose/Caddyfile.tmpl"           "$stage/Caddyfile"
     if [[ "${LDS_STACK_ONLY:-}" != "1" ]]; then
@@ -43,6 +43,13 @@ main() {
 
     # Static Grafana provisioning — datasource + dashboard provider + dashboard JSON.
     cp -R "$REPO_ROOT/compose/grafana/provisioning/." "$stage/grafana/provisioning/"
+
+    # Platform shell assets — navbar.js, navbar-inner.css. Mounted into the
+    # custom Caddy image at /srv/shell so the file_server route /_shared/*
+    # can serve them. Fail loud if the directory is missing (would otherwise
+    # silently succeed on macOS and fail on Linux — inconsistent).
+    [[ -d "$REPO_ROOT/compose/shell" ]] || die "compose/shell/ is missing — platform navbar assets not staged"
+    cp -R "$REPO_ROOT/compose/shell/." "$stage/shell/"
 
     # Grafana admin password file (created by `task secrets:set-grafana-password`).
     # Mode 0644 on the staged/deployed file: Docker Compose bind-mounts it to

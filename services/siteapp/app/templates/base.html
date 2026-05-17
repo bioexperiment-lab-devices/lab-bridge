@@ -6,12 +6,14 @@
   <title>{% block title %}lab-bridge{% endblock %}</title>
   <link rel="stylesheet" href="/_static/site.css">
   {% if pygments_css %}<style>{{ pygments_css|safe }}</style>{% endif %}
+  <style>
+    body {
+      padding-left: var(--nav-width, 0);
+      transition: padding-left 0.15s ease;
+    }
+  </style>
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="/">lab-bridge</a>
-    {% block topbar_right %}{% endblock %}
-  </header>
   <main>{% block main %}{% endblock %}</main>
   <footer><a href="/">lab-bridge</a></footer>
   <script src="/_static/copy-code.js" defer></script>

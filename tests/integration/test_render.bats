@@ -339,6 +339,7 @@ loki_retention_days: 30
 grafana_image: gra:1
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
+caddy_image_repo: ghcr.io/example/lab-bridge-caddy
 acme_email: x@example.com
 remote_root: /srv/lb
 notebooks_path: /srv/lb/nb
@@ -381,6 +382,7 @@ loki_retention_days: 30
 grafana_image: gra:1
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
+caddy_image_repo: ghcr.io/example/lab-bridge-caddy
 acme_email: x@example.com
 remote_root: /srv/lb
 notebooks_path: /srv/lb/nb

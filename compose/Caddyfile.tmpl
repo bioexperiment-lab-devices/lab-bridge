@@ -1,6 +1,11 @@
 {
     email __ACME_EMAIL__
     default_sni __VPS_HOST__
+
+    # replace-response does not self-register; required for the top-level
+    # replace block below. See services/caddy/tests/e2e/Caddyfile.fixture
+    # for the testbed that validated this syntax.
+    order replace after encode
 }
 
 https://__VPS_HOST__ {
@@ -10,61 +15,115 @@ https://__VPS_HOST__ {
         }
     }
 
-    # Static assets (CSS, JS) for siteapp templates. Without this, the
-    # browser request for /_static/site.css falls through to the jupyter
-    # catchall and 404s, leaving every siteapp page unstyled.
+    # ─── Platform shell assets ───────────────────────────────────────────
+    # Files live FLAT at compose/shell/{navbar.js,navbar-inner.css}; we
+    # strip the /_shared prefix here so file_server resolves them at
+    # /srv/shell/<name>, not /srv/shell/_shared/<name>.
+    handle /_shared/* {
+        uri strip_prefix /_shared
+        root * /srv/shell
+        file_server {
+            precompressed gzip
+        }
+        header Cache-Control "public, max-age=60, must-revalidate"
+    }
+
+    # ─── siteapp routes (unchanged paths) ────────────────────────────────
+    # All siteapp handlers use `handle` (not `handle_path`): siteapp's
+    # FastAPI routes are declared with full paths (e.g., `/docs/{path:path}`,
+    # `/download/agent/...`), so prefix-stripping would 404 every request.
     handle /_static/* {
-        reverse_proxy siteapp:8000
+        reverse_proxy siteapp:8000 {
+            header_up -Accept-Encoding
+        }
     }
-
-    # Public docs. Use `handle` (not `handle_path`) so the upstream sees the
-    # full `/docs/...` path: siteapp's FastAPI routes are declared on
-    # `/docs/{path:path}`, so prefix-stripping would 404 every request.
     handle /docs* {
-        reverse_proxy siteapp:8000
+        reverse_proxy siteapp:8000 {
+            header_up -Accept-Encoding
+        }
     }
-
-    # Public agent download page + binary. Same reasoning — siteapp routes
-    # are declared on `/download/agent` and `/download/agent/windows/agent.exe`.
     handle /download* {
-        reverse_proxy siteapp:8000
+        reverse_proxy siteapp:8000 {
+            header_up -Accept-Encoding
+        }
+    }
+    handle /api/agent/upload {
+        reverse_proxy siteapp:8000 {
+            header_up -Accept-Encoding
+        }
+    }
+    handle /api/public* {
+        reverse_proxy siteapp:8000 {
+            header_up -Accept-Encoding
+        }
     }
 
-    # Flasher bearer-auth automation. Caddy passes through; flasher verifies the token.
+    # ─── Flasher ─────────────────────────────────────────────────────────
     handle /flash/api/v1/* {
-        reverse_proxy flasher:8000
+        reverse_proxy flasher:8000 {
+            header_up -Accept-Encoding
+        }
     }
-    # Flasher operator UI + operator API. Caddy enforces basic_auth.
     handle /flash* {
         basic_auth {
             admin __ADMIN_BCRYPT_HASH__
         }
-        reverse_proxy flasher:8000
+        reverse_proxy flasher:8000 {
+            header_up -Accept-Encoding
+        }
     }
 
-    # CI upload endpoint — bearer-token auth in the app, not Caddy.
-    handle /api/agent/upload {
-        reverse_proxy siteapp:8000
-    }
-
-    # Public agent API — port lookup, connected status, chisel health.
-    # Auth is enforced inside siteapp (bearer = chisel password);
-    # enumeration resistance and brute-force defense live there too.
-    handle /api/public* {
-        reverse_proxy siteapp:8000
-    }
-
-    # Bare-root redirect: visitors hitting / land on the public docs portal
-    # rather than the JupyterLab login. JupyterLab is still reachable at /lab,
-    # /login, /tree, /api/*, etc. — only the exact path / is intercepted.
-    # path_regexp guarantees exact-match where `path /` and `path =/` were
-    # silently being treated as prefix-match against this Caddy build.
-    @bare_root path_regexp ^/$
-    redir @bare_root /docs/ 302
-
-    # Existing routes (unchanged).
+    # ─── Grafana ─────────────────────────────────────────────────────────
+    # CSP rewrite: regex-append 'self' to script-src and style-src so the
+    # navbar bundle loads cleanly within Grafana's own CSP.
     handle /grafana/* {
-        reverse_proxy grafana:3000
+        header Content-Security-Policy "(script-src[^;]*)" "${1} 'self'"
+        header Content-Security-Policy "(style-src[^;]*)" "${1} 'self'"
+        reverse_proxy grafana:3000 {
+            header_up -Accept-Encoding
+        }
     }
-    reverse_proxy jupyter:8888
+
+    # ─── JupyterLab ──────────────────────────────────────────────────────
+    # Jupyter is configured with --ServerApp.base_url=/jupyter (Task 13
+    # adds this to the compose file). We use `handle` (not handle_path)
+    # because Jupyter expects to see the prefix.
+    handle /jupyter* {
+        header Content-Security-Policy "(script-src[^;]*)" "${1} 'self'"
+        header Content-Security-Policy "(style-src[^;]*)" "${1} 'self'"
+        reverse_proxy jupyter:8888 {
+            header_up -Accept-Encoding
+        }
+    }
+
+    # ─── Temporary redirect for old Jupyter bookmarks ────────────────────
+    # Remove in the release following the navbar release.
+    @old_jupyter {
+        path /lab* /tree* /login
+    }
+    redir @old_jupyter /jupyter{uri} 302
+
+    # ─── Home — siteapp serves / ─────────────────────────────────────────
+    # The previous bare-root redirect (@bare_root path_regexp ^/$ →
+    # /docs/ 302) is removed; siteapp now owns / and renders home.html.
+    handle / {
+        reverse_proxy siteapp:8000 {
+            header_up -Accept-Encoding
+        }
+    }
+
+    # ─── Global HTML rewrite ─────────────────────────────────────────────
+    # Inject the platform navbar script tag before </head> on every
+    # text/html response from any handle above. The match block is a
+    # response-header matcher (plugin syntax), not a Caddy request matcher.
+    replace {
+        match {
+            header Content-Type *text/html*
+        }
+        "</head>" `<script src="/_shared/navbar.js?v=__PLATFORM_VERSION__" defer></script></head>`
+    }
+
+    # No catchall — unmatched paths return Caddy's default 404 by design.
+    # The previous "reverse_proxy jupyter:8888" fallback is removed; Jupyter
+    # is now reachable only via the explicit /jupyter* handler above.
 }

@@ -1,0 +1,49 @@
+# Test fixture — not for production. See compose/Caddyfile.tmpl.
+{
+    auto_https off
+    admin off
+    # replace-response does not self-register; this is required for the top-level
+    # replace block to work. Production Caddyfile.tmpl needs the same line (Task 12).
+    order replace after encode
+}
+
+:8080 {
+    # Static assets — mounted from /srv/shell into the container.
+    handle /_shared/* {
+        root * /srv/shell
+        file_server
+    }
+
+    # Routes that exercise CSP rewriting (treated like /jupyter and /grafana).
+    handle /csp/* {
+        uri strip_prefix /csp
+        header Content-Security-Policy "(script-src[^;]*)" "${1} 'self'"
+        header Content-Security-Policy "(style-src[^;]*)" "${1} 'self'"
+        # replace-response cannot operate on a gzip-encoded body; strip
+        # Accept-Encoding so the upstream stub sends plain text.
+        # Production Caddyfile.tmpl needs the same fix (Task 12).
+        reverse_proxy stub:9000 {
+            header_up -Accept-Encoding
+        }
+    }
+
+    # Plain proxy — exercises injection only.
+    handle /plain/* {
+        uri strip_prefix /plain
+        # replace-response cannot operate on a gzip-encoded body; strip
+        # Accept-Encoding so the upstream stub sends plain text.
+        # Production Caddyfile.tmpl needs the same fix (Task 12).
+        reverse_proxy stub:9000 {
+            header_up -Accept-Encoding
+        }
+    }
+
+    # HTML injection on text/html only.
+    replace {
+        # Response matcher (replace-response plugin syntax, not a Caddy request matcher).
+        match {
+            header Content-Type *text/html*
+        }
+        "</head>" `<script src="/_shared/navbar.js?v=test" defer></script></head>`
+    }
+}

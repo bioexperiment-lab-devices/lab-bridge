@@ -33,13 +33,20 @@ _flasher_image() {
     printf '%s:%s' "$repo" "$(_unified_version)"
 }
 
+# _caddy_image — print ghcr.io/<owner>/lab-bridge-caddy:<version>
+_caddy_image() {
+    local repo="${CADDY_IMAGE_REPO:?CADDY_IMAGE_REPO not set — did load_config run?}"
+    printf '%s:%s' "$repo" "$(_unified_version)"
+}
+
 # render_compose <template_path> <output_path>
 render_compose() {
     local tmpl="${1:?}" out="${2:?}"
     [[ -f "$tmpl" ]] || die "template not found: $tmpl"
-    local siteapp_image flasher_image
+    local siteapp_image flasher_image caddy_image
     siteapp_image="$(_siteapp_image)"
     flasher_image="$(_flasher_image)"
+    caddy_image="$(_caddy_image)"
     # The password_hash contains $ and : characters but no | (sha1:hex:hex),
     # so | as the sed delimiter is safe.
     sed \
@@ -53,6 +60,7 @@ render_compose() {
         -e "s|__VPS_HOST__|${VPS_HOST:?}|g" \
         -e "s|__SITEAPP_IMAGE__|${siteapp_image}|g" \
         -e "s|__FLASHER_IMAGE__|${flasher_image}|g" \
+        -e "s|__CADDY_IMAGE__|${caddy_image}|g" \
         "$tmpl" > "$out"
 }
 
@@ -60,10 +68,13 @@ render_compose() {
 render_caddyfile() {
     local tmpl="${1:?}" out="${2:?}"
     [[ -f "$tmpl" ]] || die "template not found: $tmpl"
+    local platform_version
+    platform_version="$(_unified_version)"
     sed \
         -e "s|__ACME_EMAIL__|${CADDY_ACME_EMAIL:?}|g" \
         -e "s|__VPS_HOST__|${VPS_HOST:?}|g" \
         -e "s|__ADMIN_BCRYPT_HASH__|${SITEAPP_ADMIN_PASSWORD_HASH:?}|g" \
+        -e "s|__PLATFORM_VERSION__|${platform_version}|g" \
         "$tmpl" > "$out"
 }
 

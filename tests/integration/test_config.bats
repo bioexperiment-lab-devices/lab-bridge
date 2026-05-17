@@ -92,6 +92,7 @@ loki_retention_days: 30
 grafana_image: grafana/grafana:11.3.0
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
+caddy_image_repo: ghcr.io/example/lab-bridge-caddy
 acme_email: ops@example.com
 remote_root: /srv/lab-bridge
 notebooks_path: /srv/jupyterlab/work

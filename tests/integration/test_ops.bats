@@ -41,6 +41,7 @@ setup_file() {
     bash "$ROOT/scripts/provision.sh"
     load_siteapp_test_image
     load_flasher_test_image
+    load_caddy_test_image
     preload_fake_vps_images
     export _OPS_TMPDIR="$TMPDIR"
 }
