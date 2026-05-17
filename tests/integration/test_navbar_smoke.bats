@@ -71,10 +71,13 @@ _headers_through_caddy() {
     "
 }
 
-@test "/ serves Home (200, lab-bridge title, no Jupyter)" {
+@test "/ serves Home (200, lab-bridge title)" {
+    # Note: Home page legitimately lists "JupyterLab" as a nav link, so we
+    # cannot assert absence of the string "JupyterLab". The marker we use
+    # for "this is siteapp's Home, not Jupyter's own SPA shell" is the
+    # presence of the lab-bridge brand title.
     body="$(_body_through_caddy 'https://127.0.0.1/')"
     [[ "$body" == *"lab-bridge"* ]] || { echo "missing lab-bridge"; echo "$body"; false; }
-    [[ "$body" != *"JupyterLab"* ]] || { echo "Jupyter content leaked to /"; echo "$body"; false; }
 }
 
 @test "navbar script injected on / (Home)" {
@@ -98,10 +101,17 @@ _headers_through_caddy() {
     [[ -n "$body" ]] || { echo "empty body"; false; }
 }
 
-@test "CSP on /jupyter/ contains 'self' in script-src" {
+@test "CSP on /jupyter/ does not block the navbar script" {
+    # JupyterLab currently sets only frame-ancestors + report-uri (no
+    # script-src directive). Without script-src, the browser's permissive
+    # default applies, so our same-origin /_shared/navbar.js loads fine.
+    # If JupyterLab ever adds an explicit script-src, our Caddyfile regex
+    # rewrite appends 'self' so the script still loads.
     hdrs="$(_headers_through_caddy 'https://127.0.0.1/jupyter/')"
     [[ "$hdrs" == *"Content-Security-Policy"* ]] || { echo "no CSP"; echo "$hdrs"; false; }
-    [[ "$hdrs" == *"script-src"*"'self'"* ]] || { echo "no 'self' in script-src"; echo "$hdrs"; false; }
+    if [[ "$hdrs" == *"script-src"* ]]; then
+        [[ "$hdrs" == *"script-src"*"'self'"* ]] || { echo "script-src present but no 'self'"; echo "$hdrs"; false; }
+    fi
 }
 
 @test "JSON response (/api/public/server-info) is NOT injected" {
