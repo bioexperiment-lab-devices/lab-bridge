@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { listTags, promoteBackup } from "../api";
 import { BackupRecord, FirmwareRecord, Tag } from "../types";
-import { FlBadgeMulti, FlButton, FlModal, toneForTag } from "./Fl";
+import { FlBadgeMulti, FlButton, FlModal } from "./Fl";
 
 interface Props {
   backup: BackupRecord;
@@ -21,11 +21,6 @@ export function PromoteBackupModal({ backup, onCreated, onClose }: Props) {
   useEffect(() => { listTags().then(r => setTags(r.items)).catch(() => {}); }, []);
 
   const tagOptions = useMemo(() => tags.map(t => ({ value: t.id, label: t.name })), [tags]);
-  const idToName = useMemo(() => {
-    const m = new Map<string, string>();
-    tags.forEach(t => m.set(t.id, t.name));
-    return m;
-  }, [tags]);
 
   async function submit() {
     setBusy(true);
@@ -103,7 +98,7 @@ export function PromoteBackupModal({ backup, onCreated, onClose }: Props) {
             <FlBadgeMulti
               selected={tagIds}
               options={tagOptions}
-              toneFor={(id) => toneForTag(idToName.get(id) ?? "")}
+              colorize
               onAdd={id => setTagIds(s => s.includes(id) ? s : [...s, id])}
               onRemove={id => setTagIds(s => s.filter(x => x !== id))}
               addLabel="Add tag"
