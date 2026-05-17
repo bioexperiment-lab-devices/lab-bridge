@@ -1,0 +1,117 @@
+/* compose/shell/navbar-inner.css — loaded into <lds-navbar> Shadow DOM. */
+
+:host {
+  /* Kept in sync with RAIL_W_COLLAPSED / RAIL_W_EXPANDED in navbar.js. */
+  --rail-w-collapsed: 52px;
+  --rail-w-expanded: 240px;
+  --bg: #1f2937;
+  --bg-hover: #374151;
+  --fg: #e5e7eb;
+  --fg-muted: #9ca3af;
+  --accent: #3b82f6;
+
+  /* The host element is positioned via the global navbar.css side
+     (none yet — we just rely on aside's fixed positioning). */
+}
+
+aside {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  z-index: 9999;
+  font-family: system-ui, -apple-system, sans-serif;
+  transition: width 0.15s ease, transform 0.15s ease;
+  overflow: hidden;
+}
+
+/* ─── Persistent mode ────────────────────────────────────────────────── */
+aside[data-mode="persistent"][data-state="collapsed"] {
+  width: var(--rail-w-collapsed);
+}
+aside[data-mode="persistent"][data-state="expanded"] {
+  width: var(--rail-w-expanded);
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.4);
+}
+
+/* ─── Bookmark mode ──────────────────────────────────────────────────── */
+aside[data-mode="bookmark"][data-state="tab"] {
+  width: 20px;
+  top: auto;
+  bottom: 80px;
+  height: auto;
+  border-radius: 0 6px 6px 0;
+  transform: translateX(-4px);
+}
+aside[data-mode="bookmark"][data-state="tab"] nav,
+aside[data-mode="bookmark"][data-state="tab"] .toggle {
+  display: none;
+}
+aside[data-mode="bookmark"][data-state="tab"]::after {
+  content: "";
+  display: block;
+  width: 4px;
+  height: 32px;
+  background: var(--accent);
+  margin: 8px auto;
+  border-radius: 2px;
+}
+aside[data-mode="bookmark"][data-state="expanded"] {
+  width: var(--rail-w-expanded);
+  top: 0;
+  bottom: 0;
+  height: 100vh;
+  transform: translateX(0);
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.4);
+}
+
+/* ─── Nav items ──────────────────────────────────────────────────────── */
+nav { flex: 1; padding-top: 12px; }
+ul { list-style: none; margin: 0; padding: 0; }
+li { margin: 2px 0; }
+a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  color: var(--fg-muted);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 14px;
+}
+a:hover { background: var(--bg-hover); color: var(--fg); }
+li.active a { color: var(--accent); border-left: 3px solid var(--accent); padding-left: 13px; }
+
+.icon { display: inline-flex; flex-shrink: 0; width: 20px; height: 20px; }
+
+/* Hide labels when collapsed or in bookmark tab. */
+aside[data-mode="persistent"][data-state="collapsed"] .label,
+aside[data-mode="bookmark"][data-state="tab"] .label { display: none; }
+
+/* ─── Toggle button ──────────────────────────────────────────────────── */
+.toggle {
+  margin: auto 8px 16px;
+  align-self: center;
+  background: transparent;
+  border: 1px solid var(--bg-hover);
+  border-radius: 4px;
+  color: var(--fg-muted);
+  cursor: pointer;
+  padding: 6px;
+  display: inline-flex;
+}
+.toggle:hover { background: var(--bg-hover); color: var(--fg); }
+
+/* ─── Backdrop ───────────────────────────────────────────────────────── */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 9998;
+}
