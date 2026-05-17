@@ -1456,12 +1456,14 @@ body {
 .fl-logs-wrap {
   border: 1px solid var(--border);
   border-radius: 6px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: var(--surface);
 }
 .fl-logs-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 11.5px;
   background: var(--surface);
 }
@@ -1485,8 +1487,9 @@ body {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11.5px;
   color: var(--text);
-  white-space: nowrap;
-  vertical-align: middle;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .fl-logs-table tbody tr { cursor: pointer; }
 .fl-logs-table tbody tr:hover { background: var(--surface-strip); }
@@ -1495,14 +1498,15 @@ body {
 .fl-logs-table .col-time { color: var(--text-muted); width: 168px; }
 .fl-logs-table .col-client { width: 100px; }
 .fl-logs-table .col-port { width: 116px; }
-.fl-logs-table .col-dur { width: 64px; color: var(--text-muted); text-align: right; }
+.fl-logs-table .col-dur {
+  width: 64px;
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+}
 .fl-logs-table .col-note {
   color: var(--text-muted);
   font-family: 'IBM Plex Sans', system-ui, sans-serif;
-  max-width: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ===== Outcome pill (compact) ===== */
