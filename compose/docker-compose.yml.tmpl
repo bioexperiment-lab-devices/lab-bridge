@@ -1,6 +1,6 @@
 services:
   caddy:
-    image: caddy:2
+    image: __CADDY_IMAGE__
     restart: unless-stopped
     ports:
       - "80:80"
@@ -9,8 +9,9 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy_data:/data
       - ./caddy_config:/config
+      - ./shell:/srv/shell:ro
     networks: [labnet]
-    depends_on: [jupyter, siteapp, flasher]
+    depends_on: [jupyter, siteapp, flasher, grafana]
 
   jupyter:
     image: __JUPYTER_IMAGE__
@@ -20,7 +21,7 @@ services:
       - --ServerApp.token=
       - --ServerApp.password=__JUPYTER_PASSWORD_HASH__
       - --ServerApp.allow_origin=*
-      - --ServerApp.base_url=/
+      - --ServerApp.base_url=/jupyter
       - --ServerApp.root_dir=/home/jovyan/work
     volumes:
       - __NOTEBOOKS_PATH__:/home/jovyan/work
