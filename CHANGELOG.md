@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.7.0...v0.7.1) (2026-05-17)
+
+
+### Bug Fixes
+
+* **flasher:** map tags→tag_ids in PATCH firmware route ([#43](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/43)) ([0f265b5](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/0f265b577de0411f12b2d16601b7fa805bfd75a3))
+
 ## [0.7.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.6.1...v0.7.0) (2026-05-17)
 
 
