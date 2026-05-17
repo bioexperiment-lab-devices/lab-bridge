@@ -1,4 +1,5 @@
 """Non-HTML responses are byte-identical post-Caddy; gzip roundtrips correctly."""
+
 from __future__ import annotations
 
 import httpx
@@ -36,8 +37,9 @@ def test_static_navbar_js_served_unmodified(http: httpx.Client) -> None:
     file must be served byte-identical."""
     r = http.get("/_shared/navbar.js")
     assert r.status_code == 200
-    assert r.headers["content-type"].startswith("application/javascript") or \
-           r.headers["content-type"].startswith("text/javascript")
+    assert r.headers["content-type"].startswith("application/javascript") or r.headers[
+        "content-type"
+    ].startswith("text/javascript")
     assert "loaded" in r.text  # from the fixture placeholder
 
 

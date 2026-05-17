@@ -5,6 +5,7 @@ The image to run is selected via CADDY_TEST_IMAGE env var (default
 image-build step and exports the tag; local runs should
 ``docker build -t lab-bridge-caddy:e2e services/caddy`` first.
 """
+
 from __future__ import annotations
 
 import subprocess

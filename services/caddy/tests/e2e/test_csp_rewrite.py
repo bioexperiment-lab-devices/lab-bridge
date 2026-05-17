@@ -1,5 +1,6 @@
 """Caddy regex-appends 'self' to script-src and style-src on routes that
 need it (the /jupyter and /grafana routes in production)."""
+
 from __future__ import annotations
 
 import httpx

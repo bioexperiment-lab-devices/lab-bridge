@@ -1,4 +1,5 @@
 """Home page lives at / and is no longer a redirect to /docs/."""
+
 from __future__ import annotations
 
 import httpx

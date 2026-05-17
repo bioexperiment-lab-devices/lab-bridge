@@ -1,5 +1,6 @@
 """flasher's SPA root container respects --nav-width so the platform navbar
 can reserve space on the left."""
+
 from __future__ import annotations
 
 import httpx

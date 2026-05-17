@@ -9,6 +9,7 @@ Routes:
   GET /css           → text/css "body{}"
   GET /tricky-html   → text/html containing literal "</head>" inside <script> CDATA
 """
+
 from __future__ import annotations
 import gzip
 import io
@@ -38,7 +39,7 @@ PAGES = {
     "/json": (b'{"ok": true}', "application/json", None),
     "/css": (b"body{}", "text/css", None),
     "/tricky-html": (
-        b'<!doctype html><html><head><script>/*</head>*/</script></head><body>x</body></html>',
+        b"<!doctype html><html><head><script>/*</head>*/</script></head><body>x</body></html>",
         "text/html",
         None,
     ),

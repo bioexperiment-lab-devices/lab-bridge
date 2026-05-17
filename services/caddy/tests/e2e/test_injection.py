@@ -1,4 +1,5 @@
 """Caddy injects the navbar script tag into text/html responses only."""
+
 from __future__ import annotations
 
 import httpx
