@@ -86,6 +86,11 @@
   }
 }
 
+/*
+ * NOTE: padding-left on body is owned by index.html's inline <style> block,
+ * which sets `padding-left: var(--nav-width, 0)` for the platform navbar
+ * hook. Do not add padding-left here — it will silently shadow the hook.
+ */
 body {
   margin: 0;
   background: var(--bg);
