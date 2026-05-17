@@ -7,12 +7,14 @@ name: release-please-rebase
 # unmergeable until a human resolves the conflict by hand.
 #
 # This workflow fires after every successful release-please run, finds the
-# still-open sibling release PRs, and rewrites each one's manifest to:
-#   (main's current manifest) with only THIS PR's own component path
-#   overridden to keep its own version bump.
+# still-open sibling release PRs, and replays each one's commit on top of
+# current main (git rebase). The expected manifest conflict — where the PR
+# wants to set its own path's version but main has bumped a sibling path
+# since — is auto-resolved by writing (main's current manifest) with only
+# THIS PR's own path overridden.
 #
-# That's exactly what a hand-resolution would do. Branch protection on main
-# isn't affected — we only force-push the release-please branches.
+# We force-push because the rebase rewrites history. Branch protection on
+# main isn't affected — we only push to the release-please branches.
 
 on:
   workflow_run:
@@ -93,26 +95,42 @@ jobs:
               continue
             fi
 
-            # New manifest = main's current state, with only THIS PR's own
-            # version bump preserved. Pretty-print to byte-match the format
-            # release-please-action writes (2-space indent, trailing newline).
-            jq --arg p "$path" --arg v "$own" '.[$p] = $v' <<<"$MAIN_MANIFEST" \
-              > .release-please-manifest.json
-
-            if git diff --quiet .release-please-manifest.json; then
-              echo "$ref already in sync with main"
-              git checkout main
-              continue
+            # Real rebase onto main. Just rewriting the manifest on top of the
+            # stale branch isn't enough — git's 3-way merge sees an adjacent-
+            # line conflict between main's sibling-path bump and the PR's own-
+            # path bump because the merge-base still predates the sibling
+            # merge. Replaying the PR's commit on top of current main advances
+            # the merge-base and produces a clean diff.
+            if git rebase main; then
+              echo "$ref: clean rebase"
+            else
+              # Expected: manifest conflict where the PR's sibling-path values
+              # are stale relative to main. Resolve by taking main's manifest
+              # and keeping only this PR's own-path bump.
+              if [[ ! -f .release-please-manifest.json ]] \
+                  || ! grep -q '^<<<<<<<' .release-please-manifest.json; then
+                echo "::error::$ref: rebase failed with a non-manifest conflict — aborting"
+                git rebase --abort
+                continue
+              fi
+              jq --arg p "$path" --arg v "$own" '.[$p] = $v' <<<"$MAIN_MANIFEST" \
+                > .release-please-manifest.json
+              git add .release-please-manifest.json
+              if ! GIT_EDITOR=true git rebase --continue; then
+                echo "::error::$ref: rebase --continue failed after resolving manifest — aborting"
+                git rebase --abort || true
+                continue
+              fi
+              echo "$ref: rebased with manifest auto-resolution"
             fi
 
-            git commit -am "chore: rebase manifest onto main after sibling release"
-            if git push origin "HEAD:refs/heads/$ref"; then
-              echo "rebased $ref onto main"
+            # Rebase rewrote history; force-with-lease is safe because we just
+            # fetched the branch and nothing else should be pushing to it
+            # (release-please-action only reads it via "PR remained the same").
+            if git push --force-with-lease origin "HEAD:refs/heads/$ref"; then
+              echo "pushed rebased $ref"
             else
-              # A racing release-please push or a force-push elsewhere will
-              # land us here. The next release-please run re-triggers us,
-              # so we exit nonzero on the loop but the system self-heals.
-              echo "::warning::push to $ref failed — likely raced with release-please; will re-attempt on next run"
+              echo "::warning::push to $ref failed — likely raced with another push; next release-please run will re-attempt"
             fi
             git checkout main
           done
