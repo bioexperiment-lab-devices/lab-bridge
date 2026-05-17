@@ -3,7 +3,7 @@
 # Sourced, not executed. Depends on common.sh + config.sh being sourced and
 # load_config having been called.
 
-# _unified_version — print the unified platform version from /VERSION.
+# _unified_version — print the unified platform version from VERSION.
 # Override via LDS_VERSION_FILE for tests. The VERSION file path is
 # resolved REPO-ROOT-RELATIVE via this script's location.
 _unified_version() {

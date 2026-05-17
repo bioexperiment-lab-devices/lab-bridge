@@ -395,6 +395,8 @@ chisel_clients: []
 CFG
     echo "image: __FLASHER_IMAGE__" > "$BATS_TEST_TMPDIR/compose.tmpl"
 
+    # Use the LDS_VERSION_FILE override so render.sh reads the test VERSION,
+    # not the real repo's root VERSION.
     run bash -c "
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
