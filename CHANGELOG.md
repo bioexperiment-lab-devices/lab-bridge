@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/platform-v0.6.0...platform-v0.6.1) (2026-05-17)
+
+
+### Bug Fixes
+
+* **ci:** strip release-please annotation when verifying platform VERSION ([#38](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/38)) ([c13b9e0](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/c13b9e0266d35a227a9d38af1877f3eccc8e0e85))
+
 ## [0.6.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/platform-v0.5.0...platform-v0.6.0) (2026-05-17)
 
 
