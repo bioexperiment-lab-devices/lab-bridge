@@ -5,6 +5,7 @@ Non-obvious rules for this repo. Operational how-tos live in README; CI mechanic
 Design + plan docs:
 - `docs/superpowers/specs/2026-05-12-cicd-design.md` — baseline CI/CD (release-please, GHCR, deploy)
 - `docs/superpowers/specs/2026-05-15-per-service-isolation-design.md` — the per-service split (architecture this repo currently follows)
+- `docs/superpowers/specs/2026-05-17-unified-release-design.md` — current release model (single component, single tag stream)
 - `docs/adding-a-service.md` — checklist for adding a new service (do this, in order)
 
 ## Architecture philosophy

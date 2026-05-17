@@ -9,7 +9,7 @@ For the rationale behind this layout, see `docs/superpowers/specs/2026-05-15-per
 A new service is a containerised app behind Caddy on the docker-compose stack. It owns:
 
 - Its source tree at `services/<name>/`
-- Its own version, changelog, image, CI workflow, release-please component, release-build job
+- Its own image, CI workflow, and a small pair of build/attest steps added to the shared release-build job
 - Its own service-level e2e harness (pytest + `docker compose`)
 
 The platform (compose templates, scripts, integration tests) gets two small touches: a compose service definition + a Caddy route. **No other platform code needs to know about the new service.**

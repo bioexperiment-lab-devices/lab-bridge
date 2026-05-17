@@ -57,7 +57,7 @@ task secrets:add-client -- microscope-1 9001  # add a lab device
 task provision                                # first-time VPS setup
 
 # Publish the siteapp image to GHCR (or your registry) — see "Publishing the
-# siteapp image" below. The image tag is pinned in services/siteapp/VERSION.
+# siteapp image" below. The image tag is pinned in the root VERSION file.
 
 task deploy                                   # render configs + bring up stack
 ```
