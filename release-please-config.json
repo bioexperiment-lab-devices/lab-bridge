@@ -3,6 +3,7 @@
     ".": {
       "package-name": "lab-bridge",
       "release-type": "simple",
+      "include-component-in-tag": false,
       "extra-files": [
         { "type": "generic", "path": "VERSION" }
       ]

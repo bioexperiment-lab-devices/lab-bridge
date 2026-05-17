@@ -26,6 +26,9 @@ permissions:
 jobs:
   release-please:
     name: release-please
+    # Skip the release-please bot on workflow_dispatch when rollback_to is set
+    # (manual redeploy of an existing tag). The release-build job reads the tag
+    # straight from the dispatch input in that case.
     if: github.event_name == 'push' || github.event.inputs.rollback_to == ''
     runs-on: ubuntu-latest
     outputs:

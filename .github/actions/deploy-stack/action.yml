@@ -68,6 +68,7 @@ runs:
         EXPECTED_VERSION: ${{ inputs.verify_version }}
       run: |
         set -euo pipefail
+        body=""
         for i in $(seq 1 30); do
           body="$(curl -sk "https://$VPS_HOST/api/public/server-info")" || true
           if echo "$body" | jq -e --arg v "$EXPECTED_VERSION" '.version == $v' >/dev/null; then
