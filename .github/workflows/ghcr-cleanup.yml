@@ -18,6 +18,7 @@ jobs:
         package:
           - lab-bridge-siteapp
           - lab-bridge-flasher
+          - lab-bridge-caddy
     steps:
       - uses: actions/delete-package-versions@v5
         with:
