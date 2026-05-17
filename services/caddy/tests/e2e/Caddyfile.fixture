@@ -16,6 +16,7 @@
 
     # Routes that exercise CSP rewriting (treated like /jupyter and /grafana).
     handle /csp/* {
+        uri strip_prefix /csp
         header Content-Security-Policy "(script-src[^;]*)" "${1} 'self'"
         header Content-Security-Policy "(style-src[^;]*)" "${1} 'self'"
         reverse_proxy stub:9000
@@ -23,6 +24,7 @@
 
     # Plain proxy — exercises injection only.
     handle /plain/* {
+        uri strip_prefix /plain
         reverse_proxy stub:9000
     }
 
