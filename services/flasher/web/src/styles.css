@@ -496,6 +496,7 @@ body {
   padding: 10px 14px 9px;
   border-bottom: 1px solid var(--border);
   background: var(--surface-strip);
+  border-radius: 6px 6px 0 0;
   flex-wrap: wrap;
 }
 .fl-step__num {
@@ -637,8 +638,9 @@ body {
 }
 .fl-src__meta b { color: var(--text-secondary); font-weight: 500; }
 
-/* ===== Tag chip ===== */
+/* ===== Tag chip (hash-tinted by name via --tag-h) ===== */
 .fl-tag {
+  --tag-h: 220;
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -647,34 +649,24 @@ body {
   font-weight: 500;
   padding: 1px 7px;
   border-radius: 9px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  color: var(--text-secondary);
+  border: 1px solid oklch(0.65 0.14 var(--tag-h) / 0.5);
+  background: oklch(0.96 0.05 var(--tag-h));
+  color: oklch(0.36 0.16 var(--tag-h));
   letter-spacing: 0;
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
   line-height: 1.5;
 }
+[data-theme="dark"] .fl-tag {
+  border-color: oklch(0.55 0.13 var(--tag-h) / 0.55);
+  background: oklch(0.30 0.07 var(--tag-h));
+  color: oklch(0.86 0.12 var(--tag-h));
+}
 .fl-tag[data-selected="true"] {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
-}
-.fl-tag[data-tone="prod"] {
-  border-color: oklch(0.55 0.13 145 / 0.4);
-  background: oklch(0.96 0.03 145);
-  color: oklch(0.38 0.13 145);
-}
-.fl-tag[data-tone="exp"] {
-  border-color: oklch(0.55 0.13 70 / 0.4);
-  background: oklch(0.96 0.04 70);
-  color: oklch(0.4 0.13 70);
-}
-.fl-tag[data-tone="beta"] {
-  border-color: oklch(0.55 0.13 300 / 0.4);
-  background: oklch(0.96 0.03 300);
-  color: oklch(0.4 0.13 300);
 }
 .fl-tag__x {
   color: inherit;
@@ -1683,14 +1675,12 @@ body {
   white-space: nowrap;
 }
 .fl-dd__panel {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0; right: 0;
+  /* Coordinates set inline via portal — see useFixedAnchor in Fl.tsx. */
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: 4px;
   box-shadow: var(--shadow-popover);
-  z-index: 30;
+  z-index: 1000;
   padding: 4px;
   max-height: 240px;
   overflow: auto;
@@ -1767,20 +1757,15 @@ body {
   letter-spacing: -0.003em;
 }
 .fl-multi__badge--mono { font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
-.fl-multi__badge[data-tone="prod"] {
-  border-color: oklch(0.55 0.13 145 / 0.4);
-  background: oklch(0.96 0.03 145);
-  color: oklch(0.38 0.13 145);
+.fl-multi__badge[data-colored="true"] {
+  border-color: oklch(0.65 0.14 var(--tag-h, 220) / 0.5);
+  background: oklch(0.96 0.05 var(--tag-h, 220));
+  color: oklch(0.36 0.16 var(--tag-h, 220));
 }
-.fl-multi__badge[data-tone="beta"] {
-  border-color: oklch(0.55 0.13 300 / 0.4);
-  background: oklch(0.96 0.03 300);
-  color: oklch(0.4 0.13 300);
-}
-.fl-multi__badge[data-tone="exp"] {
-  border-color: oklch(0.55 0.13 70 / 0.4);
-  background: oklch(0.96 0.04 70);
-  color: oklch(0.4 0.13 70);
+[data-theme="dark"] .fl-multi__badge[data-colored="true"] {
+  border-color: oklch(0.55 0.13 var(--tag-h, 220) / 0.55);
+  background: oklch(0.30 0.07 var(--tag-h, 220));
+  color: oklch(0.86 0.12 var(--tag-h, 220));
 }
 .fl-multi__x {
   appearance: none;

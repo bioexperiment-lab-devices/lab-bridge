@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 
 // ----- Button -----
 
@@ -130,19 +131,22 @@ export function FlToggleLabel({
 
 // ----- Tag chip -----
 
-export type TagTone = "prod" | "beta" | "exp" | null | undefined;
+// Deterministic, well-spread hue from a string (djb2). Same name → same color.
+export function hashHue(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return ((h % 360) + 360) % 360;
+}
 
 export function FlTag({
   name,
   selected,
-  tone,
   removable,
   onClick,
   onRemove,
 }: {
   name: string;
   selected?: boolean;
-  tone?: TagTone;
   removable?: boolean;
   onClick?: () => void;
   onRemove?: () => void;
@@ -151,7 +155,7 @@ export function FlTag({
     <span
       className="fl-tag"
       data-selected={selected || undefined}
-      data-tone={tone || undefined}
+      style={{ ["--tag-h" as string]: hashHue(name) } as CSSProperties}
       onClick={onClick}
       role={onClick ? "button" : undefined}
     >
@@ -166,14 +170,6 @@ export function FlTag({
       ) : null}
     </span>
   );
-}
-
-export function toneForTag(name: string): TagTone {
-  const n = name.toLowerCase();
-  if (n === "production") return "prod";
-  if (n === "v3-beta" || n.endsWith("beta")) return "beta";
-  if (n === "experimental") return "exp";
-  return null;
 }
 
 // ----- Outcome badge (full + compact) -----
@@ -390,22 +386,18 @@ export function FlDropdown<V extends string = string>({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: globalThis.MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const pos = useFixedAnchor(open, triggerRef);
+  useFloatingClose(open, () => setOpen(false), [triggerRef, panelRef]);
   const current = options.find(o => o.value === value);
   const monoStyle: CSSProperties | undefined = mono
     ? { fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }
     : undefined;
   return (
-    <div className="fl-dd" ref={ref} style={width ? { width, maxWidth: "100%" } : undefined}>
+    <div className="fl-dd" style={width ? { width, maxWidth: "100%" } : undefined}>
       <button
+        ref={triggerRef}
         type="button"
         className="fl-dd__btn"
         data-open={open || undefined}
@@ -416,8 +408,12 @@ export function FlDropdown<V extends string = string>({
       >
         <span className="fl-dd__label">{current ? current.label : placeholder}</span>
       </button>
-      {open && (
-        <div className="fl-dd__panel">
+      {open && pos && createPortal(
+        <div
+          ref={panelRef}
+          className="fl-dd__panel"
+          style={{ position: "fixed", top: pos.top, left: pos.left, minWidth: pos.width }}
+        >
           {options.map(o => (
             <div
               key={o.value}
@@ -435,10 +431,62 @@ export function FlDropdown<V extends string = string>({
               {o.value === value && <span className="fl-dd__check">✓</span>}
             </div>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
+}
+
+// ----- Floating-panel helpers -----
+
+interface AnchorPos { top: number; left: number; width: number; }
+
+function useFixedAnchor(open: boolean, triggerRef: React.RefObject<HTMLElement>): AnchorPos | null {
+  const [pos, setPos] = useState<AnchorPos | null>(null);
+  useEffect(() => {
+    if (!open || !triggerRef.current) { setPos(null); return; }
+    const update = () => {
+      const el = triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setPos({ top: Math.round(r.bottom + 4), left: Math.round(r.left), width: Math.round(r.width) });
+    };
+    update();
+    window.addEventListener("resize", update);
+    // Capture so scrolls in nested overflow containers also fire.
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [open, triggerRef]);
+  return pos;
+}
+
+function useFloatingClose(
+  open: boolean,
+  close: () => void,
+  refs: React.RefObject<HTMLElement>[],
+) {
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: globalThis.MouseEvent) => {
+      const t = e.target as Node;
+      for (const r of refs) {
+        if (r.current && r.current.contains(t)) return;
+      }
+      close();
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 }
 
 // ----- Date input -----
@@ -469,7 +517,7 @@ export function FlBadgeMulti({
   onRemove,
   addLabel = "Add",
   emptyLabel = "(none)",
-  toneFor,
+  colorize = false,
   mono = false,
   bare = false,
 }: {
@@ -479,69 +527,99 @@ export function FlBadgeMulti({
   onRemove?: (v: string) => void;
   addLabel?: string;
   emptyLabel?: string;
-  toneFor?: (v: string) => TagTone;
+  /** When true, each badge is tinted by a hue hashed from its label. */
+  colorize?: boolean;
   mono?: boolean;
   bare?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: globalThis.MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
   const labelOf = (v: string) => options.find(o => o.value === v)?.label ?? v;
   const available = options.filter(o => !selected.includes(o.value));
+  return (
+    <div className={"fl-multi" + (bare ? " fl-multi--bare" : "")}>
+      {selected.length === 0 && <span className="fl-multi__empty">{emptyLabel}</span>}
+      {selected.map(v => {
+        const lbl = labelOf(v);
+        const tinted = colorize
+          ? ({ ["--tag-h" as string]: hashHue(lbl) } as CSSProperties)
+          : undefined;
+        return (
+          <span
+            key={v}
+            className={"fl-multi__badge" + (mono ? " fl-multi__badge--mono" : "")}
+            data-colored={colorize || undefined}
+            style={tinted}
+          >
+            <span>{lbl}</span>
+            <button
+              type="button"
+              className="fl-multi__x"
+              onClick={() => onRemove?.(v)}
+              aria-label={`Remove ${lbl}`}
+            >×</button>
+          </span>
+        );
+      })}
+      <FlBadgeMultiAdder
+        addLabel={addLabel}
+        options={available}
+        mono={mono}
+        onAdd={v => onAdd?.(v)}
+      />
+    </div>
+  );
+}
+
+function FlBadgeMultiAdder({
+  addLabel,
+  options,
+  mono,
+  onAdd,
+}: {
+  addLabel: string;
+  options: FlOption[];
+  mono: boolean;
+  onAdd: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const pos = useFixedAnchor(open, triggerRef);
+  useFloatingClose(open, () => setOpen(false), [triggerRef, panelRef]);
   const monoStyle: CSSProperties | undefined = mono
     ? { fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }
     : undefined;
   return (
-    <div className={"fl-multi" + (bare ? " fl-multi--bare" : "")}>
-      {selected.length === 0 && <span className="fl-multi__empty">{emptyLabel}</span>}
-      {selected.map(v => (
-        <span
-          key={v}
-          className={"fl-multi__badge" + (mono ? " fl-multi__badge--mono" : "")}
-          data-tone={toneFor ? toneFor(v) || undefined : undefined}
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="fl-multi__add"
+        onClick={() => setOpen(o => !o)}
+        disabled={options.length === 0}
+      >
+        <span className="fl-multi__add__plus">+</span>
+        <span>{addLabel}</span>
+      </button>
+      {open && options.length > 0 && pos && createPortal(
+        <div
+          ref={panelRef}
+          className="fl-dd__panel"
+          style={{ position: "fixed", top: pos.top, left: pos.left, minWidth: Math.max(180, pos.width) }}
         >
-          <span>{labelOf(v)}</span>
-          <button
-            type="button"
-            className="fl-multi__x"
-            onClick={() => onRemove?.(v)}
-            aria-label={`Remove ${labelOf(v)}`}
-          >×</button>
-        </span>
-      ))}
-      <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
-        <button
-          type="button"
-          className="fl-multi__add"
-          onClick={() => setOpen(o => !o)}
-          disabled={available.length === 0}
-        >
-          <span className="fl-multi__add__plus">+</span>
-          <span>{addLabel}</span>
-        </button>
-        {open && available.length > 0 && (
-          <div className="fl-dd__panel" style={{ left: 0, right: "auto", minWidth: 180 }}>
-            {available.map(o => (
-              <div
-                key={o.value}
-                className="fl-dd__opt"
-                style={monoStyle}
-                onClick={() => { onAdd?.(o.value); setOpen(false); }}
-              >
-                <span>{o.label}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+          {options.map(o => (
+            <div
+              key={o.value}
+              className="fl-dd__opt"
+              style={monoStyle}
+              onClick={() => { onAdd(o.value); setOpen(false); }}
+            >
+              <span>{o.label}</span>
+            </div>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 

@@ -6,7 +6,6 @@ import {
   FlButton,
   FlHexInput,
   FlModal,
-  toneForTag,
 } from "./Fl";
 import {
   asciiPreview,
@@ -42,11 +41,6 @@ export function UploadFirmwareModal({ onClose, onCreated, initialFirmware = "", 
   const erespValid = eresp === "" || isValidHex(eresp);
 
   const tagOptions = useMemo(() => tags.map(t => ({ value: t.id, label: t.name })), [tags]);
-  const idToName = useMemo(() => {
-    const m = new Map<string, string>();
-    tags.forEach(t => m.set(t.id, t.name));
-    return m;
-  }, [tags]);
 
   async function onFile(file: File) {
     const text = await file.text();
@@ -163,7 +157,7 @@ export function UploadFirmwareModal({ onClose, onCreated, initialFirmware = "", 
             <FlBadgeMulti
               selected={tagIds}
               options={tagOptions}
-              toneFor={(id) => toneForTag(idToName.get(id) ?? "")}
+              colorize
               onAdd={id => setTagIds(s => s.includes(id) ? s : [...s, id])}
               onRemove={id => setTagIds(s => s.filter(x => x !== id))}
               addLabel="Add tag"

@@ -7,8 +7,6 @@ interface Counts {
   logs?: number | null;
 }
 
-export type HealthTone = "ok" | "warn" | "busy" | "err";
-
 const TABS: { id: TabId; label: string }[] = [
   { id: "flash", label: "Flash" },
   { id: "firmware", label: "Firmware" },
@@ -20,21 +18,16 @@ export function Topbar({
   active,
   onChange,
   counts = {},
-  health,
-  version,
 }: {
   active: TabId;
   onChange: (next: TabId) => void;
   counts?: Counts;
-  health?: { tone: HealthTone; label: string };
-  version?: string;
 }) {
   return (
     <header className="fl-topbar">
       <div className="fl-brand">
         <span className="fl-brand__mark">F</span>
         Flasher
-        {version && <span className="fl-brand__chip">{version}</span>}
       </div>
       <nav className="fl-topbar__tabs" role="tablist">
         {TABS.map(t => {
@@ -54,13 +47,6 @@ export function Topbar({
           );
         })}
       </nav>
-      {health && (
-        <div className="fl-topbar__right">
-          <span className="fl-topbar__health" data-tone={health.tone}>
-            <i />{health.label}
-          </span>
-        </div>
-      )}
     </header>
   );
 }

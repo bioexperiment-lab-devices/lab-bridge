@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createTag, deleteTag, listTags, renameTag } from "../api";
 import { Tag } from "../types";
-import { FlButton, FlModal, FlTag, toneForTag } from "./Fl";
+import { FlButton, FlModal, FlTag } from "./Fl";
 
 export function TagManagerModal({ onClose }: { onClose: () => void }) {
   const [tags, setTags] = useState<Tag[]>([]);
@@ -79,7 +79,7 @@ export function TagManagerModal({ onClose }: { onClose: () => void }) {
               </>
             ) : (
               <>
-                <FlTag name={t.name} tone={toneForTag(t.name)} />
+                <FlTag name={t.name} />
                 <span className="fl-muted fl-mono" style={{ fontSize: 11 }}>
                   {t.firmware_count ?? 0} firmware
                 </span>

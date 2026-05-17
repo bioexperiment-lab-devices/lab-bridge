@@ -26,7 +26,6 @@ import {
   StageName,
   StageState,
   outcomeTone,
-  toneForTag,
 } from "../components/Fl";
 import {
   asciiPreview,
@@ -390,7 +389,6 @@ export function FlashTab({ runningFlashId, setRunningFlashId }: Props) {
                 key={t.id}
                 name={t.name}
                 selected={tagFilter.includes(t.id)}
-                tone={toneForTag(t.name)}
                 onClick={() => setTagFilter(s =>
                   s.includes(t.id) ? s.filter(x => x !== t.id) : [...s, t.id]
                 )}
@@ -419,7 +417,7 @@ export function FlashTab({ runningFlashId, setRunningFlashId }: Props) {
                   {f.tags.length > 0 && (
                     <span className="fl-src__tags">
                       {f.tags.map(t => (
-                        <FlTag key={t.id} name={t.name} tone={toneForTag(t.name)} />
+                        <FlTag key={t.id} name={t.name} />
                       ))}
                     </span>
                   )}

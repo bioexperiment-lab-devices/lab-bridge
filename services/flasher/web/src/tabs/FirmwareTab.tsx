@@ -15,7 +15,6 @@ import {
   FlPage,
   FlStatsCard,
   FlTag,
-  toneForTag,
   outcomeTone,
 } from "../components/Fl";
 import {
@@ -84,7 +83,6 @@ export function FirmwareTab() {
                 <FlTag
                   key={t.id}
                   name={t.name}
-                  tone={toneForTag(t.name)}
                   selected={tagFilter.includes(t.id)}
                   onClick={() => setTagFilter(s =>
                     s.includes(t.id) ? s.filter(x => x !== t.id) : [...s, t.id]
@@ -111,7 +109,7 @@ export function FirmwareTab() {
                   {f.tags.length > 0 && (
                     <span className="fl-row__tags">
                       {f.tags.map(t => (
-                        <FlTag key={t.id} name={t.name} tone={toneForTag(t.name)} />
+                        <FlTag key={t.id} name={t.name} />
                       ))}
                     </span>
                   )}
@@ -239,11 +237,6 @@ function FirmwareDetail({
     () => allTags.map(t => ({ value: t.id, label: t.name })),
     [allTags],
   );
-  const idToName = useMemo(() => {
-    const m = new Map<string, string>();
-    allTags.forEach(t => m.set(t.id, t.name));
-    return m;
-  }, [allTags]);
 
   if (!row) {
     return <div className="fl-detail__placeholder">{error ?? "Loading…"}</div>;
@@ -347,7 +340,7 @@ function FirmwareDetail({
                 <FlBadgeMulti
                   selected={tagIds}
                   options={tagOptions}
-                  toneFor={(id) => toneForTag(idToName.get(id) ?? "")}
+                  colorize
                   onAdd={id => setTagIds(s => s.includes(id) ? s : [...s, id])}
                   onRemove={id => setTagIds(s => s.filter(x => x !== id))}
                   addLabel="Add tag"
