@@ -37,6 +37,7 @@ jobs:
               - 'scripts/**/*.sh'
 
       - id: should-run
+        name: determine if suite should run
         run: |
           set -e
           if [[ "${{ github.head_ref }}" == release-please--* ]]; then
