@@ -35,7 +35,15 @@ async def run_flash_job(
     """
     started = time.monotonic()
     try:
-        await client.disconnect_port(port)
+        # A 404 from /devices/disconnect means nothing was registered on the
+        # port to begin with — the precondition (port released, no other
+        # client holding it) is already satisfied, so the flash should proceed.
+        # Any other non-200 from disconnect is a real failure and propagates.
+        try:
+            await client.disconnect_port(port)
+        except UpstreamErrorResponse as exc:
+            if exc.status_code != 404:
+                raise
         kwargs: dict[str, Any] = {"port": port, "firmware": firmware}
         if test_command is not None and expected_response is not None:
             kwargs["test_command"] = test_command
