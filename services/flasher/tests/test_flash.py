@@ -202,7 +202,9 @@ async def test_run_flash_job_disconnect_404_is_tolerated(ctx) -> None:
         )
     stub = _DisconnectErrorStub(
         disconnect_error=UpstreamErrorResponse(
-            status_code=404, error_code="device not found", detail="COM6",
+            status_code=404,
+            error_code="device not found",
+            detail="COM6",
         ),
         flash_response={"outcome": "success", "stages": {}},
     )
@@ -246,7 +248,9 @@ async def test_run_flash_job_disconnect_non_404_propagates(ctx) -> None:
         )
     stub = _DisconnectErrorStub(
         disconnect_error=UpstreamErrorResponse(
-            status_code=409, error_code="busy", detail="device in use",
+            status_code=409,
+            error_code="busy",
+            detail="device in use",
         ),
         flash_response={"outcome": "success", "stages": {}},
     )
