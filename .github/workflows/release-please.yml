@@ -143,6 +143,22 @@ jobs:
             LAB_BRIDGE_VERSION=${{ steps.ref.outputs.version }}
             LAB_BRIDGE_GIT_SHA=${{ github.sha }}
 
+      - name: build & push caddy image
+        if: steps.ref.outputs.mode == 'release'
+        id: build-caddy
+        uses: docker/build-push-action@v6
+        with:
+          context: services/caddy
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/lab-bridge-caddy:${{ steps.ref.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/lab-bridge-caddy:latest
+          build-args: |
+            LAB_BRIDGE_VERSION=${{ steps.ref.outputs.version }}
+            LAB_BRIDGE_GIT_SHA=${{ github.sha }}
+
       - name: attest siteapp build provenance
         if: steps.ref.outputs.mode == 'release'
         uses: actions/attest-build-provenance@v4
@@ -157,6 +173,14 @@ jobs:
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/lab-bridge-flasher
           subject-digest: ${{ steps.build-flasher.outputs.digest }}
+          push-to-registry: true
+
+      - name: attest caddy build provenance
+        if: steps.ref.outputs.mode == 'release'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/lab-bridge-caddy
+          subject-digest: ${{ steps.build-caddy.outputs.digest }}
           push-to-registry: true
 
       - name: deploy + verify
