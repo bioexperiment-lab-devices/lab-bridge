@@ -10,16 +10,8 @@ inputs:
   grafana_password:      { required: true }
   agent_upload_token:    { required: true }
   flasher_upload_token:  { required: true }
-  verify_siteapp_version:
-    description: "When set, assert server-info.version == this value after deploy. Omit for platform/flasher releases."
-    required: false
-    default: ""
-  verify_flasher_version:
-    description: "When set, assert the running lab-bridge-flasher-1 container's image tag matches this value."
-    required: false
-    default: ""
-  verify_platform_version:
-    description: "When set, assert /srv/lab-bridge/VERSION (the rsynced platform marker) matches this value."
+  verify_version:
+    description: "When set, assert siteapp /api/public/server-info.version == this AND the lab-bridge-flasher-1 container's image tag ends in :this. Omit (or empty) to skip verification."
     required: false
     default: ""
 
@@ -68,33 +60,33 @@ runs:
         LDS_SSH_OPTS: '-o StrictHostKeyChecking=accept-new'
       run: bash scripts/deploy.sh
 
-    - name: verify deployed siteapp version
-      if: inputs.verify_siteapp_version != ''
+    - name: verify siteapp version via /api/public/server-info
+      if: inputs.verify_version != ''
       shell: bash
       env:
         VPS_HOST: ${{ inputs.vps_host }}
-        EXPECTED_VERSION: ${{ inputs.verify_siteapp_version }}
+        EXPECTED_VERSION: ${{ inputs.verify_version }}
       run: |
         set -euo pipefail
         for i in $(seq 1 30); do
           body="$(curl -sk "https://$VPS_HOST/api/public/server-info")" || true
           if echo "$body" | jq -e --arg v "$EXPECTED_VERSION" '.version == $v' >/dev/null; then
-            echo "verified: server reports siteapp version $EXPECTED_VERSION"
+            echo "verified: siteapp reports version $EXPECTED_VERSION"
             exit 0
           fi
           sleep 2
         done
-        echo "::error::server-info did not report expected version $EXPECTED_VERSION after 60s"
+        echo "::error::siteapp /api/public/server-info did not report expected version $EXPECTED_VERSION after 60s"
         echo "last body: $body"
         exit 1
 
-    - name: verify deployed flasher version
-      if: inputs.verify_flasher_version != ''
+    - name: verify flasher container image tag
+      if: inputs.verify_version != ''
       shell: bash
       env:
         VPS_HOST: ${{ inputs.vps_host }}
         VPS_SSH_USER: ${{ inputs.vps_ssh_user }}
-        EXPECTED_VERSION: ${{ inputs.verify_flasher_version }}
+        EXPECTED_VERSION: ${{ inputs.verify_version }}
       run: |
         set -euo pipefail
         image=""
@@ -108,29 +100,4 @@ runs:
           sleep 2
         done
         echo "::error::flasher container did not reach image tag :$EXPECTED_VERSION after 60s (last seen: '$image')"
-        exit 1
-
-    - name: verify deployed platform version
-      if: inputs.verify_platform_version != ''
-      shell: bash
-      env:
-        VPS_HOST: ${{ inputs.vps_host }}
-        VPS_SSH_USER: ${{ inputs.vps_ssh_user }}
-        EXPECTED_VERSION: ${{ inputs.verify_platform_version }}
-      run: |
-        set -euo pipefail
-        # compose/VERSION carries the release-please rewrite anchor
-        # ("0.6.0 # x-release-please-version") and is rsynced verbatim, so we
-        # strip the comment the same way scripts/lib/render.sh does.
-        version=""
-        for i in $(seq 1 30); do
-          version="$(ssh -o StrictHostKeyChecking=accept-new "$VPS_SSH_USER@$VPS_HOST" \
-            "cat /srv/lab-bridge/VERSION 2>/dev/null" | awk 'NF { print $1; exit }' || true)"
-          if [[ "$version" == "$EXPECTED_VERSION" ]]; then
-            echo "verified: platform stack at version $EXPECTED_VERSION"
-            exit 0
-          fi
-          sleep 2
-        done
-        echo "::error::platform VERSION marker mismatch after 60s (expected: $EXPECTED_VERSION, got: '$version')"
         exit 1
