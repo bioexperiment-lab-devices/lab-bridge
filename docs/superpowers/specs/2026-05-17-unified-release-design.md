@@ -103,7 +103,7 @@ Conventional Commits scopes (`feat(siteapp): …`, `fix(flasher): …`, `chore(p
 
 ### release-please.yml (rewritten)
 
-The workflow collapses to one release-please job and one release-build job. The release-build job builds both service images in parallel, attests provenance for each, and runs a single deploy with a single post-deploy verify pass.
+The workflow collapses to one release-please job and one release-build job. The release-build job builds both service images sequentially, attests provenance for each, and runs a single deploy with a single post-deploy verify pass.
 
 Key shape:
 

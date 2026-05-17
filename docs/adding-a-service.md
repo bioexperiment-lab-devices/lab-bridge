@@ -21,8 +21,6 @@ This walkthrough uses `<name>` as the placeholder for your service name (e.g. `n
 ```
 services/<name>/
   Dockerfile
-  VERSION                       # "0.1.0 # x-release-please-version"
-  CHANGELOG.md                  # "# Changelog\n" (release-please appends on bumps)
   pyproject.toml
   uv.lock
   build.sh                      # copy services/siteapp/build.sh and substitute
@@ -115,53 +113,53 @@ Key rules:
 
 ## 8. release-please wiring
 
-Add a package entry to `release-please-config.json`:
+No per-service release-please entry is needed. The whole repo is one
+release-please component; the new service's commits inform the next
+unified version bump automatically.
 
-```json
-"services/<name>": {
-  "package-name": "<name>",
-  "release-type": "simple",
-  "include-component-in-tag": true,
-  "tag-separator": "-",
-  "extra-files": [
-    { "type": "generic", "path": "VERSION" }
-  ]
-}
-```
+The new service's image tag will be the unified version from root
+`VERSION`. Its `build.sh` (mirroring `services/siteapp/build.sh`) must
+read `$REPO_ROOT/VERSION`, not a per-service file.
 
-**Update the platform `.` package's `exclude-paths`** to include `services/<name>` — otherwise commits touching the new service would also bump platform:
+## 9. release-build steps in release-please.yml
 
-```json
-".": {
-  ...
-  "exclude-paths": ["services/siteapp", "services/flasher", "services/<name>"]
-}
-```
-
-Add a matching entry to `.release-please-manifest.json`:
-
-```json
-"services/<name>": "0.1.0"
-```
-
-## 9. release-build job in `.github/workflows/release-please.yml`
-
-Add a `release-build-<name>` job mirroring `release-build-siteapp`:
-
-- `needs: release-please`
-- `if: |
-    (github.event_name == 'push' && needs.release-please.outputs.<name>_released == 'true')
-    || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.rollback_to, '<name>-v'))`
-- Resolve ref, checkout tag, GHCR login, buildx setup, build & push image at `ghcr.io/${{ github.repository_owner }}/lab-bridge-<name>:<version>`, attest provenance, call the composite action `./.github/actions/deploy-stack`.
-- Decide on `verify_<thing>_version`: only siteapp's release surfaces version via `/api/public/server-info`. If your new service exposes a similar endpoint, pass its version through to the composite action so the deploy is verified post-merge.
-
-Also add the corresponding outputs to the `release-please` job:
+Add two steps to `.github/workflows/release-please.yml`'s `release-build` job, mirroring the existing siteapp/flasher pairs:
 
 ```yaml
-<name>_released: ${{ steps.rp.outputs['services/<name>--release_created'] }}
-<name>_tag:      ${{ steps.rp.outputs['services/<name>--tag_name'] }}
-<name>_version:  ${{ steps.rp.outputs['services/<name>--version'] }}
+      - name: build & push <name> image
+        if: steps.ref.outputs.mode == 'release'
+        id: build-<name>
+        uses: docker/build-push-action@v6
+        with:
+          context: services/<name>
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/lab-bridge-<name>:${{ steps.ref.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/lab-bridge-<name>:latest
+          build-args: |
+            LAB_BRIDGE_VERSION=${{ steps.ref.outputs.version }}
+            LAB_BRIDGE_GIT_SHA=${{ github.sha }}
+
+      - name: attest <name> build provenance
+        if: steps.ref.outputs.mode == 'release'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/lab-bridge-<name>
+          subject-digest: ${{ steps.build-<name>.outputs.digest }}
+          push-to-registry: true
 ```
+
+Place the build step alongside the existing `build & push siteapp/flasher`
+steps and the attest step alongside the existing attest steps. The single
+`deploy + verify` step at the end of the job covers the new service
+implicitly (one verify per platform release).
+
+If the new service exposes its own version endpoint and you want a verify
+check beyond the existing siteapp HTTP + flasher docker-inspect pair, add
+a third verify step in `.github/actions/deploy-stack/action.yml` gated
+on `inputs.verify_version != ''`.
 
 ## 10. pins.yaml + Taskfile
 
@@ -215,9 +213,9 @@ The PR's description should call this out so the operator does it immediately af
 - **Don't put service source under `compose/<name>/`.** The old layout. Migration in `2026-05-15-per-service-isolation-design.md` deliberately moved away from this.
 - **Don't add fake-VPS-stack tests for service behavior.** They belong in service e2e.
 - **Don't share `setup_file` across bats files.** Each bats file is its own lifecycle; matrix parallelism gives you cheap per-file fake-VPS bring-ups.
-- **Don't combine release PRs across services.** `separate-pull-requests: true` is load-bearing.
+- **Don't add a per-service release-please component.** The repo uses a single unified component (see `docs/superpowers/specs/2026-05-17-unified-release-design.md`). Any commit anywhere bumps the unified version.
 - **Don't add a workflow-level `paths:` filter** on `pr-<name>.yml`. Required checks must always report; internal step gating gives you the same skip behavior without breaking branch protection.
-- **Don't manually bump VERSION files or push release-tagged images.** release-please owns those.
+- **Don't manually bump root VERSION or push release-tagged images.** release-please owns the version and CI is the only path to GHCR.
 
 ## Reference services
 

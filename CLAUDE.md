@@ -13,10 +13,10 @@ The repo is a "Swiss-knife" lab platform: a set of independent containerised ser
 
 **Invariants future work MUST preserve:**
 
-- **Each service lives at `services/<name>/`** with its own `VERSION`, `CHANGELOG.md`, `Dockerfile`, `pyproject.toml`, `build.sh`, `app/`, `tests/` (unit), and `tests/e2e/` (service-level e2e against the running container with stubs for upstream deps). Do NOT scatter a service across the repo.
+- **Each service lives at `services/<name>/`** with its own `Dockerfile`, `pyproject.toml`, `build.sh`, `app/`, `tests/` (unit), and `tests/e2e/` (service-level e2e against the running container with stubs for upstream deps). Do NOT scatter a service across the repo. The platform version lives at root `VERSION` and is shared by every service.
 - **Each service has its own CI workflow** `.github/workflows/pr-<name>.yml`. It always triggers on `pull_request` (no workflow-level `paths:` filter) and gates steps internally via `dorny/paths-filter@v3`. Docs-only PRs fast-skip in <30s. Required-check name is `pr-<name> / <name>`.
-- **Each service is its own release-please component** in `release-please-config.json` + `.release-please-manifest.json`. Commits route to components by **path**, not by Conventional Commits scope. Tag format: `<name>-vX.Y.Z`. The `platform` component (`.`) has `exclude-paths: ["services/<name>", ...]` so service-only changes don't bump platform.
-- **`compose/` is platform-only.** It holds `Caddyfile.tmpl`, `docker-compose.yml.tmpl`, `chisel-users.json.tmpl`, `pins.yaml`, `grafana/`, `loki/`, `VERSION`. **Never put service source code under `compose/<name>/`** — that's the old layout, deliberately renamed.
+- **One release-please component covers the whole repo.** Single root `VERSION`, single tag stream `vX.Y.Z`, single release PR at a time. Any commit anywhere informs the next bump. Conventional Commits scope (`feat(siteapp): …`) is decorative — it surfaces in the changelog but does not route the bump.
+- **`compose/` is platform-only.** It holds `Caddyfile.tmpl`, `docker-compose.yml.tmpl`, `chisel-users.json.tmpl`, `pins.yaml`, `grafana/`, `loki/`. **Never put service source code under `compose/<name>/`** — that's the old layout, deliberately renamed.
 - **Three test layers, separate locations:**
   1. **Unit** in `services/<name>/tests/test_*.py` — pure logic, no containers.
   2. **Service e2e** in `services/<name>/tests/e2e/` — one container via `docker compose`, stubs for upstream deps, runs in the service's own CI workflow. **Behavior tests live here**, not in bats.
@@ -26,9 +26,9 @@ The repo is a "Swiss-knife" lab platform: a set of independent containerised ser
 
 - **`main` is protected. Squash-merge only, linear history.** No direct pushes, no merge-commit, no rebase-merge — release-please depends on squash. Required checks: `pr-title`, `pr-siteapp / siteapp`, `pr-flasher / flasher`, `pr-platform / platform`. Adding a service adds another required check; update branch protection in lockstep.
 - **PR titles follow Conventional Commits** (`feat fix chore docs refactor test perf build ci revert`, scope optional). The title becomes the squash subject and is what release-please scans for the version bump.
-- **Don't bump versions by hand.** release-please owns `services/<name>/VERSION` and `compose/VERSION`. Don't strip the `# x-release-please-version` annotation — it's the rewrite anchor.
+- **Don't bump the version by hand.** release-please owns root `VERSION`. Don't strip the `# x-release-please-version` annotation — it's the rewrite anchor.
 - **Don't manually push release-tagged images to GHCR.** CI is the only path; manual pushes break the Sigstore attestation.
-- **`separate-pull-requests: true`** in `release-please-config.json` — release-please opens one PR per component (e.g. `chore(main): release siteapp 0.3.2`). Don't combine.
+- **Release PRs run full CI.** Regular PRs use paths-filter to fast-skip unrelated workflows; release-please PRs (head ref `release-please--*`) bypass the filter and run every workflow's full suite. The release PR is the integration test gate before the production deploy.
 
 ## Config split
 
@@ -53,7 +53,7 @@ The repo is a "Swiss-knife" lab platform: a set of independent containerised ser
   ```
 - **`pr-platform.yml`'s bats step is a 5-cell matrix** (`cheap`, `deploy`, `ops`, `provision`, `routes-smoke`) running in parallel. The `platform` aggregator job is the only required check; matrix cells aren't individually required. Adding a fake-VPS-bringing bats file? Add a matrix cell.
 - **Bats files that spin up the fake-VPS MUST have the `compose_images_available` skip pattern** (mirror `test_routes_smoke.bats:11-14`). Quay.io/Docker Hub anonymous pulls flake; skip gracefully rather than hard-fail.
-- **Release-please PRs default to skip `pr-platform`'s bats** unless labelled `run-integration`. The real integration is the actual VPS deploy on merge (with `verify deployed version` healthcheck for siteapp releases).
+- **Release-please PRs run full `pr-platform` bats** (no opt-in label needed). This is the integration test gate before the production deploy that follows the squash-merge.
 - **When you add or rename a workflow** that becomes a required check, update branch protection's required-check list in lockstep. The legacy `verify` stub trick is the migration template if you need a no-op transitional check.
 
 ## Server-info API

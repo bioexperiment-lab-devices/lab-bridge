@@ -10,13 +10,13 @@ loki_retention_days: 30
 grafana_image: grafana/grafana:11.3.0
 
 # GHCR repository for the siteapp image. The image *tag* lives in
-# services/siteapp/VERSION; the full reference is
-# "${siteapp_image_repo}:$(cat services/siteapp/VERSION)".
+# the root VERSION (release-please-managed); the full reference is
+# "${siteapp_image_repo}:$(cat VERSION)".
 siteapp_image_repo: ghcr.io/bioexperiment-lab-devices/lab-bridge-siteapp
 
 # GHCR repository for the flasher image. The image *tag* lives in
-# services/flasher/VERSION; the full reference is
-# "${flasher_image_repo}:$(cat services/flasher/VERSION)".
+# the root VERSION (release-please-managed); the full reference is
+# "${flasher_image_repo}:$(cat VERSION)".
 flasher_image_repo: ghcr.io/bioexperiment-lab-devices/lab-bridge-flasher
 
 acme_email: khamitov.personal@gmail.com
