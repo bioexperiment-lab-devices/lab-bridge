@@ -119,10 +119,13 @@ runs:
         EXPECTED_VERSION: ${{ inputs.verify_platform_version }}
       run: |
         set -euo pipefail
+        # compose/VERSION carries the release-please rewrite anchor
+        # ("0.6.0 # x-release-please-version") and is rsynced verbatim, so we
+        # strip the comment the same way scripts/lib/render.sh does.
         version=""
         for i in $(seq 1 30); do
           version="$(ssh -o StrictHostKeyChecking=accept-new "$VPS_SSH_USER@$VPS_HOST" \
-            "cat /srv/lab-bridge/VERSION 2>/dev/null" || true)"
+            "cat /srv/lab-bridge/VERSION 2>/dev/null" | awk 'NF { print $1; exit }' || true)"
           if [[ "$version" == "$EXPECTED_VERSION" ]]; then
             echo "verified: platform stack at version $EXPECTED_VERSION"
             exit 0
