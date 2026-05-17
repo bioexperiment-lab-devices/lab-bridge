@@ -27,41 +27,51 @@ jobs:
               - 'services/flasher/**'
               - '.github/workflows/pr-flasher.yml'
 
-      - if: steps.changed.outputs.src != 'true'
+      - id: should-run
+        run: |
+          set -e
+          if [[ "${{ github.head_ref }}" == release-please--* ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::release-please PR — running full flasher suite"
+          else
+            echo "run=${{ steps.changed.outputs.src }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.should-run.outputs.run != 'true'
         run: echo "no flasher changes; skipping all steps"
 
-      - if: steps.changed.outputs.src == 'true'
+      - if: steps.should-run.outputs.run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version-file: services/flasher/.python-version
           cache: pip
 
       - name: install uv
-        if: steps.changed.outputs.src == 'true'
+        if: steps.should-run.outputs.run == 'true'
         run: pip install uv
 
       - name: deps
-        if: steps.changed.outputs.src == 'true'
+        if: steps.should-run.outputs.run == 'true'
         working-directory: services/flasher
         run: uv sync --frozen
 
       - name: ruff check
-        if: steps.changed.outputs.src == 'true'
+        if: steps.should-run.outputs.run == 'true'
         working-directory: services/flasher
         run: uv run ruff check app tests
 
       - name: ruff format check
-        if: steps.changed.outputs.src == 'true'
+        if: steps.should-run.outputs.run == 'true'
         working-directory: services/flasher
         run: uv run ruff format --check app tests
 
       - name: pytest (unit)
-        if: steps.changed.outputs.src == 'true'
+        if: steps.should-run.outputs.run == 'true'
         working-directory: services/flasher
         run: uv run pytest -v
 
       - name: setup Node
-        if: steps.changed.outputs.src == 'true'
+        if: steps.should-run.outputs.run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -69,26 +79,26 @@ jobs:
           cache-dependency-path: services/flasher/web/package-lock.json
 
       - name: SPA install
-        if: steps.changed.outputs.src == 'true'
+        if: steps.should-run.outputs.run == 'true'
         working-directory: services/flasher/web
         run: npm ci --no-audit --no-fund
 
       - name: SPA type-check
-        if: steps.changed.outputs.src == 'true'
+        if: steps.should-run.outputs.run == 'true'
         working-directory: services/flasher/web
         run: npx tsc --noEmit
 
       - name: SPA build
-        if: steps.changed.outputs.src == 'true'
+        if: steps.should-run.outputs.run == 'true'
         working-directory: services/flasher/web
         run: npm run build
 
       - name: docker buildx setup
-        if: steps.changed.outputs.src == 'true'
+        if: steps.should-run.outputs.run == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: image build (no push)
-        if: steps.changed.outputs.src == 'true'
+        if: steps.should-run.outputs.run == 'true'
         uses: docker/build-push-action@v6
         with:
           context: services/flasher
@@ -98,7 +108,7 @@ jobs:
           tags: lab-bridge-flasher:pr-${{ github.event.pull_request.number }}
 
       - name: pytest (e2e)
-        if: steps.changed.outputs.src == 'true'
+        if: steps.should-run.outputs.run == 'true'
         working-directory: services/flasher
         env:
           FLASHER_TEST_IMAGE: lab-bridge-flasher:pr-${{ github.event.pull_request.number }}

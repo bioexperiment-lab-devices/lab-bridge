@@ -2,7 +2,7 @@ name: pr-platform
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened]
 
 concurrency:
   group: pr-platform-${{ github.event.pull_request.number }}
@@ -13,11 +13,11 @@ permissions:
   pull-requests: read
 
 jobs:
-  gate:
+  changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      run: ${{ steps.gate.outputs.run }}
+      run: ${{ steps.should-run.outputs.run }}
       shell: ${{ steps.changed.outputs.shell }}
     steps:
       - uses: actions/checkout@v4
@@ -36,24 +36,19 @@ jobs:
             shell:
               - 'scripts/**/*.sh'
 
-      - id: gate
+      - id: should-run
         run: |
           set -e
           if [[ "${{ github.head_ref }}" == release-please--* ]]; then
-            if ${{ contains(github.event.pull_request.labels.*.name, 'run-integration') }}; then
-              echo "run=true" >> "$GITHUB_OUTPUT"
-              echo "::notice::release-please PR with 'run-integration' label — running full bats integration"
-            else
-              echo "run=false" >> "$GITHUB_OUTPUT"
-              echo "::notice::release-please PR — bats integration skipped. Apply 'run-integration' to opt in."
-            fi
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::release-please PR — running full platform suite"
           else
             echo "run=${{ steps.changed.outputs.src }}" >> "$GITHUB_OUTPUT"
           fi
 
   shellcheck:
-    needs: gate
-    if: needs.gate.outputs.run == 'true' && needs.gate.outputs.shell == 'true'
+    needs: changes
+    if: needs.changes.outputs.run == 'true' && needs.changes.outputs.shell == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -65,8 +60,8 @@ jobs:
           shellcheck -x --severity=warning scripts/*.sh scripts/lib/*.sh
 
   bats:
-    needs: gate
-    if: needs.gate.outputs.run == 'true'
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -113,10 +108,10 @@ jobs:
         run: bats ${{ matrix.files }}
 
   # Aggregator: the single required check for branch protection. Succeeds
-  # when gate ran and every dependent job either passed or was skipped
-  # (e.g., docs-only PRs or unlabeled release PRs where gate.outputs.run=='false').
+  # when changes ran and every dependent job either passed or was skipped
+  # (e.g., docs-only PRs where changes.outputs.run=='false').
   platform:
-    needs: [gate, shellcheck, bats]
+    needs: [changes, shellcheck, bats]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -124,14 +119,14 @@ jobs:
       - name: aggregate
         run: |
           set -e
-          gate="${{ needs.gate.result }}"
+          changes="${{ needs.changes.result }}"
           shellcheck="${{ needs.shellcheck.result }}"
           bats="${{ needs.bats.result }}"
-          echo "gate:       $gate"
+          echo "changes:    $changes"
           echo "shellcheck: $shellcheck"
           echo "bats:       $bats"
-          if [[ "$gate" != "success" ]]; then
-            echo "::error::gate job did not succeed: $gate"
+          if [[ "$changes" != "success" ]]; then
+            echo "::error::changes job did not succeed: $changes"
             exit 1
           fi
           for r in "$shellcheck" "$bats"; do
