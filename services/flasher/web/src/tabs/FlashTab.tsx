@@ -1,5 +1,8 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import {
+  getBackup,
+  getFirmware,
   getFlash,
   listBackups,
   listClients,
@@ -8,6 +11,8 @@ import {
   listTags,
   postFlash,
 } from "../api";
+import { useFlashRun } from "../Shell";
+import { useFlashDraft } from "../hooks/useFlashDraft";
 import {
   FlButton,
   FlDropdown,
@@ -42,11 +47,6 @@ import {
   PortRow,
   Tag,
 } from "../types";
-
-interface Props {
-  runningFlashId: string | null;
-  setRunningFlashId: (id: string | null) => void;
-}
 
 type FlashSource =
   | { kind: "firmware"; record: FirmwareRecord }
@@ -113,28 +113,83 @@ function HexEditable({
   );
 }
 
-export function FlashTab({ runningFlashId, setRunningFlashId }: Props) {
+export function FlashTab() {
+  const { runningFlashId, setRunningFlashId } = useFlashRun();
+
+  // ----- persisted form draft (survives reload) -----
+  const [draft, setDraft] = useFlashDraft();
+
   // ----- form state -----
-  const [client, setClient] = useState<string | null>(null);
+  const [client, setClient] = useState<string | null>(draft.client);
   const [clients, setClients] = useState<ClientEntry[]>([]);
   const [ports, setPorts] = useState<PortRow[]>([]);
   const [portsLoading, setPortsLoading] = useState(false);
   const [portsError, setPortsError] = useState<string | null>(null);
-  const [selectedPort, setSelectedPort] = useState<string | null>(null);
-  const [sourceKind, setSourceKind] = useState<"firmware" | "backups">("firmware");
+  const [selectedPort, setSelectedPort] = useState<string | null>(draft.port);
+  const [sourceKind, setSourceKind] = useState<"firmware" | "backups">(draft.sourceKind);
   const [source, setSource] = useState<FlashSource | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [tags, setTags] = useState<Tag[]>([]);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [firmwareItems, setFirmwareItems] = useState<FirmwareRecord[]>([]);
   const [backupItems, setBackupItems] = useState<BackupRecord[]>([]);
-  const [tcmd, setTcmd] = useState("");
-  const [eresp, setEresp] = useState("");
-  const [runTest, setRunTest] = useState(true);
-  const [skipBackup, setSkipBackup] = useState(false);
+  const [tcmd, setTcmd] = useState(draft.tcmd);
+  const [eresp, setEresp] = useState(draft.eresp);
+  const [runTest, setRunTest] = useState(draft.runTest);
+  const [skipBackup, setSkipBackup] = useState(draft.skipBackup);
   const [savePairToRecord, setSavePairToRecord] = useState(false);
   const [latestFlash, setLatestFlash] = useState<FlashRowDetail | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // The source-change reset effect should skip the first time `source` becomes
+  // non-null via rehydrate — the user's persisted test-pair edits would otherwise
+  // get overwritten by the record's stored values on every page reload.
+  const skipNextSourceReset = useRef(false);
+
+  // ----- rehydrate the selected source from the draft id on mount -----
+  useEffect(() => {
+    const id = draft.sourceId;
+    const kind = draft.sourceKind;
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (kind === "firmware") {
+          const record = await getFirmware(id);
+          if (!cancelled) {
+            skipNextSourceReset.current = true;
+            setSource({ kind: "firmware", record });
+          }
+        } else {
+          const record = await getBackup(id);
+          if (!cancelled) {
+            skipNextSourceReset.current = true;
+            setSource({ kind: "backup", record });
+          }
+        }
+      } catch {
+        // Source no longer exists — clear the stale draft entry.
+        setDraft({ sourceId: null });
+      }
+    })();
+    return () => { cancelled = true; };
+    // Run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ----- mirror form state back into draft -----
+  useEffect(() => {
+    setDraft({
+      client,
+      port: selectedPort,
+      sourceKind,
+      sourceId: source?.record.id ?? null,
+      tcmd,
+      eresp,
+      runTest,
+      skipBackup,
+    });
+  }, [client, selectedPort, sourceKind, source?.record.id, tcmd, eresp, runTest, skipBackup, setDraft]);
 
   // ----- data loaders -----
   useEffect(() => { listClients().then(r => setClients(r.clients)).catch(() => {}); }, []);
@@ -153,10 +208,16 @@ export function FlashTab({ runningFlashId, setRunningFlashId }: Props) {
       setPortsLoading(false);
     }
   }
+  // Keep the persisted port when rehydrating; clear only on a real user change.
+  const prevClient = useRef<string | null>(draft.client);
   useEffect(() => {
-    setSelectedPort(null);
-    setPorts([]);
+    if (prevClient.current !== client) {
+      prevClient.current = client;
+      setSelectedPort(null);
+      setPorts([]);
+    }
     if (client) refreshPorts(client);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client]);
 
   // ----- source list filtering -----
@@ -189,6 +250,10 @@ export function FlashTab({ runningFlashId, setRunningFlashId }: Props) {
   // ----- reset test pair when source changes -----
   const sourceKey = source ? `${source.kind}:${source.record.id}` : null;
   useEffect(() => {
+    if (skipNextSourceReset.current) {
+      skipNextSourceReset.current = false;
+      return;
+    }
     if (!source) {
       setTcmd(""); setEresp(""); setRunTest(true); setSavePairToRecord(false);
       return;
@@ -658,7 +723,14 @@ function OutputSuccess({ row }: { row: FlashRowDetail }) {
         <dt>Started</dt><dd>{row.started_at}</dd>
         {row.finished_at && <><dt>Finished</dt><dd>{row.finished_at}</dd></>}
         {row.duration_ms != null && <><dt>Duration</dt><dd>{row.duration_ms} ms</dd></>}
-        {row.backup_id && <><dt>Backup ID</dt><dd>{row.backup_id}</dd></>}
+        {row.backup_id && (
+          <>
+            <dt>Backup ID</dt>
+            <dd>
+              <Link to="/backups/$id" params={{ id: row.backup_id }}>{row.backup_id}</Link>
+            </dd>
+          </>
+        )}
       </dl>
       {row.result && (
         <details className="fl-details">
@@ -700,7 +772,14 @@ function OutputFailure({ row }: { row: FlashRowDetail }) {
         <dt>Started</dt><dd>{row.started_at}</dd>
         {row.finished_at && <><dt>Finished</dt><dd>{row.finished_at}</dd></>}
         {row.duration_ms != null && <><dt>Duration</dt><dd>{row.duration_ms} ms</dd></>}
-        {row.backup_id && <><dt>Backup ID</dt><dd>{row.backup_id}</dd></>}
+        {row.backup_id && (
+          <>
+            <dt>Backup ID</dt>
+            <dd>
+              <Link to="/backups/$id" params={{ id: row.backup_id }}>{row.backup_id}</Link>
+            </dd>
+          </>
+        )}
       </dl>
       {row.result && (
         <details className="fl-details">

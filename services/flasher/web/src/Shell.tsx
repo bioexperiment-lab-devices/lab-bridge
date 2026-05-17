@@ -1,14 +1,22 @@
-import { useEffect, useState } from "react";
+import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { Topbar } from "./components/Topbar";
-import { FlashTab } from "./tabs/FlashTab";
-import { FirmwareTab } from "./tabs/FirmwareTab";
-import { BackupsTab } from "./tabs/BackupsTab";
-import { LogsTab } from "./tabs/LogsTab";
 import { getCurrentFlash, getFlash } from "./api";
-import { FlashRowDetail, TabId } from "./types";
+import { FlashRowDetail } from "./types";
 
-export default function App() {
-  const [tab, setTab] = useState<TabId>("flash");
+interface FlashRunContext {
+  runningFlashId: string | null;
+  setRunningFlashId: (id: string | null) => void;
+}
+
+const FlashRunCtx = createContext<FlashRunContext | null>(null);
+
+export function useFlashRun(): FlashRunContext {
+  const ctx = useContext(FlashRunCtx);
+  if (!ctx) throw new Error("useFlashRun must be used within <Shell>");
+  return ctx;
+}
+
+export function Shell({ children }: { children: ReactNode }) {
   const [runningFlashId, setRunningFlashId] = useState<string | null>(null);
   const [, setBeat] = useState(0);
 
@@ -43,16 +51,11 @@ export default function App() {
   }, [runningFlashId]);
 
   return (
-    <div className="fl-app">
-      <Topbar active={tab} onChange={setTab} />
-      <main className="fl-body">
-        {tab === "flash" && (
-          <FlashTab runningFlashId={runningFlashId} setRunningFlashId={setRunningFlashId} />
-        )}
-        {tab === "firmware" && <FirmwareTab />}
-        {tab === "backups" && <BackupsTab />}
-        {tab === "logs" && <LogsTab />}
-      </main>
-    </div>
+    <FlashRunCtx.Provider value={{ runningFlashId, setRunningFlashId }}>
+      <div className="fl-app">
+        <Topbar />
+        <main className="fl-body">{children}</main>
+      </div>
+    </FlashRunCtx.Provider>
   );
 }

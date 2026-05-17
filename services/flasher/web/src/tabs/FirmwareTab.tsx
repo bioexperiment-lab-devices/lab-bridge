@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   deleteFirmware,
   downloadFirmwareUrl,
@@ -30,15 +31,20 @@ import { TagManagerModal } from "../components/TagManagerModal";
 import { LogDetailDrawer } from "../components/LogDetailDrawer";
 import { FlHexInput } from "../components/Fl";
 
-export function FirmwareTab() {
+export function FirmwareTab({ selectedId }: { selectedId: string | null }) {
+  const navigate = useNavigate();
   const [list, setList] = useState<FirmwareRecord[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [openFlashId, setOpenFlashId] = useState<string | null>(null);
+
+  const selectFirmware = (id: string | null) => {
+    if (id) navigate({ to: "/firmware/$id", params: { id } });
+    else navigate({ to: "/firmware" });
+  };
 
   async function refresh() {
     const r = await listFirmware({ q: search || undefined, tag: tagFilter, limit: 200 });
@@ -101,7 +107,7 @@ export function FirmwareTab() {
                 key={f.id}
                 className="fl-row"
                 data-selected={f.id === selectedId || undefined}
-                onClick={() => setSelectedId(f.id)}
+                onClick={() => selectFirmware(f.id)}
               >
                 <span />
                 <div className="fl-row__main">
@@ -132,7 +138,7 @@ export function FirmwareTab() {
                       if (!confirm(msg)) return;
                       try {
                         await deleteFirmware(f.id);
-                        if (selectedId === f.id) setSelectedId(null);
+                        if (selectedId === f.id) selectFirmware(null);
                         await refresh();
                       } catch (e: any) {
                         alert(e.body?.detail ?? String(e?.message ?? e));
@@ -166,7 +172,7 @@ export function FirmwareTab() {
           onClose={() => setUploadOpen(false)}
           onCreated={row => {
             setUploadOpen(false);
-            setSelectedId(row.id);
+            selectFirmware(row.id);
             refresh();
           }}
         />
@@ -279,6 +285,14 @@ function FirmwareDetail({
         <div className="fl-detail__sub">
           sha256 {row.sha256} · {row.size_bytes} B · created {row.created_at}
         </div>
+        {row.source_backup_id && (
+          <div className="fl-detail__sub" style={{ marginTop: 4 }}>
+            promoted from backup{" "}
+            <Link to="/backups/$id" params={{ id: row.source_backup_id }}>
+              {row.source_backup_id}
+            </Link>
+          </div>
+        )}
       </div>
       <div className="fl-detail__body">
         <FlStatsCard

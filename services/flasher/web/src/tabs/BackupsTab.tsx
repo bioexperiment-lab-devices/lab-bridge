@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   bulkDeleteBackups,
   deleteBackup,
@@ -22,15 +23,20 @@ import { DetailPlaceholder } from "./FirmwareTab";
 import { PromoteBackupModal } from "../components/PromoteBackupModal";
 import { LogDetailDrawer } from "../components/LogDetailDrawer";
 
-export function BackupsTab() {
+export function BackupsTab({ selectedId }: { selectedId: string | null }) {
+  const navigate = useNavigate();
   const [list, setList] = useState<BackupRecord[]>([]);
   const [clients, setClients] = useState<ClientEntry[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [clientFilter, setClientFilter] = useState<string>("");
   const [bulk, setBulk] = useState<Set<string>>(new Set());
   const [promoting, setPromoting] = useState<BackupRecord | null>(null);
   const [openFlashId, setOpenFlashId] = useState<string | null>(null);
+
+  const selectBackup = (id: string | null) => {
+    if (id) navigate({ to: "/backups/$id", params: { id } });
+    else navigate({ to: "/backups" });
+  };
 
   async function refresh() {
     const r = await listBackups({
@@ -106,7 +112,7 @@ export function BackupsTab() {
                   key={b.id}
                   className="fl-row"
                   data-selected={b.id === selectedId || undefined}
-                  onClick={() => setSelectedId(b.id)}
+                  onClick={() => selectBackup(b.id)}
                 >
                   <span
                     className="shp-checkbox"
@@ -143,7 +149,7 @@ export function BackupsTab() {
                         if (!confirm(`Delete backup "${b.name}"?`)) return;
                         try {
                           await deleteBackup(b.id);
-                          if (selectedId === b.id) setSelectedId(null);
+                          if (selectedId === b.id) selectBackup(null);
                           await refresh();
                         } catch (e: any) {
                           alert(e.body?.detail ?? String(e?.message ?? e));
@@ -177,7 +183,10 @@ export function BackupsTab() {
         <PromoteBackupModal
           backup={promoting}
           onClose={() => setPromoting(null)}
-          onCreated={() => { setPromoting(null); refresh(); }}
+          onCreated={firmware => {
+            setPromoting(null);
+            navigate({ to: "/firmware/$id", params: { id: firmware.id } });
+          }}
         />
       )}
       {openFlashId && <LogDetailDrawer flashId={openFlashId} onClose={() => setOpenFlashId(null)} />}
@@ -243,6 +252,17 @@ function BackupDetail({
             <div className="fl-detail__sub">
               sha256 {row.sha256} · {row.size_bytes} B · captured {row.captured_at}
             </div>
+            {row.source_flash_id && (
+              <div className="fl-detail__sub">
+                captured during flash{" "}
+                <Link
+                  to="/logs"
+                  search={{ open: row.source_flash_id } as any}
+                >
+                  {row.source_flash_id}
+                </Link>
+              </div>
+            )}
           </div>
           <FlButton
             small

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { listClients, listFirmware, listFlashes } from "../api";
 import {
   FlBadgeMulti,
@@ -28,15 +29,35 @@ const OUTCOMES = [
   "interrupted",
 ];
 
-export function LogsTab() {
-  const [filters, setFilters] = useState<FlashFilters>({});
-  const [openFlashId, setOpenFlashId] = useState<string | null>(null);
+interface LogsTabProps {
+  filters: FlashFilters;
+  openId: string | null;
+}
+
+export function LogsTab({ filters, openId }: LogsTabProps) {
+  const navigate = useNavigate();
+
+  // All filter mutations push back into the URL. Use `replace: true` so the
+  // back button doesn't have to walk through every checkbox toggle.
+  const updateFilters = (next: FlashFilters) => {
+    navigate({
+      to: "/logs",
+      search: ({ open: openId ?? undefined, ...next }) as any,
+      replace: true,
+    });
+  };
+  const openDrawer = (id: string) => {
+    navigate({ to: "/logs", search: ({ ...filters, open: id }) as any, replace: true });
+  };
+  const closeDrawer = () => {
+    navigate({ to: "/logs", search: ({ ...filters, open: undefined }) as any, replace: true });
+  };
 
   return (
     <FlPage title="Logs" subtitle="every flash run — most recent first">
-      <LogFilters value={filters} onChange={setFilters} />
-      <LogTable filters={filters} onOpen={setOpenFlashId} selectedId={openFlashId} />
-      {openFlashId && <LogDetailDrawer flashId={openFlashId} onClose={() => setOpenFlashId(null)} />}
+      <LogFilters value={filters} onChange={updateFilters} />
+      <LogTable filters={filters} onOpen={openDrawer} selectedId={openId} />
+      {openId && <LogDetailDrawer flashId={openId} onClose={closeDrawer} />}
     </FlPage>
   );
 }
@@ -173,7 +194,6 @@ function LogTable({
   const [items, setItems] = useState<FlashRowSummary[]>([]);
   const [nextBefore, setNextBefore] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [total, setTotal] = useState<number | null>(null);
   const loaderRef = useRef<HTMLTableRowElement>(null);
 
   const filtersKey = JSON.stringify(filters);
@@ -186,12 +206,12 @@ function LogTable({
         if (cancelled) return;
         setItems(r.items);
         setNextBefore(r.next_before);
-        setTotal(null);
       } catch {
         // ignore
       }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtersKey]);
 
   async function loadMore() {
@@ -218,6 +238,7 @@ function LogTable({
     }, { rootMargin: "200px" });
     obs.observe(loaderRef.current);
     return () => obs.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nextBefore, items.length]);
 
   return (
@@ -285,7 +306,6 @@ function LogTable({
           )}
         </tbody>
       </table>
-      {total != null && <div style={{ display: "none" }}>{total}</div>}
     </div>
   );
 }
