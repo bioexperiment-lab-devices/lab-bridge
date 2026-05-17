@@ -155,8 +155,9 @@ body {
   align-items: center;
   gap: 6px;
   letter-spacing: -0.002em;
+  text-decoration: none;
 }
-.fl-tab:hover { color: var(--text); }
+.fl-tab:hover { color: var(--text); text-decoration: none; }
 .fl-tab[data-active="true"] {
   color: var(--text);
   border-bottom-color: var(--accent);

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   getFlash,
   listClients,
@@ -142,10 +143,38 @@ export function LogDetailDrawer({ flashId, onClose }: Props) {
             <dt>Started</dt><dd>{row.started_at}</dd>
             <dt>Status</dt><dd>{row.status}{row.outcome ? ` (${row.outcome})` : ""}</dd>
             <dt>Client · port</dt><dd>{row.client} · {row.port_name}</dd>
-            <dt>Firmware</dt><dd>{row.firmware_name} (sha {row.firmware_sha256.slice(0, 12)})</dd>
-            <dt>Source kind</dt><dd>{row.source_kind}</dd>
+            <dt>Firmware</dt>
+            <dd>
+              {row.source_kind === "firmware" ? (
+                <Link to="/firmware/$id" params={{ id: row.source_id }} onClick={onClose}>
+                  {row.firmware_name}
+                </Link>
+              ) : (
+                row.firmware_name
+              )}{" "}
+              (sha {row.firmware_sha256.slice(0, 12)})
+            </dd>
+            <dt>Source kind</dt>
+            <dd>
+              {row.source_kind === "backup" ? (
+                <Link to="/backups/$id" params={{ id: row.source_id }} onClick={onClose}>
+                  backup
+                </Link>
+              ) : (
+                row.source_kind
+              )}
+            </dd>
             {row.duration_ms != null && <><dt>Duration</dt><dd>{(row.duration_ms / 1000).toFixed(1)}s</dd></>}
-            {row.backup_id && <><dt>Backup ID</dt><dd>{row.backup_id}</dd></>}
+            {row.backup_id && (
+              <>
+                <dt>Backup ID</dt>
+                <dd>
+                  <Link to="/backups/$id" params={{ id: row.backup_id }} onClick={onClose}>
+                    {row.backup_id}
+                  </Link>
+                </dd>
+              </>
+            )}
           </dl>
 
           <div>

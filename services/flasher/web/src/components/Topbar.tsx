@@ -1,28 +1,19 @@
-import { TabId } from "../types";
+import { Link } from "@tanstack/react-router";
 
-interface Counts {
-  flash?: number | null;
-  firmware?: number | null;
-  backups?: number | null;
-  logs?: number | null;
+interface TabDef {
+  to: "/" | "/firmware" | "/backups" | "/logs";
+  label: string;
+  exact?: boolean;
 }
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: "flash", label: "Flash" },
-  { id: "firmware", label: "Firmware" },
-  { id: "backups", label: "Backups" },
-  { id: "logs", label: "Logs" },
+const TABS: TabDef[] = [
+  { to: "/", label: "Flash", exact: true },
+  { to: "/firmware", label: "Firmware" },
+  { to: "/backups", label: "Backups" },
+  { to: "/logs", label: "Logs" },
 ];
 
-export function Topbar({
-  active,
-  onChange,
-  counts = {},
-}: {
-  active: TabId;
-  onChange: (next: TabId) => void;
-  counts?: Counts;
-}) {
+export function Topbar() {
   return (
     <header className="fl-topbar">
       <div className="fl-brand">
@@ -30,22 +21,18 @@ export function Topbar({
         Flasher
       </div>
       <nav className="fl-topbar__tabs" role="tablist">
-        {TABS.map(t => {
-          const count = counts[t.id];
-          return (
-            <button
-              key={t.id}
-              role="tab"
-              aria-selected={active === t.id}
-              className="fl-tab"
-              data-active={active === t.id || undefined}
-              onClick={() => onChange(t.id)}
-            >
-              {t.label}
-              {count != null && <span className="fl-tab__count">{count}</span>}
-            </button>
-          );
-        })}
+        {TABS.map(t => (
+          <Link
+            key={t.to}
+            to={t.to}
+            role="tab"
+            className="fl-tab"
+            activeOptions={{ exact: t.exact ?? false }}
+            activeProps={{ "data-active": "true" } as any}
+          >
+            {t.label}
+          </Link>
+        ))}
       </nav>
     </header>
   );
