@@ -1,0 +1,89 @@
+name: pr-caddy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: pr-caddy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  caddy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: changed
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            src:
+              - 'services/caddy/**'
+              - 'compose/Caddyfile.tmpl'
+              - '.github/workflows/pr-caddy.yml'
+
+      - id: should-run
+        name: determine if suite should run
+        run: |
+          set -e
+          if [[ "${{ github.head_ref }}" == release-please--* ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::release-please PR — running full caddy suite"
+          else
+            echo "run=${{ steps.changed.outputs.src }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.should-run.outputs.run != 'true'
+        run: echo "no caddy changes; skipping all steps"
+
+      - if: steps.should-run.outputs.run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: services/caddy/.python-version
+          cache: pip
+
+      - name: install uv
+        if: steps.should-run.outputs.run == 'true'
+        run: pip install uv
+
+      - name: deps
+        if: steps.should-run.outputs.run == 'true'
+        working-directory: services/caddy
+        run: uv sync --frozen
+
+      - name: ruff check
+        if: steps.should-run.outputs.run == 'true'
+        working-directory: services/caddy
+        run: uv run ruff check tests
+
+      - name: ruff format check
+        if: steps.should-run.outputs.run == 'true'
+        working-directory: services/caddy
+        run: uv run ruff format --check tests
+
+      - name: docker buildx setup
+        if: steps.should-run.outputs.run == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: image build (no push)
+        if: steps.should-run.outputs.run == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: services/caddy
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: lab-bridge-caddy:pr-${{ github.event.pull_request.number }}
+
+      - name: pytest (e2e)
+        if: steps.should-run.outputs.run == 'true'
+        working-directory: services/caddy
+        env:
+          CADDY_TEST_IMAGE: lab-bridge-caddy:pr-${{ github.event.pull_request.number }}
+        run: uv run pytest tests/e2e/ -v
