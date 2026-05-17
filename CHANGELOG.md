@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.7.0...v0.7.1) (2026-05-17)
+
+
+### Bug Fixes
+
+* **flasher:** map tags→tag_ids in PATCH firmware route ([#43](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/43)) ([0f265b5](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/0f265b577de0411f12b2d16601b7fa805bfd75a3))
+
+## [0.7.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.6.1...v0.7.0) (2026-05-17)
+
+
+### Features
+
+* **flasher:** redesign web UI to match Flasher.html mockup ([#41](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/41)) ([68871a2](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/68871a2d9a3b4f0086fa0ba3073139ba991b6709))
+
 ## [0.6.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/platform-v0.6.0...platform-v0.6.1) (2026-05-17)
 
 
