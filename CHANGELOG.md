@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.8.0...v0.8.1) (2026-05-17)
+
+
+### Bug Fixes
+
+* **release:** cut 0.8.1 to publish missing lab-bridge-caddy image ([#54](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/54)) ([f5e6a0f](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/f5e6a0ffa868e89c3df9915cdf4a546bcaed4aac))
+
 ## [0.8.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.7.1...v0.8.0) (2026-05-17)
 
 
