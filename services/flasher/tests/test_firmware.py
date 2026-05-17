@@ -265,6 +265,30 @@ def test_patch_firmware_updates_fields(http_app: TestClient) -> None:
     assert body["description"] == "d"
 
 
+def test_patch_firmware_updates_tags(http_app: TestClient) -> None:
+    tid = http_app.post("/flash/api/tags", json={"name": "pump"}).json()["id"]
+    fid = http_app.post(
+        "/flash/api/firmware", json={"name": "x", "firmware": ":00000001FF\n"}
+    ).json()["id"]
+
+    r = http_app.patch(f"/flash/api/firmware/{fid}", json={"tags": [tid]})
+    assert r.status_code == 200, r.text
+    assert [t["id"] for t in r.json()["tags"]] == [tid]
+
+    r = http_app.patch(f"/flash/api/firmware/{fid}", json={"tags": []})
+    assert r.status_code == 200, r.text
+    assert r.json()["tags"] == []
+
+
+def test_patch_firmware_unknown_tag_returns_400(http_app: TestClient) -> None:
+    fid = http_app.post(
+        "/flash/api/firmware", json={"name": "x", "firmware": ":00000001FF\n"}
+    ).json()["id"]
+    r = http_app.patch(f"/flash/api/firmware/{fid}", json={"tags": ["nope"]})
+    assert r.status_code == 400
+    assert r.json()["error"] == "tag not found"
+
+
 def test_delete_firmware_succeeds(http_app: TestClient) -> None:
     fid = http_app.post(
         "/flash/api/firmware", json={"name": "x", "firmware": ":00000001FF\n"}
