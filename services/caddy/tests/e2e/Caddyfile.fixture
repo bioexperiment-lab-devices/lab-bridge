@@ -19,13 +19,23 @@
         uri strip_prefix /csp
         header Content-Security-Policy "(script-src[^;]*)" "${1} 'self'"
         header Content-Security-Policy "(style-src[^;]*)" "${1} 'self'"
-        reverse_proxy stub:9000
+        # replace-response cannot operate on a gzip-encoded body; strip
+        # Accept-Encoding so the upstream stub sends plain text.
+        # Production Caddyfile.tmpl needs the same fix (Task 12).
+        reverse_proxy stub:9000 {
+            header_up -Accept-Encoding
+        }
     }
 
     # Plain proxy — exercises injection only.
     handle /plain/* {
         uri strip_prefix /plain
-        reverse_proxy stub:9000
+        # replace-response cannot operate on a gzip-encoded body; strip
+        # Accept-Encoding so the upstream stub sends plain text.
+        # Production Caddyfile.tmpl needs the same fix (Task 12).
+        reverse_proxy stub:9000 {
+            header_up -Accept-Encoding
+        }
     }
 
     # HTML injection on text/html only.
