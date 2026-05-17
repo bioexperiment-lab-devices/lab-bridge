@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.7.1...v0.8.0) (2026-05-17)
+
+
+### Features
+
+* **flasher:** tighten topbar, portal dropdowns, hash tag colors ([#45](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/45)) ([df0ea5d](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/df0ea5d6e3e846e97c447fb23712cb8c1b035418))
+* **flasher:** URL routing, persistent flash draft, cross-record links ([#46](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/46)) ([4eb790f](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/4eb790fd2b5a1bce4eafb2563f3b72193f731618))
+* **platform:** shared navbar via Caddy injection ([#50](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/50)) ([f5ea897](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/f5ea897f579ddd24ebb545fcda93681c07fc5c92))
+
+
+### Bug Fixes
+
+* **flasher:** tolerate 404 from disconnect before flash ([#48](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/48)) ([46dd88d](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/46dd88d3587a8f2573af1360405e9e67628e74e0))
+* **flasher:** wrap logs table rows instead of horizontal scroll ([#49](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/49)) ([46ab92e](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/46ab92eef91e53c09ac1925ae1661c792446087d))
+
 ## [0.7.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.7.0...v0.7.1) (2026-05-17)
 
 
