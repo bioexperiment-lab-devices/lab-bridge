@@ -80,12 +80,12 @@ tasks:
 
   # --- Siteapp image ---
   "siteapp:build-and-push":
-    desc: Build and push the siteapp image. Reads version from services/siteapp/VERSION; reads SITEAPP_IMAGE_REPO from compose/pins.yaml (or env override).
+    desc: Build and push the siteapp image. Reads version from root VERSION; reads SITEAPP_IMAGE_REPO from compose/pins.yaml (or env override).
     cmd: bash services/siteapp/build.sh
 
   # --- Flasher image ---
   "flasher:build-and-push":
-    desc: Build and push the flasher image. Reads version from services/flasher/VERSION; reads FLASHER_IMAGE_REPO from compose/pins.yaml (or env override).
+    desc: Build and push the flasher image. Reads version from root VERSION; reads FLASHER_IMAGE_REPO from compose/pins.yaml (or env override).
     cmd: bash services/flasher/build.sh
 
   "ops:logs:flasher":

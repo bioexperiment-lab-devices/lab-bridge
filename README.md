@@ -57,7 +57,7 @@ task secrets:add-client -- microscope-1 9001  # add a lab device
 task provision                                # first-time VPS setup
 
 # Publish the siteapp image to GHCR (or your registry) — see "Publishing the
-# siteapp image" below. The image tag is pinned in services/siteapp/VERSION.
+# siteapp image" below. The image tag is pinned in the root VERSION file.
 
 task deploy                                   # render configs + bring up stack
 ```
@@ -138,29 +138,17 @@ Two files control the image reference — no `config.yaml` field is involved:
 
 - **`compose/pins.yaml`** → `siteapp_image_repo` — the GHCR repository path
   (e.g. `ghcr.io/<owner>/lab-bridge-siteapp`).
-- **`services/siteapp/VERSION`** — the image tag (e.g. `0.2.0`).
+- **`VERSION`** at repo root — the image tag (e.g. `0.6.1`), shared by every
+  service. Owned by release-please; do not bump by hand.
 
 `task siteapp:build-and-push` reads both and builds
 `${siteapp_image_repo}:${VERSION}` — no environment variables needed.
+Manual rebuilds are rare; the normal flow is the release-please workflow
+which builds both service images at every release.
 
-To publish a new version manually (requires a PAT with `write:packages` or
-an environment with a writable `GITHUB_TOKEN`):
-
-```bash
-# 1. Bump the version
-echo "0.2.0" > services/siteapp/VERSION
-git add services/siteapp/VERSION && git commit -m "chore(siteapp): bump version to 0.2.0"
-
-# 2. Build and push
-task siteapp:build-and-push
-
-# 3. Deploy
-task deploy
-```
-
-CI publishing is being migrated to release-please (automated tag + image
-build on merge) — see
-`docs/superpowers/specs/2026-05-12-cicd-design.md`.
+See `docs/superpowers/specs/2026-05-17-unified-release-design.md` for the
+release model and `docs/superpowers/specs/2026-05-12-cicd-design.md` for
+the original CI/CD design.
 
 The package on GHCR is private by default; flip its visibility to public
 once (Org → Packages → ⋯ → Package settings → Change visibility) so the

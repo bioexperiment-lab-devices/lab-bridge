@@ -6,7 +6,10 @@ on:
   workflow_dispatch:
     inputs:
       rollback_to:
-        description: 'Component-prefixed tag to redeploy (e.g. siteapp-v0.4.1 or platform-v0.5.0). Leave empty for a normal release-please run.'
+        description: 'Tag to redeploy (e.g. v0.7.0 or legacy platform-v0.6.1). Empty for a normal release-please run.'
+        required: false
+      verify_version:
+        description: 'Override the post-deploy version check. Empty = derive from tag. "none" = skip verify (use for legacy tags whose images report a different version than the tag carries).'
         required: false
 
 concurrency:
@@ -23,20 +26,15 @@ permissions:
 jobs:
   release-please:
     name: release-please
+    # Skip the release-please bot on workflow_dispatch when rollback_to is set
+    # (manual redeploy of an existing tag). The release-build job reads the tag
+    # straight from the dispatch input in that case.
     if: github.event_name == 'push' || github.event.inputs.rollback_to == ''
     runs-on: ubuntu-latest
     outputs:
-      siteapp_released: ${{ steps.rp.outputs['services/siteapp--release_created'] }}
-      siteapp_tag:      ${{ steps.rp.outputs['services/siteapp--tag_name'] }}
-      siteapp_version:  ${{ steps.rp.outputs['services/siteapp--version'] }}
-      flasher_released: ${{ steps.rp.outputs['services/flasher--release_created'] }}
-      flasher_tag:      ${{ steps.rp.outputs['services/flasher--tag_name'] }}
-      flasher_version:  ${{ steps.rp.outputs['services/flasher--version'] }}
-      # Root component `.` emits its outputs unprefixed (see release-please-action
-      # src/index.ts setPathOutput); sub-paths use the `<path>--<key>` form.
-      platform_released: ${{ steps.rp.outputs.release_created }}
-      platform_tag:      ${{ steps.rp.outputs.tag_name }}
-      platform_version:  ${{ steps.rp.outputs.version }}
+      released: ${{ steps.rp.outputs.release_created }}
+      tag:      ${{ steps.rp.outputs.tag_name }}
+      version:  ${{ steps.rp.outputs.version }}
     steps:
       - id: app-token
         uses: actions/create-github-app-token@v3
@@ -51,34 +49,51 @@ jobs:
           manifest-file: .release-please-manifest.json
           token: ${{ steps.app-token.outputs.token }}
 
-  release-build-siteapp:
-    name: release-build-siteapp
+  release-build:
+    name: release-build
     needs: release-please
     # !failure() && !cancelled() lets this job run when `release-please` is
     # skipped (workflow_dispatch rollback path), since the implicit success()
     # precondition on `needs:` would otherwise also skip this job.
     if: |
       !failure() && !cancelled() && (
-        (github.event_name == 'push' && needs.release-please.outputs.siteapp_released == 'true')
-        || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.rollback_to, 'siteapp-v'))
+        (github.event_name == 'push' && needs.release-please.outputs.released == 'true')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.rollback_to != '')
       )
     runs-on: ubuntu-latest
     steps:
       - name: resolve ref
         id: ref
         run: |
+          set -euo pipefail
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             tag="${{ github.event.inputs.rollback_to }}"
             mode=rollback
+            user_verify="${{ github.event.inputs.verify_version }}"
           else
-            tag="${{ needs.release-please.outputs.siteapp_tag }}"
+            tag="${{ needs.release-please.outputs.tag }}"
             mode=release
+            user_verify=""
           fi
-          version="${tag#siteapp-v}"
-          echo "tag=$tag"           >> "$GITHUB_OUTPUT"
-          echo "version=$version"   >> "$GITHUB_OUTPUT"
-          echo "mode=$mode"         >> "$GITHUB_OUTPUT"
-          echo "image=ghcr.io/${{ github.repository_owner }}/lab-bridge-siteapp:$version" >> "$GITHUB_OUTPUT"
+          # Strip either `<prefix>-v` (legacy: platform-v0.6.1, siteapp-v0.4.0, flasher-v0.6.0)
+          # or leading `v` (unified: v0.7.0).
+          version="${tag#*-v}"
+          version="${version#v}"
+          # Resolve verify_version: explicit input wins, "none" → empty (skip),
+          # otherwise derive from tag.
+          if [[ "$user_verify" == "none" ]]; then
+            verify_version=""
+          elif [[ -n "$user_verify" ]]; then
+            verify_version="$user_verify"
+          else
+            verify_version="$version"
+          fi
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "mode=$mode"
+            echo "verify_version=$verify_version"
+          } >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v4
         with:
@@ -98,7 +113,7 @@ jobs:
 
       - name: build & push siteapp image
         if: steps.ref.outputs.mode == 'release'
-        id: build
+        id: build-siteapp
         uses: docker/build-push-action@v6
         with:
           context: services/siteapp
@@ -106,8 +121,24 @@ jobs:
           push: true
           provenance: false
           tags: |
-            ${{ steps.ref.outputs.image }}
+            ghcr.io/${{ github.repository_owner }}/lab-bridge-siteapp:${{ steps.ref.outputs.version }}
             ghcr.io/${{ github.repository_owner }}/lab-bridge-siteapp:latest
+          build-args: |
+            LAB_BRIDGE_VERSION=${{ steps.ref.outputs.version }}
+            LAB_BRIDGE_GIT_SHA=${{ github.sha }}
+
+      - name: build & push flasher image
+        if: steps.ref.outputs.mode == 'release'
+        id: build-flasher
+        uses: docker/build-push-action@v6
+        with:
+          context: services/flasher
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/lab-bridge-flasher:${{ steps.ref.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/lab-bridge-flasher:latest
           build-args: |
             LAB_BRIDGE_VERSION=${{ steps.ref.outputs.version }}
             LAB_BRIDGE_GIT_SHA=${{ github.sha }}
@@ -117,86 +148,15 @@ jobs:
         uses: actions/attest-build-provenance@v4
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/lab-bridge-siteapp
-          subject-digest: ${{ steps.build.outputs.digest }}
+          subject-digest: ${{ steps.build-siteapp.outputs.digest }}
           push-to-registry: true
-
-      - name: deploy + verify
-        uses: ./.github/actions/deploy-stack
-        with:
-          vps_host:              ${{ vars.VPS_HOST }}
-          vps_ssh_user:          ${{ vars.VPS_SSH_USER }}
-          vps_ssh_key:           ${{ secrets.VPS_SSH_KEY }}
-          jupyter_password_hash: ${{ secrets.JUPYTER_PASSWORD_HASH }}
-          admin_password_hash:   ${{ secrets.ADMIN_PASSWORD_HASH }}
-          grafana_password:      ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
-          agent_upload_token:    ${{ secrets.AGENT_UPLOAD_TOKEN }}
-          flasher_upload_token:  ${{ secrets.FLASHER_UPLOAD_TOKEN }}
-          verify_siteapp_version: ${{ steps.ref.outputs.version }}
-
-  release-build-flasher:
-    name: release-build-flasher
-    needs: release-please
-    if: |
-      !failure() && !cancelled() && (
-        (github.event_name == 'push' && needs.release-please.outputs.flasher_released == 'true')
-        || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.rollback_to, 'flasher-v'))
-      )
-    runs-on: ubuntu-latest
-    steps:
-      - name: resolve ref
-        id: ref
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            tag="${{ github.event.inputs.rollback_to }}"
-            mode=rollback
-          else
-            tag="${{ needs.release-please.outputs.flasher_tag }}"
-            mode=release
-          fi
-          version="${tag#flasher-v}"
-          echo "tag=$tag"           >> "$GITHUB_OUTPUT"
-          echo "version=$version"   >> "$GITHUB_OUTPUT"
-          echo "mode=$mode"         >> "$GITHUB_OUTPUT"
-          echo "image=ghcr.io/${{ github.repository_owner }}/lab-bridge-flasher:$version" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.ref.outputs.tag }}
-
-      - name: log in to GHCR
-        if: steps.ref.outputs.mode == 'release'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: set up buildx
-        if: steps.ref.outputs.mode == 'release'
-        uses: docker/setup-buildx-action@v3
-
-      - name: build & push flasher image
-        if: steps.ref.outputs.mode == 'release'
-        id: build
-        uses: docker/build-push-action@v6
-        with:
-          context: services/flasher
-          platforms: linux/amd64
-          push: true
-          provenance: false
-          tags: |
-            ${{ steps.ref.outputs.image }}
-            ghcr.io/${{ github.repository_owner }}/lab-bridge-flasher:latest
-          build-args: |
-            LAB_BRIDGE_VERSION=${{ steps.ref.outputs.version }}
-            LAB_BRIDGE_GIT_SHA=${{ github.sha }}
 
       - name: attest flasher build provenance
         if: steps.ref.outputs.mode == 'release'
         uses: actions/attest-build-provenance@v4
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/lab-bridge-flasher
-          subject-digest: ${{ steps.build.outputs.digest }}
+          subject-digest: ${{ steps.build-flasher.outputs.digest }}
           push-to-registry: true
 
       - name: deploy + verify
@@ -210,43 +170,4 @@ jobs:
           grafana_password:      ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           agent_upload_token:    ${{ secrets.AGENT_UPLOAD_TOKEN }}
           flasher_upload_token:  ${{ secrets.FLASHER_UPLOAD_TOKEN }}
-          verify_flasher_version: ${{ steps.ref.outputs.version }}
-
-  release-platform:
-    name: release-platform
-    needs: release-please
-    if: |
-      !failure() && !cancelled() && (
-        (github.event_name == 'push' && needs.release-please.outputs.platform_released == 'true')
-        || (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.rollback_to, 'platform-v'))
-      )
-    runs-on: ubuntu-latest
-    steps:
-      - name: resolve ref
-        id: ref
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            tag="${{ github.event.inputs.rollback_to }}"
-          else
-            tag="${{ needs.release-please.outputs.platform_tag }}"
-          fi
-          version="${tag#platform-v}"
-          echo "tag=$tag"         >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.ref.outputs.tag }}
-
-      - name: deploy
-        uses: ./.github/actions/deploy-stack
-        with:
-          vps_host:              ${{ vars.VPS_HOST }}
-          vps_ssh_user:          ${{ vars.VPS_SSH_USER }}
-          vps_ssh_key:           ${{ secrets.VPS_SSH_KEY }}
-          jupyter_password_hash: ${{ secrets.JUPYTER_PASSWORD_HASH }}
-          admin_password_hash:   ${{ secrets.ADMIN_PASSWORD_HASH }}
-          grafana_password:      ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
-          agent_upload_token:    ${{ secrets.AGENT_UPLOAD_TOKEN }}
-          flasher_upload_token:  ${{ secrets.FLASHER_UPLOAD_TOKEN }}
-          verify_platform_version: ${{ steps.ref.outputs.version }}
+          verify_version:        ${{ steps.ref.outputs.verify_version }}

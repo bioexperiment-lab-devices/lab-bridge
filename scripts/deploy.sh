@@ -75,11 +75,6 @@ main() {
     mkdir -p "$stage/siteapp/docs"
     cp -R "$REPO_ROOT/public_docs/." "$stage/siteapp/docs/"
 
-    # Platform VERSION marker. Rsynced to $VPS_REMOTE_ROOT/VERSION on the VPS,
-    # where CI's release-platform verify step reads it back to confirm the
-    # stack templates from the just-tagged release actually landed.
-    install -m 644 "$REPO_ROOT/compose/VERSION" "$stage/VERSION"
-
     # 2. Build SSH/rsync.
     local ssh_base rsync_e target
     ssh_base="ssh -p $VPS_SSH_PORT"
