@@ -70,6 +70,8 @@ jobs:
             exit 0
           fi
 
+          failed_prs=()
+
           for pr in "${prs[@]}"; do
             num=$(jq -r .number      <<<"$pr")
             ref=$(jq -r .headRefName <<<"$pr")
@@ -95,6 +97,8 @@ jobs:
               continue
             fi
 
+            before_sha=$(git rev-parse HEAD)
+
             # Real rebase onto main. Just rewriting the manifest on top of the
             # stale branch isn't enough — git's 3-way merge sees an adjacent-
             # line conflict between main's sibling-path bump and the PR's own-
@@ -111,6 +115,8 @@ jobs:
                   || ! grep -q '^<<<<<<<' .release-please-manifest.json; then
                 echo "::error::$ref: rebase failed with a non-manifest conflict — aborting"
                 git rebase --abort
+                failed_prs+=("$num")
+                git checkout main
                 continue
               fi
               jq --arg p "$path" --arg v "$own" '.[$p] = $v' <<<"$MAIN_MANIFEST" \
@@ -119,18 +125,62 @@ jobs:
               if ! GIT_EDITOR=true git rebase --continue; then
                 echo "::error::$ref: rebase --continue failed after resolving manifest — aborting"
                 git rebase --abort || true
+                failed_prs+=("$num")
+                git checkout main
                 continue
               fi
               echo "$ref: rebased with manifest auto-resolution"
             fi
 
+            # If rebase was a no-op (branch was already on top of current main),
+            # don't push — that just thrashes the pr-* CI workflows for nothing.
+            if [[ "$(git rev-parse HEAD)" == "$before_sha" ]]; then
+              echo "$ref: branch already on top of main, no push needed"
+              git checkout main
+              continue
+            fi
+
             # Rebase rewrote history; force-with-lease is safe because we just
             # fetched the branch and nothing else should be pushing to it
             # (release-please-action only reads it via "PR remained the same").
-            if git push --force-with-lease origin "HEAD:refs/heads/$ref"; then
-              echo "pushed rebased $ref"
-            else
+            if ! git push --force-with-lease origin "HEAD:refs/heads/$ref"; then
               echo "::warning::push to $ref failed — likely raced with another push; next release-please run will re-attempt"
+              git checkout main
+              continue
             fi
+            echo "$ref: pushed"
+
+            # Post-push verification: confirm GitHub now considers the PR
+            # mergeable. This catches the failure mode PR #36 fixed — where
+            # the workflow looks successful but the PR is still CONFLICTING.
+            # GitHub computes mergeability asynchronously (mergeable=null
+            # while pending), so retry up to ~60s.
+            mergeable="null"
+            state="null"
+            for i in $(seq 1 30); do
+              resp=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/$num" \
+                --jq '{mergeable, mergeable_state}' 2>/dev/null || echo '{}')
+              mergeable=$(jq -r '.mergeable // "null"' <<<"$resp")
+              state=$(jq -r '.mergeable_state // "null"' <<<"$resp")
+              if [[ "$mergeable" == "true" ]]; then
+                echo "$ref: verified mergeable (state=$state)"
+                break
+              fi
+              if [[ "$mergeable" == "false" ]]; then
+                break
+              fi
+              sleep 2
+            done
+
+            if [[ "$mergeable" != "true" ]]; then
+              echo "::error::$ref: post-rebase mergeability check failed (mergeable=$mergeable, state=$state)"
+              failed_prs+=("$num")
+            fi
+
             git checkout main
           done
+
+          if [[ ${#failed_prs[@]} -gt 0 ]]; then
+            echo "::error::rebase verification failed for PR(s): ${failed_prs[*]}"
+            exit 1
+          fi
