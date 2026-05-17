@@ -19,6 +19,12 @@ siteapp_image_repo: ghcr.io/bioexperiment-lab-devices/lab-bridge-siteapp
 # "${flasher_image_repo}:$(cat VERSION)".
 flasher_image_repo: ghcr.io/bioexperiment-lab-devices/lab-bridge-flasher
 
+# GHCR repository for the custom Caddy image (carries the replace-response
+# plugin used for the platform navbar injection). The image *tag* lives in
+# the root VERSION (release-please-managed); the full reference is
+# "${caddy_image_repo}:$(cat VERSION)".
+caddy_image_repo: ghcr.io/bioexperiment-lab-devices/lab-bridge-caddy
+
 acme_email: khamitov.personal@gmail.com
 remote_root: /srv/lab-bridge
 notebooks_path: /srv/jupyterlab/work

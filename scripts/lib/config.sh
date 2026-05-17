@@ -33,6 +33,7 @@ _REQUIRED_PINS_FIELDS=(
     .grafana_image
     .siteapp_image_repo
     .flasher_image_repo
+    .caddy_image_repo
     .acme_email
     .remote_root
     .notebooks_path
@@ -152,4 +153,5 @@ load_config() {
     export GRAFANA_IMAGE         ; GRAFANA_IMAGE="$(_yq e '.grafana_image' "$pins_path")"
     export SITEAPP_IMAGE_REPO    ; SITEAPP_IMAGE_REPO="$(_yq e '.siteapp_image_repo' "$pins_path")"
     export FLASHER_IMAGE_REPO    ; FLASHER_IMAGE_REPO="$(_yq e '.flasher_image_repo' "$pins_path")"
+    export CADDY_IMAGE_REPO      ; CADDY_IMAGE_REPO="$(_yq e '.caddy_image_repo' "$pins_path")"
 }
