@@ -1,33 +1,11 @@
 {
-  "separate-pull-requests": true,
   "packages": {
-    "services/siteapp": {
-      "package-name": "siteapp",
-      "release-type": "simple",
-      "include-component-in-tag": true,
-      "tag-separator": "-",
-      "extra-files": [
-        { "type": "generic", "path": "VERSION" }
-      ]
-    },
-    "services/flasher": {
-      "package-name": "flasher",
-      "release-type": "simple",
-      "include-component-in-tag": true,
-      "tag-separator": "-",
-      "extra-files": [
-        { "type": "generic", "path": "VERSION" }
-      ]
-    },
     ".": {
-      "package-name": "platform",
+      "package-name": "lab-bridge",
       "release-type": "simple",
-      "include-component-in-tag": true,
-      "tag-separator": "-",
       "extra-files": [
-        { "type": "generic", "path": "compose/VERSION" }
-      ],
-      "exclude-paths": ["services/siteapp", "services/flasher", "public_docs"]
+        { "type": "generic", "path": "VERSION" }
+      ]
     }
   },
   "changelog-sections": [
