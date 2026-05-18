@@ -506,3 +506,27 @@ CFG
     [[ "$output" == *"admin :2019"* ]]
 }
 
+@test "render_prometheus_config: substitutes vps host and emits expected scrape jobs" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
+        render_prometheus_config $ROOT/compose/prometheus/prometheus.yml.tmpl $TMPDIR/prometheus.yml
+        cat $TMPDIR/prometheus.yml
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"host: 192.0.2.10"* ]]
+    [[ "$output" == *"env: prod"* ]]
+    [[ "$output" == *"job_name: prometheus"* ]]
+    [[ "$output" == *"job_name: node-exporter"* ]]
+    [[ "$output" == *"job_name: cadvisor"* ]]
+    [[ "$output" == *"job_name: caddy"* ]]
+    [[ "$output" == *"targets: ['caddy:2019']"* ]]
+    [[ "$output" == *"targets: ['node-exporter:9100']"* ]]
+    [[ "$output" == *"targets: ['cadvisor:8080']"* ]]
+    run grep -qE '__[A-Z][A-Z0-9_]*__' "$TMPDIR/prometheus.yml"
+    [ "$status" -eq 1 ]
+    yq e '.' "$TMPDIR/prometheus.yml" >/dev/null
+}
+

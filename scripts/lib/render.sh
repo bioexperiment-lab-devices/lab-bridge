@@ -151,3 +151,12 @@ render_loki_config() {
     local hours=$(( days * 24 ))
     sed -e "s|__LOKI_RETENTION_HOURS__|${hours}|g" "$tmpl" > "$out"
 }
+
+# render_prometheus_config <template_path> <output_path>
+# Substitutes __VPS_HOST__ into the Prometheus scrape config. Mirrors
+# render_loki_config in shape.
+render_prometheus_config() {
+    local tmpl="${1:?}" out="${2:?}"
+    [[ -f "$tmpl" ]] || die "template not found: $tmpl"
+    sed -e "s|__VPS_HOST__|${VPS_HOST:?}|g" "$tmpl" > "$out"
+}
