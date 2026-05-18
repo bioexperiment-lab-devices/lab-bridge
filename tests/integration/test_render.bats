@@ -344,7 +344,6 @@ acme_email: x@example.com
 remote_root: /srv/lb
 notebooks_path: /srv/lb/nb
 ssh_port: 22
-unified_agent_image: cr.yandex/yc/unified-agent:25.03.80
 PINS
     echo "1.2.3 # x-release-please-version" > "$BATS_TEST_TMPDIR/VERSION"
     cat > "$BATS_TEST_TMPDIR/config.yaml" <<'CFG'
@@ -372,54 +371,6 @@ CFG
     [ "$output" = "image: ghcr.io/example/lab-bridge-siteapp:1.2.3" ]
 }
 
-@test "render_compose: with yc.folder_id set, emits unified-agent service block" {
-    # Inline config (not valid_config.yaml fixture) because fake-VPS bats tests
-    # also use that fixture and would try to start the UA container on a Docker-
-    # in-Docker host, where /:/host/root:ro,rslave can't propagate ('/' is private).
-    cat > $TMPDIR/with_yc.yaml <<'EOF'
-vps: {host: 192.0.2.10, ssh_user: u}
-jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
-siteapp: {admin_password_hash: "$2a$14$HO81PFKmfx2eOcpGyeogN.ct3M9SzgDmvXYHaeNrlTzV66aFbPK2y"}
-chisel_clients: []
-yc:
-  folder_id: b1g00000000000000000
-EOF
-    run bash -c "
-        source $ROOT/scripts/lib/common.sh
-        source $ROOT/scripts/lib/config.sh
-        source $ROOT/scripts/lib/render.sh
-        load_config $TMPDIR/with_yc.yaml
-        render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
-        cat $TMPDIR/docker-compose.yml
-    "
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"unified-agent:"* ]]
-    [[ "$output" == *"image: cr.yandex/yc/unified-agent:25.03.80"* ]]
-    [[ "$output" == *"network_mode: host"* ]]
-    [[ "$output" == *"pid: host"* ]]
-    [[ "$output" == *"/proc:/host/proc:ro"* ]]
-    [[ "$output" == *"/sys:/host/sys:ro"* ]]
-    # Tighten: read_only and tmpfs storage path must appear (security + correctness).
-    [[ "$output" == *"read_only: true"* ]]
-    [[ "$output" == *"/var/lib/yandex/unified_agent"* ]]
-    # Regression guard: must use `entrypoint:` (not `command:`) so the image's
-    # entrypoint.sh — which writes /etc/yandex/unified_agent/config.yml from a
-    # template — is bypassed. With our read-only bind mount of the config at
-    # that path, the entrypoint write fails and the container crash-loops.
-    [[ "$output" == *'entrypoint: ["unified_agent", "--config", "/etc/yandex/unified_agent/config.yml"]'* ]]
-    # Marker comments must not leak into the rendered output.
-    # Negative assertions: `! grep` does not fail bats (bash skips ERR for `!`-prefixed
-    # commands), so use `run grep` + `[ "$status" -eq 1 ]` instead.
-    # Note: these run after all $output checks because `run` resets $output.
-    run grep -q '>>>unified-agent' "$TMPDIR/docker-compose.yml"
-    [ "$status" -eq 1 ]
-    run grep -q '<<<unified-agent' "$TMPDIR/docker-compose.yml"
-    [ "$status" -eq 1 ]
-    # No leftover placeholders.
-    run grep -qE '__[A-Z][A-Z0-9_]*__' "$TMPDIR/docker-compose.yml"
-    [ "$status" -eq 1 ]
-}
-
 @test "render_compose: FLASHER_IMAGE is composed from pins.yaml + root VERSION" {
     mkdir -p "$BATS_TEST_TMPDIR/compose"
     cat > "$BATS_TEST_TMPDIR/compose/pins.yaml" <<'PINS'
@@ -436,7 +387,6 @@ acme_email: x@example.com
 remote_root: /srv/lb
 notebooks_path: /srv/lb/nb
 ssh_port: 22
-unified_agent_image: cr.yandex/yc/unified-agent:25.03.80
 PINS
     echo "1.2.3 # x-release-please-version" > "$BATS_TEST_TMPDIR/VERSION"
     cat > "$BATS_TEST_TMPDIR/config.yaml" <<'CFG'
@@ -463,82 +413,3 @@ CFG
     [ "$output" = "image: ghcr.io/example/lab-bridge-flasher:1.2.3" ]
 }
 
-@test "render_unified_agent_config: substitutes folder_id and host labels" {
-    # Inline config (see "with yc.folder_id set" test above for the reason).
-    cat > $TMPDIR/with_yc.yaml <<'EOF'
-vps: {host: 192.0.2.10, ssh_user: u}
-jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
-siteapp: {admin_password_hash: "$2a$14$HO81PFKmfx2eOcpGyeogN.ct3M9SzgDmvXYHaeNrlTzV66aFbPK2y"}
-chisel_clients: []
-yc:
-  folder_id: b1g00000000000000000
-EOF
-    run bash -c "
-        source $ROOT/scripts/lib/common.sh
-        source $ROOT/scripts/lib/config.sh
-        source $ROOT/scripts/lib/render.sh
-        load_config $TMPDIR/with_yc.yaml
-        render_unified_agent_config $ROOT/compose/unified-agent/config.yml.tmpl $TMPDIR/ua-config.yml
-        cat $TMPDIR/ua-config.yml
-    "
-    [ "$status" -eq 0 ]
-    # Folder id from the inline config.
-    [[ "$output" == *"folder_id: b1g00000000000000000"* ]]
-    # Host label assigned to every series.
-    [[ "$output" == *"host: 192.0.2.10"* ]]
-    # Inputs and outputs we expect.
-    [[ "$output" == *"plugin: linux_metrics"* ]]
-    [[ "$output" == *"plugin: agent_metrics"* ]]
-    [[ "$output" == *"plugin: yc_metrics"* ]]
-    [[ "$output" == *"cloud_meta: {}"* ]]
-    [[ "$output" == *"proc_directory: /host/proc"* ]]
-    [[ "$output" == *"sys_directory: /host/sys"* ]]
-    # No leftover placeholders.
-    run grep -qE '__[A-Z][A-Z0-9_]*__' "$TMPDIR/ua-config.yml"
-    [ "$status" -eq 1 ]
-    # Structural: must have exactly 2 routes (linux_metrics + agent_metrics).
-    run yq e '.routes | length' "$TMPDIR/ua-config.yml"
-    [ "$status" -eq 0 ]
-    [[ "$output" == "2" ]]
-    # Valid YAML.
-    yq e '.' "$TMPDIR/ua-config.yml" >/dev/null
-}
-
-@test "render_compose: without yc.folder_id, omits the unified-agent service block" {
-    cat > $TMPDIR/no_yc.yaml <<'EOF'
-vps: {host: 1.2.3.4, ssh_user: u}
-jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
-siteapp: {admin_password_hash: "$2a$14$HO81PFKmfx2eOcpGyeogN.ct3M9SzgDmvXYHaeNrlTzV66aFbPK2y"}
-chisel_clients: []
-EOF
-    # Render without cat — check the output file directly so we can re-use it
-    # across multiple assertions without run resetting $output.
-    run bash -c "
-        source $ROOT/scripts/lib/common.sh
-        source $ROOT/scripts/lib/config.sh
-        source $ROOT/scripts/lib/render.sh
-        load_config $TMPDIR/no_yc.yaml
-        render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
-    "
-    [ "$status" -eq 0 ]
-    local rendered="$TMPDIR/docker-compose.yml"
-    # Use 'run grep' + '[ "$status" -eq 1 ]' for negative assertions: bare '! grep'
-    # does not fail bats because bash does not fire the ERR trap for '!'-prefixed
-    # commands (see bash manual, ERR trap section).
-    run grep -q 'unified-agent:' "$rendered"
-    [ "$status" -eq 1 ]
-    run grep -q 'cr.yandex/yc/unified-agent' "$rendered"
-    [ "$status" -eq 1 ]
-    run grep -q '/host/proc' "$rendered"
-    [ "$status" -eq 1 ]
-    # Marker comments must not leak either way.
-    run grep -q '>>>unified-agent' "$rendered"
-    [ "$status" -eq 1 ]
-    run grep -q '<<<unified-agent' "$rendered"
-    [ "$status" -eq 1 ]
-    # Other services unaffected.
-    run grep -q 'grafana/loki:3.2.1' "$rendered"
-    [ "$status" -eq 0 ]
-    run grep -q 'grafana/grafana:11.3.0' "$rendered"
-    [ "$status" -eq 0 ]
-}

@@ -97,7 +97,6 @@ acme_email: ops@example.com
 remote_root: /srv/lab-bridge
 notebooks_path: /srv/jupyterlab/work
 ssh_port: 22
-unified_agent_image: cr.yandex/yc/unified-agent:25.03.80
 PINS
     cat > "$TMPDIR/config.yaml" <<'CFG'
 vps:

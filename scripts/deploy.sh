@@ -41,16 +41,6 @@ main() {
     fi
     render_loki_config  "$REPO_ROOT/compose/loki/config.yaml.tmpl"   "$stage/loki/config.yaml"
 
-    # Unified Agent config — only when yc.folder_id is configured. Otherwise
-    # the unified-agent service block was already stripped from the rendered
-    # compose by render_compose, so we skip the matching config to avoid
-    # staging an orphaned file.
-    if [[ -n "${YC_FOLDER_ID:-}" ]]; then
-        mkdir -p "$stage/unified-agent"
-        render_unified_agent_config "$REPO_ROOT/compose/unified-agent/config.yml.tmpl" \
-                                    "$stage/unified-agent/config.yml"
-    fi
-
     # Static Grafana provisioning — datasource + dashboard provider + dashboard JSON.
     cp -R "$REPO_ROOT/compose/grafana/provisioning/." "$stage/grafana/provisioning/"
 

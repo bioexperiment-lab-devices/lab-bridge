@@ -9,12 +9,6 @@ loki_image: grafana/loki:3.2.1
 loki_retention_days: 30
 grafana_image: grafana/grafana:11.3.0
 
-# Yandex Cloud Unified Agent — host metrics shipper. Yandex-specific; the
-# service is rendered into docker-compose only when config.yaml has
-# yc.folder_id set, so CI deploys (which leave it unset) bring up the
-# stack without this container.
-unified_agent_image: cr.yandex/yc/unified-agent:25.03.80
-
 # GHCR repository for the siteapp image. The image *tag* lives in
 # the root VERSION (release-please-managed); the full reference is
 # "${siteapp_image_repo}:$(cat VERSION)".
