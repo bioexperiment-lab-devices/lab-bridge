@@ -388,14 +388,20 @@ CFG
     [[ "$output" == *"pid: host"* ]]
     [[ "$output" == *"/proc:/host/proc:ro"* ]]
     [[ "$output" == *"/sys:/host/sys:ro"* ]]
-    # Marker comments must not leak into the rendered output.
-    ! grep -q '>>>unified-agent' <<< "$output"
-    ! grep -q '<<<unified-agent' <<< "$output"
-    # No leftover placeholders.
-    ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
     # Tighten: read_only and tmpfs storage path must appear (security + correctness).
     [[ "$output" == *"read_only: true"* ]]
     [[ "$output" == *"/var/lib/yandex/unified_agent"* ]]
+    # Marker comments must not leak into the rendered output.
+    # Negative assertions: `! grep` does not fail bats (bash skips ERR for `!`-prefixed
+    # commands), so use `run grep` + `[ "$status" -eq 1 ]` instead.
+    # Note: these run after all $output checks because `run` resets $output.
+    run grep -q '>>>unified-agent' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 1 ]
+    run grep -q '<<<unified-agent' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 1 ]
+    # No leftover placeholders.
+    run grep -qE '__[A-Z][A-Z0-9_]*__' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 1 ]
 }
 
 @test "render_compose: FLASHER_IMAGE is composed from pins.yaml + root VERSION" {

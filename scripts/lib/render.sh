@@ -51,8 +51,9 @@ render_compose() {
     # so | as the sed delimiter is safe.
     local strip_unified_agent=""
     if [[ -z "${YC_FOLDER_ID:-}" ]]; then
-        # Drop everything between the markers (inclusive). awk is used (not sed)
-        # because GNU/BSD sed disagree on multi-line range syntax with /pattern/,/pattern/d.
+        # Drop everything between the markers (inclusive). awk gives us a single
+        # tool that handles both branches symmetrically — drop body+markers here,
+        # drop only markers in the else branch — without forking the syntax.
         strip_unified_agent='awk "/# >>>unified-agent/{skip=1} !skip; /# <<<unified-agent/{skip=0}"'
     else
         # Markers are scaffolding; strip them but keep the body.
