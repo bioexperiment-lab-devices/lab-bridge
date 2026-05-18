@@ -23,127 +23,94 @@ a:hover { text-decoration: underline; }
 
 /* ============================================================
    .prose — article / documentation content
-   (restyled in T21; keeping as-is to avoid cascading breakage)
    ============================================================ */
-.prose { max-width: 720px; }
-.prose h1 { letter-spacing: -0.02em; margin-top: 0; }
-.prose h2 { margin-top: 2em; padding-top: 0.5em; border-top: 1px solid var(--border); }
-.prose code, .prose kbd, .prose samp, .prose pre {
-  font-family: var(--font-mono);
-  font-size: 0.9em;
+.prose {
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--text);
+  max-width: 720px;
 }
+.prose h1 { font-size: 32px; font-weight: 600; letter-spacing: -0.018em; margin: 0 0 0.5em; text-wrap: pretty; }
+.prose h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.014em; margin: 2em 0 0.6em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); text-wrap: pretty; }
+.prose h3 { font-size: 16px; font-weight: 600; letter-spacing: -0.008em; margin: 1.6em 0 0.4em; }
+.prose p { margin: 0.8em 0; }
+.prose ul, .prose ol { padding-left: 1.4em; }
+.prose li { margin: 0.3em 0; }
+
+.prose a { color: var(--accent); text-decoration: underline; text-decoration-color: var(--accent-border); }
+.prose a:hover { text-decoration-color: var(--accent-hover); }
+
 .prose code {
   background: var(--surface-sunken);
-  padding: 0.15em 0.4em;
-  border-radius: 4px;
-  border: 1px solid var(--border);
+  color: var(--accent);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 13px;
   white-space: nowrap;
 }
-.prose pre {
-  background: var(--surface-sunken);
-  padding: 14px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  overflow-x: auto;
-  position: relative;
-  line-height: 1.55;
-  margin: 1em 0;
+.lb-anchor {
+  margin-left: 8px;
+  color: var(--text-muted);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 100ms ease;
 }
-.prose pre code {
-  background: transparent;
-  padding: 0;
-  border: 0;
-  white-space: pre;
-  font-size: 1em;
-  color: inherit;
+.prose h2:hover .lb-anchor,
+.prose h3:hover .lb-anchor,
+.prose h4:hover .lb-anchor { opacity: 1; }
+
+.prose table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+.prose th, .prose td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+.prose th {
+  background: var(--surface-strip);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
 }
-.prose table { border-collapse: collapse; width: 100%; }
-.prose th, .prose td { border: 1px solid var(--border); padding: 6px 10px; }
+.prose td code { color: var(--accent); }
 
 /* ============================================================
-   .copy-button — code-block copy affordance
-   (used by T18's Pygments rendering; kept for now)
+   .alert — GitHub-style prose admonitions
    ============================================================ */
-.copy-button {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 30px;
-  height: 30px;
+.prose .alert {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 12px;
+  margin: 1.2em 0;
+  padding: 14px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--alert-border);
+  background: var(--alert-soft);
+}
+.prose .alert::before {
+  content: var(--alert-icon);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--surface) 85%, transparent);
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0;
-  cursor: pointer;
-  opacity: 0;
-  transform: translateY(-2px);
-  transition:
-    opacity 180ms ease,
-    transform 180ms ease,
-    color 150ms ease,
-    border-color 150ms ease,
-    background 150ms ease;
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-}
-.prose pre:hover .copy-button,
-.copy-button:focus-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-.copy-button:hover {
-  color: var(--text);
-  border-color: var(--text-muted);
-}
-.copy-button:active { transform: translateY(0) scale(0.94); }
-.copy-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.copy-button svg {
-  width: 15px;
-  height: 15px;
-  display: block;
-  pointer-events: none;
-}
-.copy-button.is-copied {
-  color: var(--success);
-  border-color: var(--success-border);
-  background: var(--success-soft);
-  opacity: 1;
-}
-
-/* ============================================================
-   .alert — GitHub-style prose admonitions (restyled in T21)
-   ============================================================ */
-.prose .alert {
-  margin: 1em 0;
-  padding: 12px 16px;
-  border-left: 4px solid var(--alert-accent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--alert-accent) 8%, var(--surface));
-}
-.prose .alert::before {
-  content: var(--alert-label);
-  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--alert-accent);
+  color: var(--text-inverse);
   font-weight: 600;
-  color: var(--alert-accent);
-  margin-bottom: 4px;
+  font-size: 12px;
+  font-family: var(--font-mono);
 }
 .prose .alert > :first-child { margin-top: 0; }
 .prose .alert > :last-child  { margin-bottom: 0; }
-.alert-note      { --alert-accent: var(--accent);  --alert-label: "Note"; }
-.alert-tip       { --alert-accent: var(--success);  --alert-label: "Tip"; }
-.alert-important { --alert-accent: #8b5cf6;         --alert-label: "Important"; }
-.alert-warning   { --alert-accent: var(--warning);  --alert-label: "Warning"; }
-.alert-caution   { --alert-accent: var(--danger);   --alert-label: "Caution"; }
+
+.alert-note      { --alert-accent: var(--accent);  --alert-soft: var(--accent-soft);  --alert-border: var(--accent-border);  --alert-icon: "i"; }
+.alert-tip       { --alert-accent: var(--success); --alert-soft: var(--success-soft); --alert-border: var(--success-border); --alert-icon: "i"; }
+.alert-important { --alert-accent: #6B3FA0;        --alert-soft: #ECE4F5;             --alert-border: #C9B8E0;               --alert-icon: "!"; }
+.alert-warning   { --alert-accent: var(--warning); --alert-soft: var(--warning-soft); --alert-border: var(--warning-border); --alert-icon: "!"; }
+.alert-caution   { --alert-accent: var(--danger);  --alert-soft: var(--danger-soft);  --alert-border: var(--danger-border);  --alert-icon: "×"; }
 
 /* ============================================================
-   Mermaid block reset (keep until T21)
+   Mermaid block reset
    ============================================================ */
 .prose pre.mermaid {
   background: transparent;
@@ -1134,4 +1101,266 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   margin-top: 36px;
   padding-top: 18px;
   border-top: 1px solid var(--border);
+}
+
+/* ============================================================
+   Docs page layout (.lb-page--docs)
+   ============================================================ */
+.lb-page--docs {
+  display: grid;
+  grid-template-columns: 256px minmax(0, 1fr);
+  gap: 32px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 32px;
+  align-items: start;
+}
+
+/* ============================================================
+   Docs sidebar (.lb-docs-side*)
+   ============================================================ */
+.lb-docs-side {
+  position: sticky;
+  top: 0;
+  background: var(--surface-strip);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  padding: 0 0 8px;
+}
+.lb-docs-side__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+.lb-docs-side__icon {
+  font-size: 14px;
+  line-height: 1;
+}
+.lb-docs-side__title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+.lb-docs-side__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lb-docs-side__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  letter-spacing: -0.005em;
+  border-left: 2px solid transparent;
+}
+.lb-docs-side__item > a {
+  display: block;
+  flex: 1;
+  padding: 5px 14px 5px 12px;
+  color: inherit;
+  text-decoration: none;
+}
+.lb-docs-side__item > a:hover { color: var(--text); }
+.lb-docs-side__item:hover { background: var(--surface-sunken); }
+.lb-docs-side__item.is-active {
+  color: var(--accent);
+  font-weight: 600;
+  background: var(--accent-soft);
+  border-left-color: var(--accent);
+}
+.lb-docs-side__item.is-active > a { color: var(--accent); }
+.lb-docs-side__item[data-depth="1"] > a { padding-left: 24px; }
+.lb-docs-side__item[data-depth="2"] > a { padding-left: 36px; }
+
+.lb-docs-side__folder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 14px 5px 12px;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+.lb-docs-side__folder:hover { background: var(--surface-sunken); }
+.lb-docs-side__folder a {
+  color: inherit;
+  text-decoration: none;
+  flex: 1;
+}
+.lb-docs-side__chev {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-muted);
+  transition: transform 150ms ease;
+  display: inline-block;
+  width: 12px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.lb-docs-side__item[aria-expanded="true"] .lb-docs-side__chev { transform: rotate(90deg); }
+.lb-docs-side__children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: none;
+}
+.lb-docs-side__item[aria-expanded="true"] > .lb-docs-side__children { display: block; }
+.lb-docs-side__ru-pill {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 0 4px;
+  border-radius: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Docs article (.lb-docs-article*)
+   ============================================================ */
+.lb-docs-article {
+  min-width: 0;
+}
+.lb-docs-article__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin: 0 0 18px;
+  letter-spacing: 0.02em;
+  flex-wrap: wrap;
+}
+.lb-docs-article__breadcrumb a {
+  color: inherit;
+  text-decoration: none;
+}
+.lb-docs-article__breadcrumb a:hover { color: var(--text); }
+.lb-docs-article__sep {
+  color: var(--border-strong);
+}
+.lb-docs-article__lang {
+  margin-left: auto;
+}
+.lb-docs-article__body {
+  /* inherits .prose rules */
+}
+.lb-docs-article__prevnext {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.lb-docs-article__prev,
+.lb-docs-article__next {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: border-color 100ms, background 100ms;
+  flex: 1;
+  max-width: 48%;
+}
+.lb-docs-article__prev:hover,
+.lb-docs-article__next:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+  text-decoration: none;
+}
+.lb-docs-article__next { text-align: right; }
+.lb-docs-article__nav-label {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--text-muted);
+  display: block;
+}
+.lb-docs-article__prev:hover .lb-docs-article__nav-label,
+.lb-docs-article__next:hover .lb-docs-article__nav-label {
+  color: inherit;
+}
+
+/* ============================================================
+   Code blocks (.lb-code* — emitted by T18 markdown renderer)
+   ============================================================ */
+.prose .lb-code {
+  margin: 1.2em 0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1A1916;
+  border: 1px solid #0F0E0C;
+}
+.lb-code__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: #232220;
+  color: var(--text-inverse);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+.lb-code__lang {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #B8B3A4;
+}
+.lb-code__file { color: #E3DED1; }
+.lb-code__copy {
+  margin-left: auto;
+  background: transparent;
+  color: #B8B3A4;
+  border: 1px solid #34322D;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.lb-code__copy:hover { color: #F0EDE3; border-color: #4A4740; }
+.lb-code__copy.is-copied { color: #7CC18A; border-color: #335A3E; }
+.lb-code__copy.is-copied::before { content: "✓ "; }
+
+.prose .lb-code pre {
+  margin: 0;
+  padding: 14px 16px;
+  background: transparent;
+  overflow-x: auto;
+}
+.prose .lb-code code {
+  background: transparent;
+  border: 0;
+  color: #F0EDE3;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  white-space: pre;
 }
