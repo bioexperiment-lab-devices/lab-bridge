@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.9.0...v0.10.0) (2026-05-18)
+
+
+### Features
+
+* **platform:** swap host monitoring from Yandex Unified Agent to Prometheus + Grafana stack ([#62](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/62)) ([0332177](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/0332177efdc4119fe3e92176dccc97c7b74c3c13))
+
+
+### Bug Fixes
+
+* **deploy:** restart grafana after rsync so provisioning changes apply ([#63](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/63)) ([c5eceed](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/c5eceed9456735400529dfed47184fe71257ef3c))
+* **unified-agent:** make container actually run + match real config schema ([#60](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/60)) ([b7cf3a8](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/b7cf3a85c3f3d5d7c968e1153f83962f03982a00))
+
 ## [0.9.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.8.2...v0.9.0) (2026-05-18)
 
 
