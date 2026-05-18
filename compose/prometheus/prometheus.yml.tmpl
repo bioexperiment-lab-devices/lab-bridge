@@ -24,11 +24,8 @@ scrape_configs:
     static_configs:
       - targets: ['caddy:2019']
 
-  # JupyterLab — best-effort. jupyter_server exposes /metrics natively, but
-  # the quay.io/jupyter/scipy-notebook image may require auth on this endpoint.
-  # If the metrics-smoke test finds this target unreachable, remove this job
-  # block (see Task 12 fallback).
-  - job_name: jupyter
-    metrics_path: /jupyter/metrics
-    static_configs:
-      - targets: ['jupyter:8888']
+  # JupyterLab /metrics was unreachable unauth'd on the pinned scipy-notebook
+  # image (2026-04-20); CI's metrics-smoke confirmed health=down. The jupyter
+  # scrape job is intentionally absent. Revisit when the image surfaces an
+  # unauth'd /metrics endpoint or when we add a sidecar exporter (the spec's
+  # Task 12 fallback path).
