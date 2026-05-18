@@ -90,6 +90,8 @@ jobs:
             files: tests/integration/test_provision.bats
           - suite: routes-smoke
             files: tests/integration/test_routes_smoke.bats
+          - suite: metrics-smoke
+            files: tests/integration/test_metrics_smoke.bats
           - suite: navbar
             files: tests/integration/test_navbar_smoke.bats
     name: bats (${{ matrix.suite }})
