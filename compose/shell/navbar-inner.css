@@ -1,17 +1,45 @@
-/* compose/shell/navbar-inner.css — loaded into <lds-navbar> Shadow DOM. */
+/* compose/shell/navbar-inner.css — loaded into <lds-navbar> Shadow DOM.
+ * Duplicates the design tokens block from siteapp tokens.css because the
+ * Shadow DOM is intentionally self-contained — host-page CSS (Jupyter /
+ * Grafana) does not propagate in.
+ */
 
 :host {
-  /* Kept in sync with RAIL_W_COLLAPSED / RAIL_W_EXPANDED in navbar.js. */
-  --rail-w-collapsed: 52px;
-  --rail-w-expanded: 240px;
-  --bg: #1f2937;
-  --bg-hover: #374151;
-  --fg: #e5e7eb;
-  --fg-muted: #9ca3af;
-  --accent: #3b82f6;
-
-  /* The host element is positioned via the global navbar.css side
-     (none yet — we just rely on aside's fixed positioning). */
+  --bg-page: #ECE9E0;
+  --surface: #FFFFFF;
+  --surface-sunken: #F8F6F0;
+  --surface-rail: #F3F0E6;
+  --border: #E2DED2;
+  --border-strong: #C8C3B5;
+  --text: #1A1916;
+  --text-secondary: #514E47;
+  --text-muted: #8A8678;
+  --text-inverse: #FAF8F3;
+  --accent: #1F3A8A;
+  --accent-hover: #182E6F;
+  --accent-soft: #E7ECF6;
+  --accent-border: #B8C2DC;
+  --shadow-popover: 0 10px 24px -8px rgba(26,25,22,0.25), 0 2px 6px rgba(26,25,22,0.08);
+  --shadow-overlay: 0 24px 50px -20px rgba(26,25,22,0.45), 0 8px 18px -6px rgba(26,25,22,0.18);
+  --rail-w-collapsed: 56px;
+  --rail-w-expanded: 220px;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+:host([data-theme="dark"]) {
+  --bg-page: #1B1A17;
+  --surface: #232220;
+  --surface-sunken: #1D1C19;
+  --surface-rail: #1E1D1A;
+  --border: #34322D;
+  --border-strong: #4A4740;
+  --text: #F0EDE3;
+  --text-secondary: #B8B3A4;
+  --text-muted: #7E7A6E;
+  --accent: #BCCBF2;
+  --accent-hover: #DBE3F8;
+  --accent-soft: #2A3257;
+  --accent-border: #4A5587;
 }
 
 aside {
@@ -19,99 +47,191 @@ aside {
   left: 0;
   top: 0;
   bottom: 0;
-  height: 100vh;
-  background: var(--bg);
-  color: var(--fg);
+  background: var(--surface-rail);
+  color: var(--text);
+  font-family: var(--font-sans);
   display: flex;
   flex-direction: column;
   z-index: 9999;
-  font-family: system-ui, -apple-system, sans-serif;
-  transition: width 0.15s ease, transform 0.15s ease;
   overflow: hidden;
+  border-right: 1px solid var(--border);
+  transition: width 200ms cubic-bezier(.2,.7,.3,1);
 }
 
 /* ─── Persistent mode ────────────────────────────────────────────────── */
-aside[data-mode="persistent"][data-state="collapsed"] {
-  width: var(--rail-w-collapsed);
-}
-aside[data-mode="persistent"][data-state="expanded"] {
+aside[data-mode="persistent"][data-state="collapsed"] { width: var(--rail-w-collapsed); }
+aside[data-mode="persistent"][data-state="expanded"]  {
   width: var(--rail-w-expanded);
-  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-overlay);
 }
 
-/* ─── Bookmark mode ──────────────────────────────────────────────────── */
-aside[data-mode="bookmark"][data-state="tab"] {
-  width: 20px;
-  top: auto;
-  bottom: 80px;
-  height: auto;
-  border-radius: 0 6px 6px 0;
-  transform: translateX(-4px);
+/* Brand row */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 56px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
 }
-aside[data-mode="bookmark"][data-state="tab"] nav,
-aside[data-mode="bookmark"][data-state="tab"] .toggle {
+.brand__mark { display: inline-flex; flex-shrink: 0; }
+.brand__wordmark {
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+.brand__version {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  margin-left: auto;
+}
+aside[data-mode="persistent"][data-state="collapsed"] .brand {
+  justify-content: center;
+  padding: 0;
+}
+aside[data-mode="persistent"][data-state="collapsed"] .brand__wordmark,
+aside[data-mode="persistent"][data-state="collapsed"] .brand__version {
   display: none;
-}
-aside[data-mode="bookmark"][data-state="tab"]::after {
-  content: "";
-  display: block;
-  width: 4px;
-  height: 32px;
-  background: var(--accent);
-  margin: 8px auto;
-  border-radius: 2px;
-}
-aside[data-mode="bookmark"][data-state="expanded"] {
-  width: var(--rail-w-expanded);
-  top: 0;
-  bottom: 0;
-  height: 100vh;
-  transform: translateX(0);
-  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.4);
 }
 
 /* ─── Nav items ──────────────────────────────────────────────────────── */
-nav { flex: 1; padding-top: 12px; }
+nav { flex: 1; padding-top: 8px; overflow-y: auto; }
 ul { list-style: none; margin: 0; padding: 0; }
-li { margin: 2px 0; }
+li { margin: 1px 6px; position: relative; }
 a {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 16px;
-  color: var(--fg-muted);
+  padding: 8px 10px;
+  height: 32px;
+  color: var(--text-secondary);
   text-decoration: none;
   white-space: nowrap;
   overflow: hidden;
-  font-size: 14px;
-}
-a:hover { background: var(--bg-hover); color: var(--fg); }
-li.active a { color: var(--accent); border-left: 3px solid var(--accent); padding-left: 13px; }
-
-.icon { display: inline-flex; flex-shrink: 0; width: 20px; height: 20px; }
-
-/* Hide labels when collapsed or in bookmark tab. */
-aside[data-mode="persistent"][data-state="collapsed"] .label,
-aside[data-mode="bookmark"][data-state="tab"] .label { display: none; }
-
-/* ─── Toggle button ──────────────────────────────────────────────────── */
-.toggle {
-  margin: auto 8px 16px;
-  align-self: center;
-  background: transparent;
-  border: 1px solid var(--bg-hover);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.003em;
   border-radius: 4px;
-  color: var(--fg-muted);
-  cursor: pointer;
-  padding: 6px;
-  display: inline-flex;
 }
-.toggle:hover { background: var(--bg-hover); color: var(--fg); }
+a:hover { background: var(--surface-sunken); color: var(--text); }
+li.active a {
+  color: var(--accent);
+  font-weight: 600;
+  background: var(--accent-soft);
+}
+li.active::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+}
+.icon { display: inline-flex; flex-shrink: 0; width: 18px; height: 18px; }
+.label { display: inline-flex; align-items: baseline; gap: 6px; }
+.ext {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+aside[data-mode="persistent"][data-state="collapsed"] .label {
+  display: none;
+}
+aside[data-mode="persistent"][data-state="collapsed"] a { justify-content: center; padding: 8px; }
+
+/* ─── Bottom block: theme toggle + chevron ──────────────────────────── */
+.rail-bottom {
+  border-top: 1px solid var(--border);
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.theme-toggle, .toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  padding: 0 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+}
+.theme-toggle:hover, .toggle:hover { background: var(--surface-sunken); color: var(--text); }
+.theme-toggle__icon, .toggle svg { display: inline-flex; }
+aside[data-mode="persistent"][data-state="collapsed"] .theme-toggle__label { display: none; }
+aside[data-mode="persistent"][data-state="collapsed"] .theme-toggle,
+aside[data-mode="persistent"][data-state="collapsed"] .toggle {
+  justify-content: center;
+  padding: 0;
+}
+
+/* ─── Bookmark mode ──────────────────────────────────────────────────── */
+aside[data-mode="bookmark"][data-state="tab"] {
+  left: 12px;
+  bottom: 12px;
+  top: auto;
+  height: 32px;
+  width: 132px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  flex-direction: row;
+  align-items: center;
+  padding: 0 10px;
+  gap: 8px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+.bookmark__mark { display: inline-flex; }
+.bookmark__wordmark { font-weight: 600; font-size: 12.5px; }
+.bookmark__chev { margin-left: auto; color: var(--text-muted); font-size: 14px; }
+
+aside[data-mode="bookmark"][data-state="expanded"] {
+  left: 12px;
+  bottom: 12px;
+  top: auto;
+  height: auto;
+  width: var(--rail-w-expanded);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-overlay);
+  padding: 6px;
+}
+aside[data-mode="bookmark"][data-state="expanded"] nav { padding-top: 4px; }
+.esc-hint {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
 
 /* ─── Backdrop ───────────────────────────────────────────────────────── */
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(26,25,22,0.18);
   z-index: 9998;
 }
+:host([data-theme="dark"]) .backdrop { background: rgba(0,0,0,0.45); }
