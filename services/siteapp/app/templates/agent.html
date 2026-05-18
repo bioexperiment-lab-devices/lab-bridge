@@ -1,130 +1,40 @@
 {% extends "base.html" %}
-{% block title %}SerialHop agent{% endblock %}
+{% block title %}{{ s.page_title }}{% endblock %}
 {% block main %}
-<section class="agent-hero">
-  <h1>SerialHop</h1>
-  <p class="lede">
-    Single-binary Windows service that exposes a lab PC's serial-port
-    instruments to lab-bridge through a chisel reverse tunnel.
-  </p>
-  {% if info %}
-    <a class="download-button"
-       href="/download/agent/windows/agent.exe">
-      Download for Windows · v{{ info.version }} · {{ "%.1f"|format(info.size / 1048576) }} MB
-    </a>
-  {% else %}
-    <button class="download-button" disabled>Not yet available — check back soon</button>
-  {% endif %}
-  <p class="agent-source">
-    Source, releases, and protocol notes:
-    <a href="https://github.com/bioexperiment-lab-devices/serialhop">bioexperiment-lab-devices/serialhop</a>
-  </p>
-</section>
+<div class="lb-page lb-page--download">
+  {% with target_page = "download" %}{% include "_home_header.html" %}{% endwith %}
 
-{% if info %}
-<section class="agent-notice agent-notice--warning">
-  <details>
-    {% if lang == 'ru' %}
-    <summary>Браузер может заблокировать эту загрузку</summary>
-    <p>
-      Установщик агента — свежая Windows-программа, у которой пока нет
-      подписи доверенного издателя и накопленной репутации в Microsoft
-      Defender SmartScreen. Из-за этого браузер часто прячет скачанный
-      файл, а Windows отказывается запускать его при первом открытии.
-      Сам файл безопасен — при желании сверьте SHA-256 ниже с тем, что
-      прислал оператор lab-bridge.
-    </p>
-    <p><strong>Если браузер скрыл загрузку (Edge, Chrome, Brave):</strong></p>
-    <ol>
-      <li>Откройте список загрузок (<code>Ctrl</code>+<code>J</code>).</li>
-      <li>
-        Найдите <code>SerialHop-v{{ info.version }}.exe</code>,
-        нажмите <code>⋯</code> (или правой кнопкой) и выберите
-        <strong>Сохранить</strong> / <strong>Keep</strong>.
-      </li>
-      <li>
-        Если появится «Этот файл может нанести вред компьютеру» —
-        выберите <strong>Сохранить опасный файл</strong> /
-        <strong>Keep dangerous file</strong>.
-      </li>
-    </ol>
-    <p>
-      <strong>Если при запуске Windows показывает
-      «Система Windows защитила ваш компьютер»:</strong>
-    </p>
-    <ol>
-      <li>
-        Нажмите <strong>Подробнее</strong> /
-        <strong>More info</strong> в окне SmartScreen.
-      </li>
-      <li>
-        Под текстом появится кнопка
-        <strong>Выполнить в любом случае</strong> /
-        <strong>Run anyway</strong> — нажмите её.
-      </li>
-      <li>
-        Этот выбор Windows запомнит, и при следующих запусках
-        предупреждение больше не появится.
-      </li>
-    </ol>
-    {% else %}
-    <summary>Your browser may block this download</summary>
-    <p>
-      The agent installer is a fresh Windows binary that doesn't yet
-      carry a trusted publisher signature or any reputation in Microsoft
-      Defender SmartScreen. As a result, browsers often hide the
-      downloaded file and Windows refuses to launch it on first run.
-      The file is safe — if you'd like to be sure, verify the SHA-256
-      below against the value the lab-bridge operator gave you.
-    </p>
-    <p><strong>If your browser hides the download (Edge, Chrome, Brave):</strong></p>
-    <ol>
-      <li>Open the downloads list (<code>Ctrl</code>+<code>J</code>).</li>
-      <li>
-        Find <code>SerialHop-v{{ info.version }}.exe</code>,
-        click the <code>⋯</code> menu (or right-click) and choose
-        <strong>Keep</strong>.
-      </li>
-      <li>
-        If a second prompt warns "This file might harm your computer",
-        choose <strong>Keep dangerous file</strong>.
-      </li>
-    </ol>
-    <p>
-      <strong>When you double-click the .exe and Windows shows
-      "Windows protected your PC":</strong>
-    </p>
-    <ol>
-      <li>
-        Click <strong>More info</strong> in the SmartScreen dialog
-        (the "Run anyway" button is hidden until you do).
-      </li>
-      <li>
-        A <strong>Run anyway</strong> button appears beneath the text —
-        click it.
-      </li>
-      <li>
-        Windows remembers the choice on this PC, so the prompt won't
-        come back on later launches.
-      </li>
-    </ol>
-    {% endif %}
-  </details>
-</section>
-{% endif %}
+  <div class="lb-page__body lb-page__body--narrow">
+    {% include "_dl_hero.html" %}
 
-{% if body_html %}
-<section class="agent-body prose">{{ body_html|safe }}</section>
-{% endif %}
+    <div class="lb-dl-cards">
+      {% include "_dl_card_windows.html" %}
+      {% with platform = "linux", name = s.platform_linux, sub = s.platform_linux_sub,
+              eta = s.eta_linux, icon = "🐧" %}
+        {% include "_dl_card_coming.html" %}
+      {% endwith %}
+      {% with platform = "rpi", name = s.platform_rpi, sub = s.platform_rpi_sub,
+              eta = s.eta_rpi, icon = "🍓" %}
+        {% include "_dl_card_coming.html" %}
+      {% endwith %}
+    </div>
 
-{% if info %}
-<section class="agent-meta">
-  <h2>Version metadata</h2>
-  <dl>
-    <dt>Version</dt><dd>{{ info.version }}</dd>
-    <dt>Released</dt><dd>{{ info.uploaded_at }}</dd>
-    <dt>SHA-256</dt><dd><code>{{ info.sha256 }}</code></dd>
-  </dl>
-</section>
-{% endif %}
+    {% include "_dl_body_md.html" %}
+  </div>
+</div>
+
+<script>
+// Sticky-header shadow (same as Home).
+(function () {
+  var header = document.querySelector('.lb-home-header');
+  if (!header) return;
+  var sentinel = document.createElement('div');
+  sentinel.style.cssText = 'position:absolute;top:0;left:0;height:1px;width:1px;';
+  header.parentNode.insertBefore(sentinel, header);
+  var io = new IntersectionObserver(function (entries) {
+    header.classList.toggle('is-scrolled', !entries[0].isIntersecting);
+  });
+  io.observe(sentinel);
+})();
+</script>
 {% endblock %}
