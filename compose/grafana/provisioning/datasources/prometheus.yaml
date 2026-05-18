@@ -1,0 +1,11 @@
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: prometheus       # stable uid so dashboard JSON references resolve
+                          # to this datasource across re-imports (same reason
+                          # as loki.yaml's uid: loki — see its comment).
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
