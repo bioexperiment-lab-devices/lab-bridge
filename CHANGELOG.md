@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.8.1...v0.8.2) (2026-05-18)
+
+
+### Bug Fixes
+
+* **platform:** point navbar Grafana and Download Agent at real routes ([#56](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/56)) ([15ad68b](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/15ad68b891d1871ae1054815e0acb46fce2825a2))
+
 ## [0.8.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.8.0...v0.8.1) (2026-05-17)
 
 
