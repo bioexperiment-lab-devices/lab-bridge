@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from app.nav import build_nav
+from app.docs import build_breadcrumb, prev_next
+from app.nav import NavEntry, build_nav
 
 
 @pytest.fixture
@@ -94,11 +95,7 @@ def test_empty_dir_is_skipped(tmp_path: Path) -> None:
     assert all(e.url != "/docs/empty/" for e in nav)
 
 
-from app.docs import build_breadcrumb, prev_next
-
-
 def _sample_nav() -> list:
-    from app.nav import NavEntry
     return [
         NavEntry(
             title_en="Researchers", title_ru=None, url="/docs/researcher/",

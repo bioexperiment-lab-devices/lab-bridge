@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+
+from app.agent import _relative_time
 
 
 @pytest.fixture
@@ -67,11 +70,6 @@ def test_page_renders_body_markdown(tmp_path: Path, client: TestClient) -> None:
     r = client.get("/download/agent")
     assert "What is this?" in r.text
     assert "A Windows lab agent" in r.text
-
-
-from datetime import UTC, datetime, timedelta
-
-from app.agent import _relative_time
 
 
 def _iso(dt: datetime) -> str:
