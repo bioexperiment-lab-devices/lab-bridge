@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.8.2...v0.9.0) (2026-05-18)
+
+
+### Features
+
+* add Yandex Unified Agent for host monitoring ([#58](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/58)) ([6b72266](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/6b72266744983967681f303b8c619019b49372d4))
+
 ## [0.8.2](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.8.1...v0.8.2) (2026-05-18)
 
 
