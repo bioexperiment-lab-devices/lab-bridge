@@ -67,3 +67,46 @@ def test_page_renders_body_markdown(tmp_path: Path, client: TestClient) -> None:
     r = client.get("/download/agent")
     assert "What is this?" in r.text
     assert "A Windows lab agent" in r.text
+
+
+from datetime import UTC, datetime, timedelta
+
+from app.agent import _relative_time
+
+
+def _iso(dt: datetime) -> str:
+    return dt.isoformat().replace("+00:00", "Z")
+
+
+def test_relative_time_just_now_en():
+    now = datetime.now(UTC)
+    assert _relative_time(_iso(now - timedelta(seconds=10)), "en") == "just now"
+
+
+def test_relative_time_minutes_en():
+    now = datetime.now(UTC)
+    assert _relative_time(_iso(now - timedelta(minutes=5)), "en") == "5 minutes ago"
+
+
+def test_relative_time_hours_en():
+    now = datetime.now(UTC)
+    assert _relative_time(_iso(now - timedelta(hours=3)), "en") == "3 hours ago"
+
+
+def test_relative_time_days_en():
+    now = datetime.now(UTC)
+    assert _relative_time(_iso(now - timedelta(days=6)), "en") == "6 days ago"
+
+
+def test_relative_time_weeks_en():
+    now = datetime.now(UTC)
+    assert _relative_time(_iso(now - timedelta(days=21)), "en") == "3 weeks ago"
+
+
+def test_relative_time_days_ru():
+    now = datetime.now(UTC)
+    assert _relative_time(_iso(now - timedelta(days=6)), "ru") == "6 дн назад"
+
+
+def test_relative_time_garbage_returns_empty():
+    assert _relative_time("not-a-date", "en") == ""
