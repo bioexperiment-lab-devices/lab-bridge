@@ -94,6 +94,17 @@ services:
       - /:/host/root:ro,rslave
     networks: [labnet]
 
+  cadvisor:
+    image: __CADVISOR_IMAGE__
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [labnet]
+
   siteapp:
     image: __SITEAPP_IMAGE__
     restart: unless-stopped

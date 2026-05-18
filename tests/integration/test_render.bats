@@ -469,3 +469,27 @@ CFG
     [ "$status" -eq 1 ]
 }
 
+@test "render_compose: emits cadvisor service mounting docker.sock read-only" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
+        render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
+        cat $TMPDIR/docker-compose.yml
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"image: gcr.io/cadvisor/cadvisor:v0.49.1"* ]]
+    [[ "$output" == *"/var/run/docker.sock:/var/run/docker.sock:ro"* ]]
+    [[ "$output" == *"/:/rootfs:ro"* ]]
+    [[ "$output" == *"/var/lib/docker:/var/lib/docker:ro"* ]]
+    run yq e '.services.cadvisor | has("ports")' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "false" ]]
+    run yq e '.services.cadvisor.privileged // false' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "false" ]]
+    run grep -qE '__[A-Z][A-Z0-9_]*__' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 1 ]
+}
+
