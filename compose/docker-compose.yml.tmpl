@@ -80,6 +80,20 @@ services:
       - ./prometheus_data:/prometheus
     networks: [labnet]
 
+  node-exporter:
+    image: __NODE_EXPORTER_IMAGE__
+    restart: unless-stopped
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/host/root
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro,rslave
+    networks: [labnet]
+
   siteapp:
     image: __SITEAPP_IMAGE__
     restart: unless-stopped

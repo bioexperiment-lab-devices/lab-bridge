@@ -442,3 +442,30 @@ CFG
     [ "$status" -eq 1 ]
 }
 
+@test "render_compose: emits node-exporter service with host /proc and /sys mounts" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
+        render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
+        cat $TMPDIR/docker-compose.yml
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"image: quay.io/prometheus/node-exporter:v1.8.2"* ]]
+    [[ "$output" == *"--path.procfs=/host/proc"* ]]
+    [[ "$output" == *"--path.sysfs=/host/sys"* ]]
+    [[ "$output" == *"--path.rootfs=/host/root"* ]]
+    [[ "$output" == *"/proc:/host/proc:ro"* ]]
+    [[ "$output" == *"/sys:/host/sys:ro"* ]]
+    [[ "$output" == *"/:/host/root:ro,rslave"* ]]
+    run yq e '.services."node-exporter" | has("network_mode")' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "false" ]]
+    run yq e '.services."node-exporter" | has("ports")' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "false" ]]
+    run grep -qE '__[A-Z][A-Z0-9_]*__' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 1 ]
+}
+
