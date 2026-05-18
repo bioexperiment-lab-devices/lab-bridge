@@ -108,7 +108,13 @@ services:
   unified-agent:
     image: __UNIFIED_AGENT_IMAGE__
     restart: unless-stopped
-    command: ["unified_agent", "--config", "/etc/yandex/unified_agent/config.yml"]
+    # Bypass the image's /entrypoint.sh: it renders /etc/yandex/unified_agent/config.tmpl.yml
+    # into /etc/yandex/unified_agent/config.yml via shell eval, then exec's its args.
+    # That write collides with our read-only bind mount of the pre-rendered config at
+    # the same path, so the container crashes on startup. We've already rendered the
+    # config in scripts/lib/render.sh (render_unified_agent_config), so we skip the
+    # entrypoint and run the agent binary directly with --config pointing at our file.
+    entrypoint: ["unified_agent", "--config", "/etc/yandex/unified_agent/config.yml"]
     network_mode: host
     pid: host
     read_only: true

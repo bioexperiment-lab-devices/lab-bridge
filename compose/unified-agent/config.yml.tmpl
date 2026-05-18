@@ -2,15 +2,18 @@
 # Rendered from compose/unified-agent/config.yml.tmpl by scripts/lib/render.sh
 # (render_unified_agent_config). See docs/superpowers/specs/2026-05-18-unified-agent-monitoring-design.md
 # for the why.
+#
+# Schema mirrors the image's bundled /etc/yandex/unified_agent/config.tmpl.yml
+# (verified against cr.yandex/yc/unified-agent:25.03.80) — top-level `channels`
+# referenced from each route, `agent_log.priority` (not `.level`), `linux_metrics`
+# with a `namespace`, etc. Don't paraphrase; the agent rejects unknown fields.
 
 status:
-  port: 0  # disable the status HTTP server; nothing scrapes us
+  port: 16241
+  host: 127.0.0.1  # bind loopback-only: status server isn't scraped
 
 agent_log:
-  level: notice
-
-main_thread_pool:
-  threads: 2
+  priority: NOTICE
 
 storages:
   - name: main
@@ -18,12 +21,35 @@ storages:
     config:
       directory: /var/lib/yandex/unified_agent
       max_partition_size: 100mb
+      max_segment_size: 10mb
+
+channels:
+  - name: cloud_monitoring
+    channel:
+      pipe:
+        - storage_ref:
+            name: main
+        - filter:
+            # transform_metric_labels (not `assign` — that's for log metadata) is
+            # the documented way to add static labels to every metric. `labels:`
+            # is a LIST of single-key objects, each setting one label.
+            plugin: transform_metric_labels
+            config:
+              labels:
+                - host: __VPS_HOST__
+                - env: prod
+      output:
+        plugin: yc_metrics
+        config:
+          folder_id: __YC_FOLDER_ID__
+          iam:
+            cloud_meta: {}
 
 routes:
   - input:
       plugin: linux_metrics
       config:
-        poll_period: 30s
+        namespace: sys
         proc_directory: /host/proc
         sys_directory: /host/sys
         resources:
@@ -34,36 +60,22 @@ routes:
           io: advanced
           kernel: advanced
     channel:
-      pipe:
-        - filter:
-            plugin: assign
-            config:
-              labels:
-                host: __VPS_HOST__
-                env: prod
-      output:
-        plugin: yc_metrics
-        config:
-          folder_id: __YC_FOLDER_ID__
-          iam:
-            cloud_meta: {}
+      channel_ref:
+        name: cloud_monitoring
 
   - input:
       plugin: agent_metrics
       config:
-        poll_period: 60s
         namespace: ua
     channel:
       pipe:
         - filter:
-            plugin: assign
+            plugin: filter_metrics
             config:
-              labels:
-                host: __VPS_HOST__
-                env: prod
-      output:
-        plugin: yc_metrics
-        config:
-          folder_id: __YC_FOLDER_ID__
-          iam:
-            cloud_meta: {}
+              # Single-quoted YAML so the value is literally `{scope=health}`.
+              # The bundled template uses `"\"{scope=health}\""` because it relies
+              # on the image's entrypoint to shell-eval the escapes away; we bypass
+              # the entrypoint, so the simpler single-quoted form is correct here.
+              match: '{scope=health}'
+      channel_ref:
+        name: cloud_monitoring
