@@ -1,0 +1,27 @@
+{% if info %}
+<dl class="lb-dl-meta">
+  <div class="lb-dl-meta__row">
+    <dt>{{ s.meta_version }}</dt>
+    <dd><code>{{ info.version }}</code></dd>
+  </div>
+  <div class="lb-dl-meta__row">
+    <dt>{{ s.meta_released }}</dt>
+    <dd>
+      <span class="lb-dl-meta__ts">{{ info.uploaded_at }}</span>
+      {% if released_relative %}
+        <span class="lb-dl-meta__rel">{{ released_relative }}</span>
+      {% endif %}
+    </dd>
+  </div>
+  <div class="lb-dl-meta__row">
+    <dt>{{ s.meta_sha256 }}</dt>
+    <dd class="lb-dl-meta__sha">
+      <code style="user-select: all">{{ info.sha256 }}</code>
+      <button class="lb-dl-meta__copy"
+              type="button"
+              data-copy-text="{{ info.sha256 }}"
+              aria-label="{{ s.meta_copy }}">{{ s.meta_copy }}</button>
+    </dd>
+  </div>
+</dl>
+{% endif %}
