@@ -393,6 +393,9 @@ CFG
     ! grep -q '<<<unified-agent' <<< "$output"
     # No leftover placeholders.
     ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
+    # Tighten: read_only and tmpfs storage path must appear (security + correctness).
+    [[ "$output" == *"read_only: true"* ]]
+    [[ "$output" == *"/var/lib/yandex/unified_agent"* ]]
 }
 
 @test "render_compose: FLASHER_IMAGE is composed from pins.yaml + root VERSION" {
@@ -436,4 +439,43 @@ CFG
     "
     [ "$status" -eq 0 ]
     [ "$output" = "image: ghcr.io/example/lab-bridge-flasher:1.2.3" ]
+}
+
+@test "render_compose: without yc.folder_id, omits the unified-agent service block" {
+    cat > $TMPDIR/no_yc.yaml <<'EOF'
+vps: {host: 1.2.3.4, ssh_user: u}
+jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
+siteapp: {admin_password_hash: "$2a$14$HO81PFKmfx2eOcpGyeogN.ct3M9SzgDmvXYHaeNrlTzV66aFbPK2y"}
+chisel_clients: []
+EOF
+    # Render without cat — check the output file directly so we can re-use it
+    # across multiple assertions without run resetting $output.
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $TMPDIR/no_yc.yaml
+        render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
+    "
+    [ "$status" -eq 0 ]
+    local rendered="$TMPDIR/docker-compose.yml"
+    # Use 'run grep' + '[ "$status" -eq 1 ]' for negative assertions: bare '! grep'
+    # does not fail bats because bash does not fire the ERR trap for '!'-prefixed
+    # commands (see bash manual, ERR trap section).
+    run grep -q 'unified-agent:' "$rendered"
+    [ "$status" -eq 1 ]
+    run grep -q 'cr.yandex/yc/unified-agent' "$rendered"
+    [ "$status" -eq 1 ]
+    run grep -q '/host/proc' "$rendered"
+    [ "$status" -eq 1 ]
+    # Marker comments must not leak either way.
+    run grep -q '>>>unified-agent' "$rendered"
+    [ "$status" -eq 1 ]
+    run grep -q '<<<unified-agent' "$rendered"
+    [ "$status" -eq 1 ]
+    # Other services unaffected.
+    run grep -q 'grafana/loki:3.2.1' "$rendered"
+    [ "$status" -eq 0 ]
+    run grep -q 'grafana/grafana:11.3.0' "$rendered"
+    [ "$status" -eq 0 ]
 }

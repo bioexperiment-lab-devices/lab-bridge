@@ -49,6 +49,16 @@ render_compose() {
     caddy_image="$(_caddy_image)"
     # The password_hash contains $ and : characters but no | (sha1:hex:hex),
     # so | as the sed delimiter is safe.
+    local strip_unified_agent=""
+    if [[ -z "${YC_FOLDER_ID:-}" ]]; then
+        # Drop everything between the markers (inclusive). awk is used (not sed)
+        # because GNU/BSD sed disagree on multi-line range syntax with /pattern/,/pattern/d.
+        strip_unified_agent='awk "/# >>>unified-agent/{skip=1} !skip; /# <<<unified-agent/{skip=0}"'
+    else
+        # Markers are scaffolding; strip them but keep the body.
+        strip_unified_agent='sed -e "/# >>>unified-agent/d" -e "/# <<<unified-agent/d"'
+    fi
+
     sed \
         -e "s|__JUPYTER_IMAGE__|${JUPYTER_IMAGE:?}|g" \
         -e "s|__JUPYTER_PASSWORD_HASH__|${JUPYTER_PASSWORD_HASH:?}|g" \
@@ -63,7 +73,7 @@ render_compose() {
         -e "s|__CADDY_IMAGE__|${caddy_image}|g" \
         -e "s|__UNIFIED_AGENT_IMAGE__|${UNIFIED_AGENT_IMAGE:?}|g" \
         "$tmpl" \
-        | sed -e '/# >>>unified-agent/d' -e '/# <<<unified-agent/d' \
+        | eval "$strip_unified_agent" \
         > "$out"
 }
 
