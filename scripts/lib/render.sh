@@ -49,6 +49,17 @@ render_compose() {
     caddy_image="$(_caddy_image)"
     # The password_hash contains $ and : characters but no | (sha1:hex:hex),
     # so | as the sed delimiter is safe.
+    local strip_unified_agent=""
+    if [[ -z "${YC_FOLDER_ID:-}" ]]; then
+        # Drop everything between the markers (inclusive). awk gives us a single
+        # tool that handles both branches symmetrically — drop body+markers here,
+        # drop only markers in the else branch — without forking the syntax.
+        strip_unified_agent='awk "/# >>>unified-agent/{skip=1} !skip; /# <<<unified-agent/{skip=0}"'
+    else
+        # Markers are scaffolding; strip them but keep the body.
+        strip_unified_agent='sed -e "/# >>>unified-agent/d" -e "/# <<<unified-agent/d"'
+    fi
+
     sed \
         -e "s|__JUPYTER_IMAGE__|${JUPYTER_IMAGE:?}|g" \
         -e "s|__JUPYTER_PASSWORD_HASH__|${JUPYTER_PASSWORD_HASH:?}|g" \
@@ -61,7 +72,10 @@ render_compose() {
         -e "s|__SITEAPP_IMAGE__|${siteapp_image}|g" \
         -e "s|__FLASHER_IMAGE__|${flasher_image}|g" \
         -e "s|__CADDY_IMAGE__|${caddy_image}|g" \
-        "$tmpl" > "$out"
+        -e "s|__UNIFIED_AGENT_IMAGE__|${UNIFIED_AGENT_IMAGE:?}|g" \
+        "$tmpl" \
+        | eval "$strip_unified_agent" \
+        > "$out"
 }
 
 # render_caddyfile <template_path> <output_path>
@@ -145,4 +159,18 @@ render_loki_config() {
     [[ "$days" =~ ^[0-9]+$ ]] || die "LOKI_RETENTION_DAYS must be a positive integer, got: $days"
     local hours=$(( days * 24 ))
     sed -e "s|__LOKI_RETENTION_HOURS__|${hours}|g" "$tmpl" > "$out"
+}
+
+# render_unified_agent_config <template_path> <output_path>
+# Substitutes __VPS_HOST__ and __YC_FOLDER_ID__.
+# Higher-level gating: deploy.sh decides whether to call this at all (only
+# when the operator set yc.folder_id in config.yaml). The `:?` guards below
+# are a safety net for direct callers (e.g., tests or future ops scripts).
+render_unified_agent_config() {
+    local tmpl="${1:?}" out="${2:?}"
+    [[ -f "$tmpl" ]] || die "template not found: $tmpl"
+    sed \
+        -e "s|__VPS_HOST__|${VPS_HOST:?}|g" \
+        -e "s|__YC_FOLDER_ID__|${YC_FOLDER_ID:?}|g" \
+        "$tmpl" > "$out"
 }

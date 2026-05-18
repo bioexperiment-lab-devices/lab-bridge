@@ -97,6 +97,35 @@ Operations:
 - `task ops:logs:loki` / `task ops:logs:grafana` — tail container stderr
 - `task ops:loki-disk` — show `loki_data/` size and the configured retention
 
+## First-time setup: host monitoring on Yandex Cloud
+
+Host metrics (RAM, disk space, disk I/O, CPU + load, network, TCP connections, agent self-health) are shipped from the prod VPS to **Yandex Monitoring** by the `unified-agent` container, which appears in the stack only when `yc.folder_id` is set in your `config.yaml`. CI deploys leave it unset and bring up the stack without the container.
+
+**One-time infrastructure setup (Yandex Cloud console / `yc` CLI — not in this repo):**
+
+1. Create a service account in the target folder, e.g. `lab-bridge-monitoring-writer`.
+2. Grant the SA the `monitoring.editor` role on that folder.
+3. Attach the SA to the prod VM: Compute Cloud → VM → Edit → "Service account".
+
+   After this, `cloud_meta` on the VM mints IAM tokens for the SA automatically — no key file lives on the VPS.
+
+**Per-laptop setup:**
+
+1. Put the folder id into `config.yaml`:
+
+   ```yaml
+   yc:
+     folder_id: b1g...  # your Yandex Cloud folder id
+   ```
+
+2. `task deploy`.
+
+3. After the first deploy, open Yandex Monitoring in the YC console → Metric explorer. Filter by `host=<your VPS hostname>`. You should see series for `cpu.*`, `memory.*`, `disk.*`, `net.*` from the `linux_metrics` namespace within ~1 minute.
+
+**Disabling host monitoring:** remove or comment out the `yc` block in `config.yaml` and redeploy. The render layer drops the service from the next compose render; `docker compose up -d --remove-orphans` (already in `scripts/deploy.sh`) tears down the running container.
+
+**Migrating off Yandex Cloud:** the Yandex-specific surface is contained in two files — `compose/unified-agent/config.yml.tmpl` and the `# >>>unified-agent` … `# <<<unified-agent` block in `compose/docker-compose.yml.tmpl`. Replace those with the new provider's agent (CloudWatch Agent for AWS, Ops Agent for GCP, or `node_exporter` + Prometheus for self-hosted). No app code, no Caddy route, and no Grafana provisioning depends on unified-agent.
+
 ## Public docs & agent download
 
 Siteapp serves a public docs portal at `/docs/` and a Windows agent

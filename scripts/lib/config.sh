@@ -38,6 +38,7 @@ _REQUIRED_PINS_FIELDS=(
     .remote_root
     .notebooks_path
     .ssh_port
+    .unified_agent_image
 )
 
 _yq() { yq "$@" 2>/dev/null; }
@@ -140,6 +141,11 @@ load_config() {
     export JUPYTER_PASSWORD_HASH ; JUPYTER_PASSWORD_HASH="$(_yq e '.jupyter.password_hash' "$config_path")"
     export SITEAPP_ADMIN_PASSWORD_HASH ; SITEAPP_ADMIN_PASSWORD_HASH="$(_yq e '.siteapp.admin_password_hash' "$config_path")"
 
+    # Optional: Yandex Cloud folder id for the unified-agent push target.
+    # Empty/missing means the unified-agent service is omitted from the
+    # rendered compose (CI path).
+    export YC_FOLDER_ID          ; YC_FOLDER_ID="$(_yq e '.yc.folder_id // ""' "$config_path")"
+
     # Stack pins from pins.yaml.
     export VPS_SSH_PORT      ; VPS_SSH_PORT="$(_yq e '.ssh_port' "$pins_path")"
     export VPS_REMOTE_ROOT   ; VPS_REMOTE_ROOT="$(_yq e '.remote_root' "$pins_path")"
@@ -151,6 +157,7 @@ load_config() {
     export LOKI_IMAGE            ; LOKI_IMAGE="$(_yq e '.loki_image' "$pins_path")"
     export LOKI_RETENTION_DAYS   ; LOKI_RETENTION_DAYS="$(_yq e '.loki_retention_days' "$pins_path")"
     export GRAFANA_IMAGE         ; GRAFANA_IMAGE="$(_yq e '.grafana_image' "$pins_path")"
+    export UNIFIED_AGENT_IMAGE   ; UNIFIED_AGENT_IMAGE="$(_yq e '.unified_agent_image' "$pins_path")"
     export SITEAPP_IMAGE_REPO    ; SITEAPP_IMAGE_REPO="$(_yq e '.siteapp_image_repo' "$pins_path")"
     export FLASHER_IMAGE_REPO    ; FLASHER_IMAGE_REPO="$(_yq e '.flasher_image_repo' "$pins_path")"
     export CADDY_IMAGE_REPO      ; CADDY_IMAGE_REPO="$(_yq e '.caddy_image_repo' "$pins_path")"

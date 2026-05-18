@@ -98,6 +98,30 @@ services:
       - flasher_upload_token
     networks: [labnet]
 
+  # >>>unified-agent
+  # Yandex Cloud Unified Agent — host-metrics shipper. The render layer
+  # strips this block (between the >>> / <<< markers) when yc.folder_id is
+  # unset, so CI deploys (which leave it unset) bring up the stack
+  # without this container. See compose/unified-agent/config.yml for the
+  # collection config and docs/superpowers/specs/2026-05-18-unified-agent-monitoring-design.md
+  # for the rationale.
+  unified-agent:
+    image: __UNIFIED_AGENT_IMAGE__
+    restart: unless-stopped
+    command: ["unified_agent", "--config", "/etc/yandex/unified_agent/config.yml"]
+    network_mode: host
+    pid: host
+    read_only: true
+    volumes:
+      - ./unified-agent/config.yml:/etc/yandex/unified_agent/config.yml:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro,rslave
+    tmpfs:
+      - /tmp
+      - /var/lib/yandex/unified_agent
+  # <<<unified-agent
+
 networks:
   labnet:
     driver: bridge
