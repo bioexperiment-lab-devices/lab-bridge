@@ -108,22 +108,28 @@ main() {
     fi
     rsync -az --delete "${rsync_excludes[@]}" -e "$rsync_e" "$stage/" "$target:$VPS_REMOTE_ROOT/"
 
-    # Always restart caddy, siteapp, and (in full mode) chisel because their
-    # bind-mounted config files (Caddyfile, siteapp/agent_upload_token,
-    # chisel/users.json) may have been replaced by rsync (atomic rename →
-    # new inode → the already-loaded reference inside the container goes
-    # stale; `up -d` doesn't recreate containers whose compose-config didn't
-    # change, and a single-file bind mount pins the original inode so even
-    # fsnotify-based auto-reload re-reads the same stale contents).
-    # In stack-only mode chisel is excluded because its roster files are
-    # managed by the operator, not CI.
+    # Always restart caddy, siteapp, grafana, and (in full mode) chisel
+    # because their bind-mounted config files may have been replaced by rsync
+    # (atomic rename → new inode → the already-loaded reference inside the
+    # container goes stale; `up -d` doesn't recreate containers whose
+    # compose-config didn't change, and a single-file bind mount pins the
+    # original inode so even fsnotify-based auto-reload re-reads the same
+    # stale contents).
+    # - caddy: Caddyfile
+    # - siteapp: siteapp/agent_upload_token
+    # - chisel: chisel/users.json (full mode only)
+    # - grafana: grafana/provisioning/{datasources,dashboards}/* — datasource
+    #   provisioning runs at startup only, so adding/changing a datasource
+    #   (e.g. the Prometheus addition in v0.10.0) requires a bounce. Without
+    #   it, dashboards silently load with "No data" because the provisioned
+    #   datasource isn't registered in Grafana's in-memory state.
     # Flasher is intentionally excluded: it reads siteapp/clients.json on
     # every request (see services/flasher/app/routes.py), so a roster change
     # is picked up without a restart.
     log "bringing up the stack..."
-    local restart_services="caddy siteapp"
+    local restart_services="caddy siteapp grafana"
     if [[ "${LDS_STACK_ONLY:-}" != "1" ]]; then
-        restart_services="caddy chisel siteapp"
+        restart_services="caddy chisel siteapp grafana"
     fi
     $ssh_base "$target" "cd $VPS_REMOTE_ROOT && (docker compose pull --ignore-pull-failures || true) && docker compose up -d --remove-orphans && docker compose restart $restart_services"
 
