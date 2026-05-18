@@ -21,3 +21,9 @@ def test_healthz(tmp_path: Path, monkeypatch) -> None:
     r = client.get("/healthz")
     assert r.status_code == 200
     assert r.json() == {"status": "ok"}
+
+
+def test_labs_route_registered():
+    from app.main import app
+    paths = {route.path for route in app.routes}
+    assert "/api/public/labs" in paths

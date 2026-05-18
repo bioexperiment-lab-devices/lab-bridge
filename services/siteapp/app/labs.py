@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Literal, TypedDict
 
 import httpx
+from fastapi import APIRouter
 
 from app.agent import load_meta
 from app.clients import load_roster
+from app.config import Settings
 
 
 class LabRow(TypedDict, total=False):
@@ -136,3 +138,15 @@ async def aggregate_labs(
 
     rows.sort(key=_sort_key)
     return rows
+
+
+def make_router(settings: Settings, *, host: str = CHISEL_HOST) -> APIRouter:
+    """Create the /api/public/labs router with a process-local aggregator."""
+    router = APIRouter()
+    aggregator = LabsAggregator(settings.agent_root, settings.clients_file, host=host)
+
+    @router.get("/api/public/labs")
+    async def list_labs() -> list[LabRow]:
+        return await aggregator.list_labs()
+
+    return router
