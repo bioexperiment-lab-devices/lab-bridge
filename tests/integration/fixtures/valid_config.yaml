@@ -12,3 +12,5 @@ chisel_clients:
     password: "Q9wNmRtYsBvCpXkLjGhFdSeAuOiZTM47"
 siteapp:
   admin_password_hash: "$2a$14$HO81PFKmfx2eOcpGyeogN.ct3M9SzgDmvXYHaeNrlTzV66aFbPK2y"
+yc:
+  folder_id: b1g00000000000000000

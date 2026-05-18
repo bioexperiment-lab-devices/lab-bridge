@@ -28,3 +28,11 @@ chisel_clients: []
 #   - name: microscope-1
 #     reverse_port: 9001
 #     password: "32-char-random"
+
+# Yandex Cloud monitoring (optional; omit to disable host metrics).
+# When set, the deploy renders the unified-agent service block into
+# docker-compose. Auth uses the VM-attached service account (cloud_meta);
+# no key file lives here. The VM must have a SA with monitoring.editor
+# attached at the infra level — see README "First-time setup: host monitoring".
+# yc:
+#   folder_id: b1g00000000000000000
