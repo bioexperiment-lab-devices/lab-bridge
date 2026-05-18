@@ -1,6 +1,8 @@
 # Host monitoring via Yandex Unified Agent
 
-**Status:** draft (brainstorming complete; pending user review before implementation plan).
+> **Status:** Superseded by [2026-05-18-vps-metrics-design.md](2026-05-18-vps-metrics-design.md). Yandex Unified Agent was implemented but never deployed before being swapped for a pure Prometheus + node-exporter stack to remove cloud lock-in. See the successor spec for rationale.
+
+**Status:** superseded.
 
 ## Problem
 

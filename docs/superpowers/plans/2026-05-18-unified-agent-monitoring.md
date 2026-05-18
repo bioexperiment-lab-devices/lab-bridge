@@ -1,5 +1,7 @@
 # Unified Agent host monitoring — implementation plan
 
+> **Status:** Superseded by [2026-05-18-vps-metrics-design.md](../specs/2026-05-18-vps-metrics-design.md) (and its forthcoming plan). The Yandex Unified Agent work shipped to `main` (PRs #58, #60) but was never deployed to prod before being swapped for a pure Prometheus + node-exporter stack to remove cloud lock-in. This plan is kept as historical record; do not execute it.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship host-level metrics (RAM, disk space, disk I/O, CPU+load, network, TCP, process counts, agent self-stats) from the prod VPS to Yandex Monitoring via Yandex Unified Agent, without breaking CI and with the Yandex-specific surface confined to two files for future portability.
