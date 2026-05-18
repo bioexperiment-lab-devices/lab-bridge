@@ -493,3 +493,16 @@ CFG
     [ "$status" -eq 1 ]
 }
 
+@test "render_caddyfile: emits admin :2019 directive so Prometheus can scrape /metrics" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
+        render_caddyfile $ROOT/compose/Caddyfile.tmpl $TMPDIR/Caddyfile
+        cat $TMPDIR/Caddyfile
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"admin :2019"* ]]
+}
+
