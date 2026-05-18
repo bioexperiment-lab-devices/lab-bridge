@@ -716,3 +716,422 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   font-weight: 500;
   transition: border-color 100ms, color 100ms, background 100ms, transform 100ms;
 }
+
+/* ============================================================
+   Download page layout
+   ============================================================ */
+.lb-page--download { /* inherits .lb-page */ }
+
+.lb-page__body--narrow {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 28px 32px;
+}
+
+/* ============================================================
+   Download — Hero
+   ============================================================ */
+.lb-dl-hero {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 18px;
+  align-items: start;
+  padding: 22px 0;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+/* lb-dl-hero__logo maps to the handoff's __mark slot */
+.lb-dl-hero__logo {
+  width: 56px; height: 56px;
+}
+.lb-dl-hero__logo svg { width: 100%; height: 100%; display: block; }
+.lb-dl-hero__body { min-width: 0; }
+.lb-dl-hero__title {
+  margin: 2px 0 6px;
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  color: var(--text);
+  line-height: 1.1;
+}
+.lb-dl-hero__lede {
+  margin: 0 0 12px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--text);
+  max-width: 640px;
+}
+/* lb-dl-hero__source / __source-link map to handoff __meta / __link */
+.lb-dl-hero__source {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.lb-dl-hero__source-link {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--border-strong);
+  padding-bottom: 1px;
+}
+.lb-dl-hero__source-link:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ============================================================
+   Download — Platform cards
+   ============================================================ */
+.lb-dl-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.lb-dl-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.lb-dl-card--available {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-card);
+}
+.lb-dl-card--coming {
+  background: var(--surface-sunken);
+  border-style: dashed;
+}
+
+.lb-dl-card__head {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-strip);
+}
+.lb-dl-card--coming .lb-dl-card__head {
+  border-bottom: 0;
+  background: transparent;
+}
+/* lb-dl-card__icon-tile maps to handoff __platico */
+.lb-dl-card__icon-tile {
+  width: 36px; height: 36px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  font-size: 18px;
+}
+.lb-dl-card--coming .lb-dl-card__icon-tile {
+  background: var(--surface-sunken);
+  opacity: 0.7;
+}
+/* lb-dl-card__id is a structural wrapper; no visual rule needed */
+/* lb-dl-card__name maps to handoff __title */
+.lb-dl-card__name {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.008em;
+  color: var(--text);
+  line-height: 1.2;
+}
+.lb-dl-card__sub {
+  display: block;
+  margin-top: 1px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+.lb-dl-card__status {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 4px 8px;
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+/* --available maps to handoff __status--ok */
+.lb-dl-card__status--available {
+  background: var(--success-soft);
+  border: 1px solid var(--success-border);
+  color: var(--success);
+}
+/* --disabled: greyed-out pill */
+.lb-dl-card__status--disabled {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+/* --soon: coming-soon pill */
+.lb-dl-card__status--soon {
+  background: var(--surface-strip);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+/* status-main / status-eta map to handoff's status small */
+.lb-dl-card__status-main {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+.lb-dl-card__status-eta {
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  opacity: 0.85;
+}
+
+.lb-dl-card__body {
+  padding: 18px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ============================================================
+   Download — CTA button
+   ============================================================ */
+.lb-dl-card__cta {
+  appearance: none;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 6px;
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 14px;
+  align-items: center;
+  cursor: pointer;
+  transition: background 100ms, transform 100ms;
+}
+.lb-dl-card__cta:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+[data-theme="dark"] .lb-dl-card__cta { color: var(--text-inverse); }
+[data-theme="dark"] .lb-dl-card__cta:hover { background: var(--accent-hover); }
+/* --disabled state */
+.lb-dl-card__cta--disabled {
+  background: var(--surface-sunken);
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+/* lb-dl-card__cta-icon maps to handoff __cta-ico */
+.lb-dl-card__cta-icon {
+  width: 26px; height: 26px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+}
+/* lb-dl-card__cta-text maps to handoff __cta-stack */
+.lb-dl-card__cta-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+/* lb-dl-card__cta-line1 maps to handoff __cta-line */
+.lb-dl-card__cta-line1 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.008em;
+  line-height: 1.2;
+}
+/* lb-dl-card__cta-line2 maps to handoff __cta-meta */
+.lb-dl-card__cta-line2 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  opacity: 0.85;
+  letter-spacing: 0.01em;
+}
+.lb-dl-card__cta-line2 code {
+  font-family: inherit;
+  background: rgba(255,255,255,0.16);
+  border-radius: 2px;
+  padding: 0 4px;
+}
+
+/* ============================================================
+   Download — Browser-block explainer
+   ============================================================ */
+.lb-dl-explainer {
+  border: 1px solid var(--warning-border);
+  background: var(--warning-soft);
+  border-left: 3px solid var(--warning);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.lb-dl-explainer__summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  user-select: none;
+}
+.lb-dl-explainer__summary::-webkit-details-marker { display: none; }
+.lb-dl-explainer__icon {
+  flex: 0 0 22px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--warning);
+  color: #fff;
+  display: grid; place-items: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+}
+/* lb-dl-explainer__summary-text maps to handoff __title */
+.lb-dl-explainer__summary-text { flex: 1; }
+.lb-dl-explainer__chev {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  transition: transform 150ms;
+}
+.lb-dl-explainer[open] .lb-dl-explainer__chev { transform: rotate(-180deg); }
+
+.lb-dl-explainer__body {
+  padding: 4px 14px 14px 46px;
+  border-top: 1px solid var(--warning-border);
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.6;
+}
+.lb-dl-explainer__body p { margin: 10px 0; }
+/* lb-dl-explainer__h4 maps to handoff __steph */
+.lb-dl-explainer__h4 {
+  margin: 14px 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--warning);
+  font-family: var(--font-mono);
+}
+
+/* ============================================================
+   Download — Version metadata table
+   ============================================================ */
+.lb-dl-meta {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.lb-dl-meta__row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 14px;
+  padding: 9px 14px;
+  align-items: baseline;
+  border-bottom: 1px solid var(--border);
+}
+.lb-dl-meta__row:last-child { border-bottom: 0; }
+.lb-dl-meta dt {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+.lb-dl-meta dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+.lb-dl-meta dd code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 6px;
+  color: var(--text);
+  user-select: all;
+}
+/* lb-dl-meta__ts — timestamp text (written from scratch, no handoff counterpart) */
+.lb-dl-meta__ts {
+  font-size: 13px;
+  color: var(--text);
+}
+.lb-dl-meta__rel {
+  margin-left: 8px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+.lb-dl-meta__sha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.lb-dl-meta__sha code {
+  flex: 1;
+  font-size: 11.5px;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow-x: auto;
+  text-overflow: clip;
+}
+/* lb-dl-meta__copy maps to handoff __copybtn (written to match template name) */
+.lb-dl-meta__copy {
+  appearance: none;
+  font: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  padding: 3px 8px 3px 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.lb-dl-meta__copy:hover { color: var(--accent); border-color: var(--accent); }
+.lb-dl-meta__copy svg { width: 11px; height: 11px; }
+
+/* ============================================================
+   Download — Optional Markdown body
+   ============================================================ */
+.lb-dl-bodymd {
+  margin-top: 36px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
