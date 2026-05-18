@@ -38,6 +38,10 @@ _REQUIRED_PINS_FIELDS=(
     .remote_root
     .notebooks_path
     .ssh_port
+    .prometheus_image
+    .node_exporter_image
+    .cadvisor_image
+    .prometheus_retention_days
 )
 
 _yq() { yq "$@" 2>/dev/null; }
@@ -117,6 +121,12 @@ validate_config() {
         errors+=("pins.loki_retention_days must be a positive integer, got: $retention")
     fi
 
+    local prom_retention
+    prom_retention="$(_yq e '.prometheus_retention_days // ""' "$pins_path")"
+    if [[ -n "$prom_retention" ]] && ! [[ "$prom_retention" =~ ^[0-9]+$ ]]; then
+        errors+=("pins.prometheus_retention_days must be a positive integer, got: $prom_retention")
+    fi
+
     if (( ${#errors[@]} > 0 )); then
         printf 'config validation failed:\n' >&2
         printf '  - %s\n' "${errors[@]}" >&2
@@ -151,6 +161,10 @@ load_config() {
     export LOKI_IMAGE            ; LOKI_IMAGE="$(_yq e '.loki_image' "$pins_path")"
     export LOKI_RETENTION_DAYS   ; LOKI_RETENTION_DAYS="$(_yq e '.loki_retention_days' "$pins_path")"
     export GRAFANA_IMAGE         ; GRAFANA_IMAGE="$(_yq e '.grafana_image' "$pins_path")"
+    export PROMETHEUS_IMAGE      ; PROMETHEUS_IMAGE="$(_yq e '.prometheus_image' "$pins_path")"
+    export NODE_EXPORTER_IMAGE   ; NODE_EXPORTER_IMAGE="$(_yq e '.node_exporter_image' "$pins_path")"
+    export CADVISOR_IMAGE        ; CADVISOR_IMAGE="$(_yq e '.cadvisor_image' "$pins_path")"
+    export PROMETHEUS_RETENTION_DAYS ; PROMETHEUS_RETENTION_DAYS="$(_yq e '.prometheus_retention_days' "$pins_path")"
     export SITEAPP_IMAGE_REPO    ; SITEAPP_IMAGE_REPO="$(_yq e '.siteapp_image_repo' "$pins_path")"
     export FLASHER_IMAGE_REPO    ; FLASHER_IMAGE_REPO="$(_yq e '.flasher_image_repo' "$pins_path")"
     export CADDY_IMAGE_REPO      ; CADDY_IMAGE_REPO="$(_yq e '.caddy_image_repo' "$pins_path")"

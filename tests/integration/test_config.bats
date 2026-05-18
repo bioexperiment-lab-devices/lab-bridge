@@ -66,6 +66,36 @@ PINS
     [[ "$output" == *"grafana_image"* ]]
 }
 
+@test "validate_config: rejects pins.yaml missing prometheus stack fields" {
+    cat > "$TMPDIR/cfg.yaml" <<'CFG'
+vps: {host: 1.2.3.4, ssh_user: u}
+jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
+siteapp: {admin_password_hash: "$2a$14$HO81PFKmfx2eOcpGyeogN.ct3M9SzgDmvXYHaeNrlTzV66aFbPK2y"}
+chisel_clients: []
+CFG
+    cat > "$TMPDIR/bad_pins.yaml" <<'PINS'
+jupyter_image: quay.io/jupyter/scipy-notebook:2026-04-20
+chisel_image: jpillora/chisel:1.10.1
+chisel_listen_port: 8080
+loki_image: grafana/loki:3.2.1
+loki_retention_days: 30
+grafana_image: grafana/grafana:11.3.0
+siteapp_image_repo: ghcr.io/test/lab-bridge-siteapp
+flasher_image_repo: ghcr.io/test/lab-bridge-flasher
+caddy_image_repo: ghcr.io/test/lab-bridge-caddy
+acme_email: ops@example.com
+remote_root: /srv/lab-bridge
+notebooks_path: /srv/jupyterlab/work
+ssh_port: 22
+PINS
+    run bash -c "export LDS_PINS_FILE=$TMPDIR/bad_pins.yaml; source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/cfg.yaml"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"prometheus_image"* ]]
+    [[ "$output" == *"node_exporter_image"* ]]
+    [[ "$output" == *"cadvisor_image"* ]]
+    [[ "$output" == *"prometheus_retention_days"* ]]
+}
+
 @test "validate_config: rejects non-numeric loki_retention_days in pins.yaml" {
     cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/bad_pins.yaml"
     yq -i '.loki_retention_days = "abc"' "$TMPDIR/bad_pins.yaml"
@@ -78,6 +108,15 @@ PINS
     run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/integration/fixtures/valid_config.yaml; echo \$LOKI_IMAGE \$LOKI_RETENTION_DAYS \$GRAFANA_IMAGE"
     [ "$status" -eq 0 ]
     [[ "$output" == *"grafana/loki:3.2.1 30 grafana/grafana:11.3.0"* ]]
+}
+
+@test "load_config: exports PROMETHEUS_IMAGE, NODE_EXPORTER_IMAGE, CADVISOR_IMAGE, PROMETHEUS_RETENTION_DAYS" {
+    run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/integration/fixtures/valid_config.yaml; echo \$PROMETHEUS_IMAGE \$NODE_EXPORTER_IMAGE \$CADVISOR_IMAGE \$PROMETHEUS_RETENTION_DAYS"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"prom/prometheus:v3.0.1"* ]]
+    [[ "$output" == *"quay.io/prometheus/node-exporter:v1.8.2"* ]]
+    [[ "$output" == *"gcr.io/cadvisor/cadvisor:v0.49.1"* ]]
+    [[ "$output" == *"30"* ]]
 }
 
 @test "validate_config: passes when pins.yaml supplies image pins and paths" {
@@ -97,6 +136,10 @@ acme_email: ops@example.com
 remote_root: /srv/lab-bridge
 notebooks_path: /srv/jupyterlab/work
 ssh_port: 22
+prometheus_image: prom/prometheus:v3.0.1
+node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
+cadvisor_image: gcr.io/cadvisor/cadvisor:v0.49.1
+prometheus_retention_days: 30
 PINS
     cat > "$TMPDIR/config.yaml" <<'CFG'
 vps:

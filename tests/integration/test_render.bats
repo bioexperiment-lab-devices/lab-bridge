@@ -344,6 +344,10 @@ acme_email: x@example.com
 remote_root: /srv/lb
 notebooks_path: /srv/lb/nb
 ssh_port: 22
+prometheus_image: prom/prometheus:v3.0.1
+node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
+cadvisor_image: gcr.io/cadvisor/cadvisor:v0.49.1
+prometheus_retention_days: 30
 PINS
     echo "1.2.3 # x-release-please-version" > "$BATS_TEST_TMPDIR/VERSION"
     cat > "$BATS_TEST_TMPDIR/config.yaml" <<'CFG'
@@ -387,6 +391,10 @@ acme_email: x@example.com
 remote_root: /srv/lb
 notebooks_path: /srv/lb/nb
 ssh_port: 22
+prometheus_image: prom/prometheus:v3.0.1
+node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
+cadvisor_image: gcr.io/cadvisor/cadvisor:v0.49.1
+prometheus_retention_days: 30
 PINS
     echo "1.2.3 # x-release-please-version" > "$BATS_TEST_TMPDIR/VERSION"
     cat > "$BATS_TEST_TMPDIR/config.yaml" <<'CFG'
