@@ -373,11 +373,22 @@ CFG
 }
 
 @test "render_compose: with yc.folder_id set, emits unified-agent service block" {
+    # Inline config (not valid_config.yaml fixture) because fake-VPS bats tests
+    # also use that fixture and would try to start the UA container on a Docker-
+    # in-Docker host, where /:/host/root:ro,rslave can't propagate ('/' is private).
+    cat > $TMPDIR/with_yc.yaml <<'EOF'
+vps: {host: 192.0.2.10, ssh_user: u}
+jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
+siteapp: {admin_password_hash: "$2a$14$HO81PFKmfx2eOcpGyeogN.ct3M9SzgDmvXYHaeNrlTzV66aFbPK2y"}
+chisel_clients: []
+yc:
+  folder_id: b1g00000000000000000
+EOF
     run bash -c "
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
+        load_config $TMPDIR/with_yc.yaml
         render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
         cat $TMPDIR/docker-compose.yml
     "
@@ -448,16 +459,25 @@ CFG
 }
 
 @test "render_unified_agent_config: substitutes folder_id and host labels" {
+    # Inline config (see "with yc.folder_id set" test above for the reason).
+    cat > $TMPDIR/with_yc.yaml <<'EOF'
+vps: {host: 192.0.2.10, ssh_user: u}
+jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
+siteapp: {admin_password_hash: "$2a$14$HO81PFKmfx2eOcpGyeogN.ct3M9SzgDmvXYHaeNrlTzV66aFbPK2y"}
+chisel_clients: []
+yc:
+  folder_id: b1g00000000000000000
+EOF
     run bash -c "
         source $ROOT/scripts/lib/common.sh
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
-        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
+        load_config $TMPDIR/with_yc.yaml
         render_unified_agent_config $ROOT/compose/unified-agent/config.yml.tmpl $TMPDIR/ua-config.yml
         cat $TMPDIR/ua-config.yml
     "
     [ "$status" -eq 0 ]
-    # Folder id from the fixture.
+    # Folder id from the inline config.
     [[ "$output" == *"folder_id: b1g00000000000000000"* ]]
     # Host label assigned to every series.
     [[ "$output" == *"host: 192.0.2.10"* ]]
