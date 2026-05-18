@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.markdown import render_markdown
+from app.markdown import pygments_css, render_markdown
 
 
 def test_returns_html_and_title() -> None:
@@ -208,3 +208,38 @@ def test_alert_containing_img() -> None:
     assert '<img src="icons/foo.svg"' in r.html
     assert 'alt="x"' in r.html
     assert 'width="28"' in r.html
+
+
+def test_fenced_block_title_emits_filename_in_figcaption():
+    md = '```python title="serialhop/cli.py"\nprint("hi")\n```\n'
+    out = render_markdown(md).html
+    assert '<figure class="lb-code"' in out
+    assert 'data-lang="python"' in out
+    assert 'class="lb-code__file">serialhop/cli.py' in out
+    assert '<button class="lb-code__copy"' in out
+
+
+def test_fenced_block_without_title_omits_filename():
+    md = '```python\nprint("hi")\n```\n'
+    out = render_markdown(md).html
+    assert '<figure class="lb-code"' in out
+    assert 'lb-code__file' not in out
+    assert 'class="lb-code__lang">python' in out
+
+
+def test_fenced_block_file_alias_works():
+    md = '```python file="x.py"\npass\n```\n'
+    out = render_markdown(md).html
+    assert 'class="lb-code__file">x.py' in out
+
+
+def test_h2_gets_permalink_anchor():
+    md = "## Section title\n\nbody\n"
+    out = render_markdown(md).html
+    assert 'class="lb-anchor"' in out
+
+
+def test_pygments_css_uses_data_theme_selector():
+    css = pygments_css()
+    assert '[data-theme="dark"]' in css
+    assert '@media (prefers-color-scheme: dark)' not in css
