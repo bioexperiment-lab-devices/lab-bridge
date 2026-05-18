@@ -49,17 +49,6 @@ render_compose() {
     caddy_image="$(_caddy_image)"
     # The password_hash contains $ and : characters but no | (sha1:hex:hex),
     # so | as the sed delimiter is safe.
-    local strip_unified_agent=""
-    if [[ -z "${YC_FOLDER_ID:-}" ]]; then
-        # Drop everything between the markers (inclusive). awk gives us a single
-        # tool that handles both branches symmetrically — drop body+markers here,
-        # drop only markers in the else branch — without forking the syntax.
-        strip_unified_agent='awk "/# >>>unified-agent/{skip=1} !skip; /# <<<unified-agent/{skip=0}"'
-    else
-        # Markers are scaffolding; strip them but keep the body.
-        strip_unified_agent='sed -e "/# >>>unified-agent/d" -e "/# <<<unified-agent/d"'
-    fi
-
     sed \
         -e "s|__JUPYTER_IMAGE__|${JUPYTER_IMAGE:?}|g" \
         -e "s|__JUPYTER_PASSWORD_HASH__|${JUPYTER_PASSWORD_HASH:?}|g" \
@@ -68,13 +57,15 @@ render_compose() {
         -e "s|__NOTEBOOKS_PATH__|${VPS_NOTEBOOKS_PATH:?}|g" \
         -e "s|__LOKI_IMAGE__|${LOKI_IMAGE:?}|g" \
         -e "s|__GRAFANA_IMAGE__|${GRAFANA_IMAGE:?}|g" \
+        -e "s|__PROMETHEUS_IMAGE__|${PROMETHEUS_IMAGE:?}|g" \
+        -e "s|__PROMETHEUS_RETENTION_DAYS__|${PROMETHEUS_RETENTION_DAYS:?}|g" \
+        -e "s|__NODE_EXPORTER_IMAGE__|${NODE_EXPORTER_IMAGE:?}|g" \
+        -e "s|__CADVISOR_IMAGE__|${CADVISOR_IMAGE:?}|g" \
         -e "s|__VPS_HOST__|${VPS_HOST:?}|g" \
         -e "s|__SITEAPP_IMAGE__|${siteapp_image}|g" \
         -e "s|__FLASHER_IMAGE__|${flasher_image}|g" \
         -e "s|__CADDY_IMAGE__|${caddy_image}|g" \
-        -e "s|__UNIFIED_AGENT_IMAGE__|${UNIFIED_AGENT_IMAGE:?}|g" \
         "$tmpl" \
-        | eval "$strip_unified_agent" \
         > "$out"
 }
 
@@ -161,16 +152,11 @@ render_loki_config() {
     sed -e "s|__LOKI_RETENTION_HOURS__|${hours}|g" "$tmpl" > "$out"
 }
 
-# render_unified_agent_config <template_path> <output_path>
-# Substitutes __VPS_HOST__ and __YC_FOLDER_ID__.
-# Higher-level gating: deploy.sh decides whether to call this at all (only
-# when the operator set yc.folder_id in config.yaml). The `:?` guards below
-# are a safety net for direct callers (e.g., tests or future ops scripts).
-render_unified_agent_config() {
+# render_prometheus_config <template_path> <output_path>
+# Substitutes __VPS_HOST__ into the Prometheus scrape config. Mirrors
+# render_loki_config in shape.
+render_prometheus_config() {
     local tmpl="${1:?}" out="${2:?}"
     [[ -f "$tmpl" ]] || die "template not found: $tmpl"
-    sed \
-        -e "s|__VPS_HOST__|${VPS_HOST:?}|g" \
-        -e "s|__YC_FOLDER_ID__|${YC_FOLDER_ID:?}|g" \
-        "$tmpl" > "$out"
+    sed -e "s|__VPS_HOST__|${VPS_HOST:?}|g" "$tmpl" > "$out"
 }

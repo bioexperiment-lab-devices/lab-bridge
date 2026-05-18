@@ -1,0 +1,31 @@
+# Prometheus scrape config — rendered by scripts/lib/render.sh::render_prometheus_config.
+# Only __VPS_HOST__ is templated; everything else is static.
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  external_labels:
+    host: __VPS_HOST__
+    env: prod
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['prometheus:9090']
+
+  - job_name: node-exporter
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  - job_name: caddy
+    static_configs:
+      - targets: ['caddy:2019']
+
+  # JupyterLab /metrics was unreachable unauth'd on the pinned scipy-notebook
+  # image (2026-04-20); CI's metrics-smoke confirmed health=down. The jupyter
+  # scrape job is intentionally absent. Revisit when the image surfaces an
+  # unauth'd /metrics endpoint or when we add a sidecar exporter (the spec's
+  # Task 12 fallback path).

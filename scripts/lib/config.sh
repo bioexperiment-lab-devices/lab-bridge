@@ -38,7 +38,10 @@ _REQUIRED_PINS_FIELDS=(
     .remote_root
     .notebooks_path
     .ssh_port
-    .unified_agent_image
+    .prometheus_image
+    .node_exporter_image
+    .cadvisor_image
+    .prometheus_retention_days
 )
 
 _yq() { yq "$@" 2>/dev/null; }
@@ -118,6 +121,12 @@ validate_config() {
         errors+=("pins.loki_retention_days must be a positive integer, got: $retention")
     fi
 
+    local prom_retention
+    prom_retention="$(_yq e '.prometheus_retention_days // ""' "$pins_path")"
+    if [[ -n "$prom_retention" ]] && ! [[ "$prom_retention" =~ ^[0-9]+$ ]]; then
+        errors+=("pins.prometheus_retention_days must be a positive integer, got: $prom_retention")
+    fi
+
     if (( ${#errors[@]} > 0 )); then
         printf 'config validation failed:\n' >&2
         printf '  - %s\n' "${errors[@]}" >&2
@@ -141,11 +150,6 @@ load_config() {
     export JUPYTER_PASSWORD_HASH ; JUPYTER_PASSWORD_HASH="$(_yq e '.jupyter.password_hash' "$config_path")"
     export SITEAPP_ADMIN_PASSWORD_HASH ; SITEAPP_ADMIN_PASSWORD_HASH="$(_yq e '.siteapp.admin_password_hash' "$config_path")"
 
-    # Optional: Yandex Cloud folder id for the unified-agent push target.
-    # Empty/missing means the unified-agent service is omitted from the
-    # rendered compose (CI path).
-    export YC_FOLDER_ID          ; YC_FOLDER_ID="$(_yq e '.yc.folder_id // ""' "$config_path")"
-
     # Stack pins from pins.yaml.
     export VPS_SSH_PORT      ; VPS_SSH_PORT="$(_yq e '.ssh_port' "$pins_path")"
     export VPS_REMOTE_ROOT   ; VPS_REMOTE_ROOT="$(_yq e '.remote_root' "$pins_path")"
@@ -157,7 +161,10 @@ load_config() {
     export LOKI_IMAGE            ; LOKI_IMAGE="$(_yq e '.loki_image' "$pins_path")"
     export LOKI_RETENTION_DAYS   ; LOKI_RETENTION_DAYS="$(_yq e '.loki_retention_days' "$pins_path")"
     export GRAFANA_IMAGE         ; GRAFANA_IMAGE="$(_yq e '.grafana_image' "$pins_path")"
-    export UNIFIED_AGENT_IMAGE   ; UNIFIED_AGENT_IMAGE="$(_yq e '.unified_agent_image' "$pins_path")"
+    export PROMETHEUS_IMAGE      ; PROMETHEUS_IMAGE="$(_yq e '.prometheus_image' "$pins_path")"
+    export NODE_EXPORTER_IMAGE   ; NODE_EXPORTER_IMAGE="$(_yq e '.node_exporter_image' "$pins_path")"
+    export CADVISOR_IMAGE        ; CADVISOR_IMAGE="$(_yq e '.cadvisor_image' "$pins_path")"
+    export PROMETHEUS_RETENTION_DAYS ; PROMETHEUS_RETENTION_DAYS="$(_yq e '.prometheus_retention_days' "$pins_path")"
     export SITEAPP_IMAGE_REPO    ; SITEAPP_IMAGE_REPO="$(_yq e '.siteapp_image_repo' "$pins_path")"
     export FLASHER_IMAGE_REPO    ; FLASHER_IMAGE_REPO="$(_yq e '.flasher_image_repo' "$pins_path")"
     export CADDY_IMAGE_REPO      ; CADDY_IMAGE_REPO="$(_yq e '.caddy_image_repo' "$pins_path")"

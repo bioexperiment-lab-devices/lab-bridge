@@ -20,6 +20,27 @@ load helpers
     [[ "$output" == "false" ]]
 }
 
+@test "grafana provisioning: prometheus datasource yaml is valid YAML and points to prometheus:9090" {
+    run yq e '.datasources[0].url' "$ROOT/compose/grafana/provisioning/datasources/prometheus.yaml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "http://prometheus:9090" ]]
+}
+
+@test "grafana provisioning: prometheus datasource has stable uid 'prometheus'" {
+    run yq e '.datasources[0].uid' "$ROOT/compose/grafana/provisioning/datasources/prometheus.yaml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "prometheus" ]]
+}
+
+@test "grafana provisioning: prometheus is the default datasource and loki is not" {
+    run yq e '.datasources[0].isDefault' "$ROOT/compose/grafana/provisioning/datasources/prometheus.yaml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "true" ]]
+    run yq e '.datasources[0].isDefault' "$ROOT/compose/grafana/provisioning/datasources/loki.yaml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "false" ]]
+}
+
 @test "grafana dashboard json is valid JSON with the four expected panels" {
     # Use -p json -oy so yq treats the file as JSON input and emits YAML output
     # (bare strings without quotes). Without -p json the output format is

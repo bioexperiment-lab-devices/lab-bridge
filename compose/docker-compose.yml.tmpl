@@ -65,7 +65,52 @@ services:
     secrets:
       - grafana_admin_password
     networks: [labnet]
-    depends_on: [loki]
+    depends_on: [loki, prometheus]
+
+  prometheus:
+    image: __PROMETHEUS_IMAGE__
+    restart: unless-stopped
+    # The prom/prometheus image defaults to user "nobody" (uid 65534).
+    # Our bind-mounted ./prometheus_data dir is created root-owned by docker
+    # on first start, so the default user can't write the TSDB and Prometheus
+    # crash-loops with "permission denied" on /prometheus/queries.active.
+    # Run as root, matching the trust model of every other writable bind-
+    # mount service in this stack (chisel, loki, grafana, siteapp, flasher).
+    user: "0:0"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=__PROMETHEUS_RETENTION_DAYS__d
+      - --web.listen-address=:9090
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus_data:/prometheus
+    networks: [labnet]
+
+  node-exporter:
+    image: __NODE_EXPORTER_IMAGE__
+    restart: unless-stopped
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/host/root
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro
+    networks: [labnet]
+
+  cadvisor:
+    image: __CADVISOR_IMAGE__
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [labnet]
 
   siteapp:
     image: __SITEAPP_IMAGE__
@@ -98,35 +143,6 @@ services:
       - flasher_upload_token
     networks: [labnet]
 
-  # >>>unified-agent
-  # Yandex Cloud Unified Agent — host-metrics shipper. The render layer
-  # strips this block (between the >>> / <<< markers) when yc.folder_id is
-  # unset, so CI deploys (which leave it unset) bring up the stack
-  # without this container. See compose/unified-agent/config.yml for the
-  # collection config and docs/superpowers/specs/2026-05-18-unified-agent-monitoring-design.md
-  # for the rationale.
-  unified-agent:
-    image: __UNIFIED_AGENT_IMAGE__
-    restart: unless-stopped
-    # Bypass the image's /entrypoint.sh: it renders /etc/yandex/unified_agent/config.tmpl.yml
-    # into /etc/yandex/unified_agent/config.yml via shell eval, then exec's its args.
-    # That write collides with our read-only bind mount of the pre-rendered config at
-    # the same path, so the container crashes on startup. We've already rendered the
-    # config in scripts/lib/render.sh (render_unified_agent_config), so we skip the
-    # entrypoint and run the agent binary directly with --config pointing at our file.
-    entrypoint: ["unified_agent", "--config", "/etc/yandex/unified_agent/config.yml"]
-    network_mode: host
-    pid: host
-    read_only: true
-    volumes:
-      - ./unified-agent/config.yml:/etc/yandex/unified_agent/config.yml:ro
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/host/root:ro,rslave
-    tmpfs:
-      - /tmp
-      - /var/lib/yandex/unified_agent
-  # <<<unified-agent
 
 networks:
   labnet:

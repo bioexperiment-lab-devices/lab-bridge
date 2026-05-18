@@ -15,3 +15,6 @@ tests/integration/fake_vps/id_test.pub
 compose/grafana/admin_password
 compose/siteapp/agent_upload_token
 compose/siteapp/sample_data/
+
+# Claude Code internal state (worktrees, caches)
+.claude/
