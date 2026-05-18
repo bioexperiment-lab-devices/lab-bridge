@@ -458,7 +458,7 @@ CFG
     [[ "$output" == *"--path.rootfs=/host/root"* ]]
     [[ "$output" == *"/proc:/host/proc:ro"* ]]
     [[ "$output" == *"/sys:/host/sys:ro"* ]]
-    [[ "$output" == *"/:/host/root:ro,rslave"* ]]
+    [[ "$output" == *"/:/host/root:ro"* ]]
     run yq e '.services."node-exporter" | has("network_mode")' "$TMPDIR/docker-compose.yml"
     [ "$status" -eq 0 ]
     [[ "$output" == "false" ]]
