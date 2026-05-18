@@ -6,24 +6,28 @@
 
 load helpers
 
-# Helper — poll Prometheus's /-/ready inside the fake VPS until 200 or timeout.
+# Helper — poll Prometheus's /-/ready until reachable or timeout.
+# Exec wget from the caddy container (Alpine, has wget) and resolve
+# prometheus over labnet DNS; the prom/prometheus image is a minimal
+# busybox/scratch build whose wget output format isn't stable for
+# header-parsing. Exit code is the readiness signal: wget exits 0
+# on HTTP 200, non-zero otherwise.
 wait_prometheus_ready() {
-    local i status
+    local i
     for ((i=0; i<60; i++)); do
-        status="$(docker exec lds-fake-vps bash -c "cd /srv/lab-bridge && docker compose exec -T prometheus wget -qO- -S http://localhost:9090/-/ready 2>&1 | awk '/HTTP/ {print \$2}' | head -n1")"
-        if [[ "$status" == "200" ]]; then
+        if docker exec lds-fake-vps bash -c "cd /srv/lab-bridge && docker compose exec -T caddy wget -q -O /dev/null http://prometheus:9090/-/ready" 2>/dev/null; then
             return 0
         fi
         sleep 1
     done
-    echo "prometheus never became ready: last status='$status'"
+    echo "prometheus never became ready after 60s"
     return 1
 }
 
-# Helper — fetch the Prometheus targets API as JSON.
+# Helper — fetch the Prometheus targets API as JSON, via caddy on labnet.
 _targets_json() {
     docker exec lds-fake-vps bash -c "
-        cd /srv/lab-bridge && docker compose exec -T prometheus wget -qO- 'http://localhost:9090/api/v1/targets?state=active'
+        cd /srv/lab-bridge && docker compose exec -T caddy wget -qO- 'http://prometheus:9090/api/v1/targets?state=active'
     "
 }
 
