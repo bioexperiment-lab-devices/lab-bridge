@@ -70,6 +70,13 @@ services:
   prometheus:
     image: __PROMETHEUS_IMAGE__
     restart: unless-stopped
+    # The prom/prometheus image defaults to user "nobody" (uid 65534).
+    # Our bind-mounted ./prometheus_data dir is created root-owned by docker
+    # on first start, so the default user can't write the TSDB and Prometheus
+    # crash-loops with "permission denied" on /prometheus/queries.active.
+    # Run as root, matching the trust model of every other writable bind-
+    # mount service in this stack (chisel, loki, grafana, siteapp, flasher).
+    user: "0:0"
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
