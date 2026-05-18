@@ -32,7 +32,7 @@ main() {
     local stage="$_STAGE"
 
     log "rendering templates..."
-    mkdir -p "$stage/chisel" "$stage/loki" "$stage/grafana/provisioning" "$stage/siteapp" "$stage/shell"
+    mkdir -p "$stage/chisel" "$stage/loki" "$stage/grafana/provisioning" "$stage/siteapp" "$stage/shell" "$stage/prometheus"
     render_compose     "$REPO_ROOT/compose/docker-compose.yml.tmpl" "$stage/docker-compose.yml"
     render_caddyfile   "$REPO_ROOT/compose/Caddyfile.tmpl"           "$stage/Caddyfile"
     if [[ "${LDS_STACK_ONLY:-}" != "1" ]]; then
@@ -40,6 +40,7 @@ main() {
         render_siteapp_clients "$stage/siteapp/clients.json"
     fi
     render_loki_config  "$REPO_ROOT/compose/loki/config.yaml.tmpl"   "$stage/loki/config.yaml"
+    render_prometheus_config "$REPO_ROOT/compose/prometheus/prometheus.yml.tmpl" "$stage/prometheus/prometheus.yml"
 
     # Static Grafana provisioning — datasource + dashboard provider + dashboard JSON.
     cp -R "$REPO_ROOT/compose/grafana/provisioning/." "$stage/grafana/provisioning/"
