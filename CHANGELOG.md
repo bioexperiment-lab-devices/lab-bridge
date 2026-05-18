@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.10.0...v0.11.0) (2026-05-18)
+
+
+### Features
+
+* **siteapp:** rename agent download to SerialHop-Setup-v{version}.exe ([#66](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/66)) ([2fdc7ff](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/2fdc7ffc7cf7722e54a4ce2aee7c7658633902be))
+
+
+### Bug Fixes
+
+* **deploy:** exclude prometheus_data/ from rsync --delete ([#64](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/64)) ([610aa7c](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/610aa7ccd7d9e048ae33ab0c4a08d5fe7cbd5851))
+
 ## [0.10.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.9.0...v0.10.0) (2026-05-18)
 
 
