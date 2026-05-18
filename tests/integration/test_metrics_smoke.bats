@@ -11,8 +11,13 @@ load helpers
 # Prints diagnostics on failure so CI logs surface the actual symptom.
 wait_prometheus_ready() {
     local i last_out=""
+    # Trailing `|| true` is required: bats runs setup_file under `set -e -o
+    # pipefail`, so a non-zero exit from the command substitution would abort
+    # the whole function and skip the retry loop. The wget will fail on the
+    # first few iterations (prometheus still warming up), and we want to keep
+    # polling, not give up.
     for ((i=0; i<60; i++)); do
-        last_out="$(docker exec lds-fake-vps bash -c "cd /srv/lab-bridge && docker compose exec -T caddy wget -O- -S http://prometheus:9090/-/ready" 2>&1)"
+        last_out="$(docker exec lds-fake-vps bash -c "cd /srv/lab-bridge && docker compose exec -T caddy wget -O- -S http://prometheus:9090/-/ready 2>&1" 2>&1 || true)"
         if [[ "$last_out" == *"HTTP/1.1 200"* ]] || [[ "$last_out" == *"HTTP/1.0 200"* ]]; then
             return 0
         fi
@@ -23,11 +28,11 @@ wait_prometheus_ready() {
     echo "$last_out"
     echo "----- END wget output -----"
     echo "----- compose ps -----"
-    docker exec lds-fake-vps bash -c "cd /srv/lab-bridge && docker compose ps" || true
+    docker exec lds-fake-vps bash -c "cd /srv/lab-bridge && docker compose ps" 2>&1 || true
     echo "----- prometheus container logs (last 50 lines) -----"
-    docker exec lds-fake-vps bash -c "cd /srv/lab-bridge && docker compose logs --tail=50 prometheus" || true
+    docker exec lds-fake-vps bash -c "cd /srv/lab-bridge && docker compose logs --tail=50 prometheus" 2>&1 || true
     echo "----- caddy container logs (last 20 lines) -----"
-    docker exec lds-fake-vps bash -c "cd /srv/lab-bridge && docker compose logs --tail=20 caddy" || true
+    docker exec lds-fake-vps bash -c "cd /srv/lab-bridge && docker compose logs --tail=20 caddy" 2>&1 || true
     return 1
 }
 
