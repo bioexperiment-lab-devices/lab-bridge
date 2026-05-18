@@ -1,17 +1,32 @@
-{% macro render_entry(entry, lang, current_url) -%}
+{% macro render_entry(entry, lang, current_url, depth) -%}
   {%- set title = entry.title_ru if (lang == 'ru' and entry.title_ru) else entry.title_en -%}
-  <li {% if entry.url == current_url %}class="active"{% endif %}>
-    <a href="{{ entry.url }}{% if lang == 'ru' %}?lang=ru{% endif %}">{{ title }}</a>
+  {%- set is_active = (entry.url == current_url) -%}
+  <li class="lb-docs-side__item{% if is_active %} is-active{% endif %}"
+      data-depth="{{ depth }}">
     {% if entry.children %}
-      <ul>
-        {% for child in entry.children %}{{ render_entry(child, lang, current_url) }}{% endfor %}
+      <button class="lb-docs-side__folder" type="button"
+              aria-expanded="false"
+              data-section-key="{{ entry.url }}">
+        <span class="lb-docs-side__chev" aria-hidden="true">›</span>
+        <a href="{{ entry.url }}{% if lang == 'ru' %}?lang=ru{% endif %}">{{ title }}</a>
+        {% if entry.title_ru %}<span class="lb-docs-side__ru-pill">RU</span>{% endif %}
+      </button>
+      <ul class="lb-docs-side__children">
+        {% for child in entry.children %}{{ render_entry(child, lang, current_url, depth + 1) }}{% endfor %}
       </ul>
+    {% else %}
+      <a href="{{ entry.url }}{% if lang == 'ru' %}?lang=ru{% endif %}">{{ title }}</a>
+      {% if entry.title_ru %}<span class="lb-docs-side__ru-pill">RU</span>{% endif %}
     {% endif %}
   </li>
 {%- endmacro %}
 
-<nav class="sidebar">
-  <ul>
-    {% for entry in nav %}{{ render_entry(entry, lang, current_url) }}{% endfor %}
+<aside class="lb-docs-side" aria-label="Documentation navigation">
+  <header class="lb-docs-side__head">
+    <span class="lb-docs-side__icon" aria-hidden="true">📖</span>
+    <span class="lb-docs-side__title">DOCUMENTATION</span>
+  </header>
+  <ul class="lb-docs-side__list">
+    {% for entry in nav %}{{ render_entry(entry, lang, current_url, 0) }}{% endfor %}
   </ul>
-</nav>
+</aside>
