@@ -421,3 +421,24 @@ CFG
     [ "$output" = "image: ghcr.io/example/lab-bridge-flasher:1.2.3" ]
 }
 
+@test "render_compose: emits prometheus service with correct image and retention arg" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
+        render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
+        cat $TMPDIR/docker-compose.yml
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"image: prom/prometheus:v3.0.1"* ]]
+    [[ "$output" == *"--storage.tsdb.retention.time=30d"* ]]
+    [[ "$output" == *"./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"* ]]
+    [[ "$output" == *"./prometheus_data:/prometheus"* ]]
+    run yq e '.services.prometheus | has("ports")' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "false" ]]
+    run grep -qE '__[A-Z][A-Z0-9_]*__' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 1 ]
+}
+

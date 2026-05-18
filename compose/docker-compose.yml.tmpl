@@ -65,7 +65,20 @@ services:
     secrets:
       - grafana_admin_password
     networks: [labnet]
-    depends_on: [loki]
+    depends_on: [loki, prometheus]
+
+  prometheus:
+    image: __PROMETHEUS_IMAGE__
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=__PROMETHEUS_RETENTION_DAYS__d
+      - --web.listen-address=:9090
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus_data:/prometheus
+    networks: [labnet]
 
   siteapp:
     image: __SITEAPP_IMAGE__
