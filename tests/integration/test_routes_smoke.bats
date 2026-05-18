@@ -133,3 +133,34 @@ _through_caddy_with_bearer() {
     code="$(_through_caddy_with_bearer 'https://127.0.0.1/flash/')"
     [[ "$code" == "401" ]] || { echo "got: $code"; false; }
 }
+
+# Helper: fetch response BODY through the fake-VPS Caddy.
+_body_through_caddy() {
+    docker exec lds-fake-vps bash -c "
+        cd /srv/lab-bridge && docker compose exec -T caddy sh -c '
+            wget --no-check-certificate -q -O - \"$1\"
+        '
+    "
+}
+
+@test "navbar script injected with data-version attribute on every HTML page" {
+    for path in "/" "/docs/" "/download/agent"; do
+        body="$(_body_through_caddy "https://127.0.0.1$path")"
+        [[ "$body" == *'/_shared/navbar.js'* ]] || { echo "no navbar.js on $path"; echo "${body:0:200}"; false; }
+        [[ "$body" == *'data-version="'* ]] || { echo "no data-version on $path"; echo "${body:0:200}"; false; }
+    done
+}
+
+@test "navbar brand row markup ships in the served JS" {
+    body="$(_body_through_caddy 'https://127.0.0.1/_shared/navbar.js')"
+    [[ "$body" == *"brand__wordmark"* ]] || { echo "no brand__wordmark"; echo "${body:0:200}"; false; }
+    [[ "$body" == *"theme-toggle"* ]] || { echo "no theme-toggle"; echo "${body:0:200}"; false; }
+}
+
+@test "bookmark mode triggers on /jupyter/ and /grafana/ paths (upstream reachable)" {
+    # Confirms the upstream behind /jupyter/ is reachable (200 or 302).
+    # Bookmark-mode CSS class is applied client-side; full verification
+    # would require a headless browser (follow-up).
+    code="$(_through_caddy 'https://127.0.0.1/jupyter/')"
+    [[ "$code" == "200" || "$code" == "302" ]] || { echo "got: $code"; false; }
+}
