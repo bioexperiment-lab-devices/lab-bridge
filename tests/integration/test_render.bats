@@ -471,6 +471,10 @@ CFG
     # No leftover placeholders.
     run grep -qE '__[A-Z][A-Z0-9_]*__' "$TMPDIR/ua-config.yml"
     [ "$status" -eq 1 ]
+    # Structural: must have exactly 2 routes (linux_metrics + agent_metrics).
+    run yq e '.routes | length' "$TMPDIR/ua-config.yml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "2" ]]
     # Valid YAML.
     yq e '.' "$TMPDIR/ua-config.yml" >/dev/null
 }

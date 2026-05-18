@@ -163,9 +163,9 @@ render_loki_config() {
 
 # render_unified_agent_config <template_path> <output_path>
 # Substitutes __VPS_HOST__ and __YC_FOLDER_ID__.
-# Callers MUST verify YC_FOLDER_ID is non-empty before calling — this
-# function does not gate itself, because deploy.sh's higher-level flow
-# decides whether to render and rsync the unified-agent dir at all.
+# Higher-level gating: deploy.sh decides whether to call this at all (only
+# when the operator set yc.folder_id in config.yaml). The `:?` guards below
+# are a safety net for direct callers (e.g., tests or future ops scripts).
 render_unified_agent_config() {
     local tmpl="${1:?}" out="${2:?}"
     [[ -f "$tmpl" ]] || die "template not found: $tmpl"
