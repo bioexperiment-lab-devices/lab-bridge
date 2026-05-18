@@ -402,6 +402,11 @@ EOF
     # Tighten: read_only and tmpfs storage path must appear (security + correctness).
     [[ "$output" == *"read_only: true"* ]]
     [[ "$output" == *"/var/lib/yandex/unified_agent"* ]]
+    # Regression guard: must use `entrypoint:` (not `command:`) so the image's
+    # entrypoint.sh — which writes /etc/yandex/unified_agent/config.yml from a
+    # template — is bypassed. With our read-only bind mount of the config at
+    # that path, the entrypoint write fails and the container crash-loops.
+    [[ "$output" == *'entrypoint: ["unified_agent", "--config", "/etc/yandex/unified_agent/config.yml"]'* ]]
     # Marker comments must not leak into the rendered output.
     # Negative assertions: `! grep` does not fail bats (bash skips ERR for `!`-prefixed
     # commands), so use `run grep` + `[ "$status" -eq 1 ]` instead.
