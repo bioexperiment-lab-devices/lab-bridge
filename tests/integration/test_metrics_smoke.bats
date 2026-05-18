@@ -43,6 +43,41 @@ _targets_json() {
     "
 }
 
+# Helper — poll Prometheus's targets API until every required scrape job has
+# completed at least one scrape (health != "unknown"). Without this, the
+# @test assertions race the first scrape cycle (15s scrape_interval) and see
+# all targets as "unknown". Jupyter is intentionally included because the
+# best-effort @test needs jupyter's state to be stable too — "unknown" would
+# wrongly trip the "present but not up" branch even if jupyter settles to
+# "up" a second later.
+wait_targets_settled() {
+    local i json job health unsettled=""
+    for ((i=0; i<60; i++)); do
+        json="$(_targets_json 2>/dev/null || true)"
+        if [[ -n "$json" ]]; then
+            unsettled=""
+            for job in prometheus node-exporter cadvisor caddy jupyter; do
+                health="$(echo "$json" | jq -r --arg j "$job" '.data.activeTargets[]? | select(.labels.job == $j) | .health' 2>/dev/null | head -n1)"
+                # Empty/null means the job isn't in the active-targets list
+                # at all (jupyter, if removed by fallback). That's allowed.
+                # "unknown" means the job is there but hasn't been scraped yet.
+                if [[ "$health" == "unknown" ]]; then
+                    unsettled="$job"
+                    break
+                fi
+            done
+            if [[ -z "$unsettled" ]]; then
+                return 0
+            fi
+        fi
+        sleep 1
+    done
+    echo "scrape targets never settled within 60s. Last unsettled job: $unsettled"
+    echo "----- targets JSON -----"
+    echo "$json" | jq '.data.activeTargets[] | {job: .labels.job, scrapeUrl, health, lastError}' 2>&1 || true
+    return 1
+}
+
 setup_file() {
     if ! compose_images_available; then
         echo "host docker can't reach all compose images (Docker Hub rate-limited?)" \
@@ -75,6 +110,7 @@ setup_file() {
     bash "$ROOT/scripts/deploy.sh"
     patch_caddyfile_tls_internal
     wait_prometheus_ready
+    wait_targets_settled
 }
 
 teardown_file() {
