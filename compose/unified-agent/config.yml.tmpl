@@ -36,8 +36,8 @@ channels:
             plugin: transform_metric_labels
             config:
               labels:
-                - host: "__VPS_HOST__"
-                - env: "prod"
+                - host: __VPS_HOST__
+                - env: prod
       output:
         plugin: yc_metrics
         config:
