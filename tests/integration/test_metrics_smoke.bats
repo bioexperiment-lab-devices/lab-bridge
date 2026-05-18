@@ -7,20 +7,27 @@
 load helpers
 
 # Helper — poll Prometheus's /-/ready until reachable or timeout.
-# Exec wget from the caddy container (Alpine, has wget) and resolve
-# prometheus over labnet DNS; the prom/prometheus image is a minimal
-# busybox/scratch build whose wget output format isn't stable for
-# header-parsing. Exit code is the readiness signal: wget exits 0
-# on HTTP 200, non-zero otherwise.
+# Probe via the caddy container (Alpine, has wget) over labnet DNS.
+# Prints diagnostics on failure so CI logs surface the actual symptom.
 wait_prometheus_ready() {
-    local i
+    local i last_out=""
     for ((i=0; i<60; i++)); do
-        if docker exec lds-fake-vps bash -c "cd /srv/lab-bridge && docker compose exec -T caddy wget -q -O /dev/null http://prometheus:9090/-/ready" 2>/dev/null; then
+        last_out="$(docker exec lds-fake-vps bash -c "cd /srv/lab-bridge && docker compose exec -T caddy wget -O- -S http://prometheus:9090/-/ready" 2>&1)"
+        if [[ "$last_out" == *"HTTP/1.1 200"* ]] || [[ "$last_out" == *"HTTP/1.0 200"* ]]; then
             return 0
         fi
         sleep 1
     done
-    echo "prometheus never became ready after 60s"
+    echo "prometheus never became ready after 60s. Last wget output:"
+    echo "----- BEGIN wget output -----"
+    echo "$last_out"
+    echo "----- END wget output -----"
+    echo "----- compose ps -----"
+    docker exec lds-fake-vps bash -c "cd /srv/lab-bridge && docker compose ps" || true
+    echo "----- prometheus container logs (last 50 lines) -----"
+    docker exec lds-fake-vps bash -c "cd /srv/lab-bridge && docker compose logs --tail=50 prometheus" || true
+    echo "----- caddy container logs (last 20 lines) -----"
+    docker exec lds-fake-vps bash -c "cd /srv/lab-bridge && docker compose logs --tail=20 caddy" || true
     return 1
 }
 
