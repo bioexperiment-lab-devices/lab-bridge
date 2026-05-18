@@ -15,9 +15,9 @@
   const SERVICES = [
     { id: 'home',    label: 'Home',           href: '/',          mode: 'persistent' },
     { id: 'docs',    label: 'Docs',           href: '/docs/',     mode: 'persistent' },
-    { id: 'agent',   label: 'Download Agent', href: '/download/', mode: 'persistent' },
-    { id: 'jupyter', label: 'JupyterLab',     href: '/jupyter/',  mode: 'bookmark' },
-    { id: 'grafana', label: 'Grafana',        href: '/grafana/',  mode: 'bookmark' },
+    { id: 'agent',   label: 'Download Agent', href: '/download/agent',     mode: 'persistent' },
+    { id: 'jupyter', label: 'JupyterLab',     href: '/jupyter/',           mode: 'bookmark' },
+    { id: 'grafana', label: 'Grafana',        href: '/grafana/dashboards', mode: 'bookmark' },
     { id: 'flasher', label: 'Flasher',        href: '/flash/',    mode: 'persistent' },
   ];
 
