@@ -160,3 +160,17 @@ render_loki_config() {
     local hours=$(( days * 24 ))
     sed -e "s|__LOKI_RETENTION_HOURS__|${hours}|g" "$tmpl" > "$out"
 }
+
+# render_unified_agent_config <template_path> <output_path>
+# Substitutes __VPS_HOST__ and __YC_FOLDER_ID__.
+# Callers MUST verify YC_FOLDER_ID is non-empty before calling — this
+# function does not gate itself, because deploy.sh's higher-level flow
+# decides whether to render and rsync the unified-agent dir at all.
+render_unified_agent_config() {
+    local tmpl="${1:?}" out="${2:?}"
+    [[ -f "$tmpl" ]] || die "template not found: $tmpl"
+    sed \
+        -e "s|__VPS_HOST__|${VPS_HOST:?}|g" \
+        -e "s|__YC_FOLDER_ID__|${YC_FOLDER_ID:?}|g" \
+        "$tmpl" > "$out"
+}

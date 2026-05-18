@@ -1,0 +1,69 @@
+# Yandex Cloud Unified Agent — host metrics → Yandex Monitoring.
+# Rendered from compose/unified-agent/config.yml.tmpl by scripts/lib/render.sh
+# (render_unified_agent_config). See docs/superpowers/specs/2026-05-18-unified-agent-monitoring-design.md
+# for the why.
+
+status:
+  port: 0  # disable the status HTTP server; nothing scrapes us
+
+agent_log:
+  level: notice
+
+main_thread_pool:
+  threads: 2
+
+storages:
+  - name: main
+    plugin: fs
+    config:
+      directory: /var/lib/yandex/unified_agent
+      max_partition_size: 100mb
+
+routes:
+  - input:
+      plugin: linux_metrics
+      config:
+        poll_period: 30s
+        proc_directory: /host/proc
+        sys_directory: /host/sys
+        resources:
+          cpu: advanced
+          memory: advanced
+          network: advanced
+          storage: advanced
+          io: advanced
+          kernel: advanced
+    channel:
+      pipe:
+        - filter:
+            plugin: assign
+            config:
+              labels:
+                host: __VPS_HOST__
+                env: prod
+      output:
+        plugin: yc_metrics
+        config:
+          folder_id: __YC_FOLDER_ID__
+          iam:
+            cloud_meta: {}
+
+  - input:
+      plugin: agent_metrics
+      config:
+        poll_period: 60s
+        namespace: ua
+    channel:
+      pipe:
+        - filter:
+            plugin: assign
+            config:
+              labels:
+                host: __VPS_HOST__
+                env: prod
+      output:
+        plugin: yc_metrics
+        config:
+          folder_id: __YC_FOLDER_ID__
+          iam:
+            cloud_meta: {}

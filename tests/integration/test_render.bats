@@ -447,6 +447,34 @@ CFG
     [ "$output" = "image: ghcr.io/example/lab-bridge-flasher:1.2.3" ]
 }
 
+@test "render_unified_agent_config: substitutes folder_id and host labels" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
+        render_unified_agent_config $ROOT/compose/unified-agent/config.yml.tmpl $TMPDIR/ua-config.yml
+        cat $TMPDIR/ua-config.yml
+    "
+    [ "$status" -eq 0 ]
+    # Folder id from the fixture.
+    [[ "$output" == *"folder_id: b1g00000000000000000"* ]]
+    # Host label assigned to every series.
+    [[ "$output" == *"host: 192.0.2.10"* ]]
+    # Inputs and outputs we expect.
+    [[ "$output" == *"plugin: linux_metrics"* ]]
+    [[ "$output" == *"plugin: agent_metrics"* ]]
+    [[ "$output" == *"plugin: yc_metrics"* ]]
+    [[ "$output" == *"cloud_meta: {}"* ]]
+    [[ "$output" == *"proc_directory: /host/proc"* ]]
+    [[ "$output" == *"sys_directory: /host/sys"* ]]
+    # No leftover placeholders.
+    run grep -qE '__[A-Z][A-Z0-9_]*__' "$TMPDIR/ua-config.yml"
+    [ "$status" -eq 1 ]
+    # Valid YAML.
+    yq e '.' "$TMPDIR/ua-config.yml" >/dev/null
+}
+
 @test "render_compose: without yc.folder_id, omits the unified-agent service block" {
     cat > $TMPDIR/no_yc.yaml <<'EOF'
 vps: {host: 1.2.3.4, ssh_user: u}
