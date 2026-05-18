@@ -344,6 +344,7 @@ acme_email: x@example.com
 remote_root: /srv/lb
 notebooks_path: /srv/lb/nb
 ssh_port: 22
+unified_agent_image: cr.yandex/yc/unified-agent:25.03.80
 PINS
     echo "1.2.3 # x-release-please-version" > "$BATS_TEST_TMPDIR/VERSION"
     cat > "$BATS_TEST_TMPDIR/config.yaml" <<'CFG'
@@ -371,6 +372,29 @@ CFG
     [ "$output" = "image: ghcr.io/example/lab-bridge-siteapp:1.2.3" ]
 }
 
+@test "render_compose: with yc.folder_id set, emits unified-agent service block" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
+        render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
+        cat $TMPDIR/docker-compose.yml
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"unified-agent:"* ]]
+    [[ "$output" == *"image: cr.yandex/yc/unified-agent:25.03.80"* ]]
+    [[ "$output" == *"network_mode: host"* ]]
+    [[ "$output" == *"pid: host"* ]]
+    [[ "$output" == *"/proc:/host/proc:ro"* ]]
+    [[ "$output" == *"/sys:/host/sys:ro"* ]]
+    # Marker comments must not leak into the rendered output.
+    ! grep -q '>>>unified-agent' <<< "$output"
+    ! grep -q '<<<unified-agent' <<< "$output"
+    # No leftover placeholders.
+    ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
+}
+
 @test "render_compose: FLASHER_IMAGE is composed from pins.yaml + root VERSION" {
     mkdir -p "$BATS_TEST_TMPDIR/compose"
     cat > "$BATS_TEST_TMPDIR/compose/pins.yaml" <<'PINS'
@@ -387,6 +411,7 @@ acme_email: x@example.com
 remote_root: /srv/lb
 notebooks_path: /srv/lb/nb
 ssh_port: 22
+unified_agent_image: cr.yandex/yc/unified-agent:25.03.80
 PINS
     echo "1.2.3 # x-release-please-version" > "$BATS_TEST_TMPDIR/VERSION"
     cat > "$BATS_TEST_TMPDIR/config.yaml" <<'CFG'

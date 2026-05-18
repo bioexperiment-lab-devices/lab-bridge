@@ -61,7 +61,10 @@ render_compose() {
         -e "s|__SITEAPP_IMAGE__|${siteapp_image}|g" \
         -e "s|__FLASHER_IMAGE__|${flasher_image}|g" \
         -e "s|__CADDY_IMAGE__|${caddy_image}|g" \
-        "$tmpl" > "$out"
+        -e "s|__UNIFIED_AGENT_IMAGE__|${UNIFIED_AGENT_IMAGE:?}|g" \
+        "$tmpl" \
+        | sed -e '/# >>>unified-agent/d' -e '/# <<<unified-agent/d' \
+        > "$out"
 }
 
 # render_caddyfile <template_path> <output_path>
