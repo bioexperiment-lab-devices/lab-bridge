@@ -54,7 +54,7 @@ def test_binary_streams(tmp_path: Path, client: TestClient) -> None:
     assert r.status_code == 200
     assert r.content == b"hello-binary"
     assert r.headers["content-type"] == "application/octet-stream"
-    assert "SerialHop-v1.2.3.exe" in r.headers["content-disposition"]
+    assert "SerialHop-Setup-v1.2.3.exe" in r.headers["content-disposition"]
     assert r.headers["cache-control"] == "no-store"
 
 
