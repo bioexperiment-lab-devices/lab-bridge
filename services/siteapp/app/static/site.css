@@ -159,9 +159,9 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
 }
 
 /* ---- Sticky home header ---------------------------------- */
-/* Header breaks out of the body's nav-width left padding so it spans the full
-   viewport. Paired with --rail-top-offset below, which pushes the platform
-   nav rail to start beneath the header. */
+/* The header sits inside the body's content column (right of the platform
+   nav rail), sticking at viewport top: 0. It does NOT span the rail column,
+   so the rail stays anchored at the top of the viewport on every page. */
 .lb-home-header {
   position: sticky;
   top: 0;
@@ -169,20 +169,11 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   display: flex;
   align-items: center;
   gap: 16px;
-  width: calc(100% + var(--nav-width, 0px));
-  margin-left: calc(-1 * var(--nav-width, 0px));
   padding: 14px 32px;
-  padding-left: calc(32px + var(--nav-width, 0px));
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   /* no shadow by default; added on scroll via .is-scrolled */
   max-width: none;
-}
-/* Tell the platform nav rail to start beneath the sticky header on pages that
-   render one (home, agent). The nav rail picks this up via :host inheritance
-   in navbar-inner.css. */
-body:has(.lb-home-header) {
-  --rail-top-offset: 56px;
 }
 .lb-home-header.is-scrolled {
   box-shadow: 0 4px 10px -8px rgba(26, 25, 22, 0.18);
