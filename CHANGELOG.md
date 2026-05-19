@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.11.0...v0.12.0) (2026-05-19)
+
+
+### Features
+
+* **platform:** apply hi-fi UI redesign to navbar, Home, Download, and Docs ([#67](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/67)) ([56542a8](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/56542a8b04f2bcc492d6ed29745d507c88540ce0))
+
 ## [0.11.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.10.0...v0.11.0) (2026-05-18)
 
 
