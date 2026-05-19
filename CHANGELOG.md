@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.4](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.3...v0.12.4) (2026-05-19)
+
+
+### Bug Fixes
+
+* **flasher:** respect saved theme on load + apply siteapp design polish ([#78](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/78)) ([3122b3d](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/3122b3db0755d2c8b8bd4b53b04d946a89c84fe4))
+* **siteapp:** keep platform nav rail flush with viewport top ([#77](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/77)) ([3cd80a4](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/3cd80a4aab9699ac022ec58d8fe3bbf381b7a9c0))
+
 ## [0.12.3](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.2...v0.12.3) (2026-05-19)
 
 
