@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.5](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.4...v0.12.5) (2026-05-19)
+
+
+### Bug Fixes
+
+* **platform:** home consistency + nav-item proportions + draggable bookmark ([#80](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/80)) ([9988567](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/9988567e0a1aced173ae08139dc0ac28536b1de9))
+
 ## [0.12.4](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.3...v0.12.4) (2026-05-19)
 
 
