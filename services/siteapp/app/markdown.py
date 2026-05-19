@@ -18,37 +18,27 @@ from pygments.token import Comment, Keyword, Name, Number, Operator, Punctuation
 from pygments.util import ClassNotFound
 
 
-class _LightStyle(Style):
+class _CodeStyle(Style):
+    """Code-block token palette.
+
+    The code-block surface is always dark (see `.lb-code` in `site.css`),
+    so we only ship one palette tuned for the dark background — the same
+    colors the design uses for its `.lb-tok-*` classes.
+    """
+
     default_style = ""
     background_color = "transparent"
     styles = {
-        Token: "#1A1916",
-        Keyword: "bold #6B3FA0",
-        Name.Function: "#1F3A8A",
-        Name.Class: "#1F3A8A",
-        Name.Builtin: "#1F3A8A",
-        String: "#2F7D3F",
-        Number: "#A37200",
-        Comment: "italic #8A8678",
-        Operator: "#1F3A8A",
-        Punctuation: "#514E47",
-    }
-
-
-class _DarkStyle(Style):
-    default_style = ""
-    background_color = "transparent"
-    styles = {
-        Token: "#F0EDE3",
-        Keyword: "bold #C6A6F2",
-        Name.Function: "#BCCBF2",
-        Name.Class: "#BCCBF2",
-        Name.Builtin: "#BCCBF2",
-        String: "#7CC18A",
-        Number: "#E3C067",
-        Comment: "italic #7E7A6E",
-        Operator: "#BCCBF2",
-        Punctuation: "#B8B3A4",
+        Token: "#E7E3D6",  # plain
+        Keyword: "#C99CE8",  # purple
+        Name.Function: "#8FB3E8",
+        Name.Class: "#8FB3E8",
+        Name.Builtin: "#8FB3E8",
+        String: "#93D29D",  # green
+        Number: "#E3C067",  # yellow
+        Comment: "italic #6B6759",  # gray
+        Operator: "#8FB3E8",  # blue
+        Punctuation: "#8FB3E8",  # blue
     }
 
 
@@ -170,7 +160,7 @@ def _highlight(code: str, name: str | None, attrs: object) -> str:
         lexer = get_lexer_by_name(name)
     except ClassNotFound:
         return ""
-    formatter = HtmlFormatter(style=_LightStyle, nowrap=True)
+    formatter = HtmlFormatter(style=_CodeStyle, nowrap=True)
     inner = highlight(code, lexer, formatter).rstrip("\n")
     safe_lang = re.sub(r"[^a-zA-Z0-9_-]", "", name)
     title = _parse_title(attrs)
@@ -421,8 +411,7 @@ def _theme_css(style: type[Style]) -> str:
 
 
 def pygments_css() -> str:
-    """Light + dark code-highlighting CSS. Dark variant gated on
-    `[data-theme="dark"]` so manual theme toggle wins over OS preference."""
-    light = _theme_css(_LightStyle)
-    dark = _theme_css(_DarkStyle).replace(".highlight", '[data-theme="dark"] .highlight')
-    return f"{light}\n{dark}\n"
+    """Code-highlighting CSS. Code blocks live on a permanent dark surface
+    (see `.lb-code` in `site.css`), so we ship a single dark palette rather
+    than gating one variant behind `[data-theme="dark"]`."""
+    return _theme_css(_CodeStyle) + "\n"

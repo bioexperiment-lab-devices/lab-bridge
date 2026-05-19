@@ -1,38 +1,61 @@
+{#-
+  Recursive sidebar renderer.
+
+  Layout intent (matches docs design):
+
+    depth 0, folder  →  rendered as a section group header (mono uppercase,
+                        non-clickable label). Children render flat below it
+                        at depth 1.
+    depth ≥ 1, folder →  rendered as an inline `data-folder` item with a
+                         chevron glyph; children render flat below the row
+                         and toggle visibility via /_static/docs-sidebar.js.
+    leaf             →  plain `<a class="lb-docs-side__item">` link, indented
+                         per its depth via `data-level`.
+
+  `data-active="true"` marks the entry whose URL matches the current page.
+  An `[RU]` pill renders to the right of any entry with a Russian title.
+-#}
 {% macro render_entry(entry, lang, current_url, depth) -%}
   {%- set title = entry.title_ru if (lang == 'ru' and entry.title_ru) else entry.title_en -%}
   {%- set is_active = (entry.url == current_url) -%}
-  <li class="lb-docs-side__item{% if is_active %} is-active{% endif %}"
-      data-depth="{{ depth }}">
-    {% if entry.children %}
-      <button class="lb-docs-side__folder" type="button"
-              aria-expanded="false"
-              data-section-key="{{ entry.url }}">
-        <span class="lb-docs-side__chev" aria-hidden="true">›</span>
-        <a href="{{ entry.url }}{% if lang == 'ru' %}?lang=ru{% endif %}">{{ title }}</a>
-        {% if entry.title_ru %}<span class="lb-docs-side__ru-pill">RU</span>{% endif %}
-      </button>
-      <ul class="lb-docs-side__children">
-        {% for child in entry.children %}{{ render_entry(child, lang, current_url, depth + 1) }}{% endfor %}
-      </ul>
-    {% else %}
-      <a href="{{ entry.url }}{% if lang == 'ru' %}?lang=ru{% endif %}">{{ title }}</a>
-      {% if entry.title_ru %}<span class="lb-docs-side__ru-pill">RU</span>{% endif %}
-    {% endif %}
-  </li>
+  {%- set has_children = entry.children | length > 0 -%}
+  {%- set is_section = entry.url.endswith('/') and entry.url != '/docs/' -%}
+  {%- set href = entry.url + ('?lang=ru' if lang == 'ru' else '') -%}
+  {%- if depth == 0 and is_section -%}
+    <div class="lb-docs-side__group">{{ title }}</div>
+    {% for child in entry.children -%}
+      {{ render_entry(child, lang, current_url, depth + 1) }}
+    {%- endfor %}
+  {%- elif has_children -%}
+    <a class="lb-docs-side__item"
+       data-folder="closed"
+       data-section-key="{{ entry.url }}"
+       data-level="{{ depth }}"
+       {% if is_active %}data-active="true"{% endif %}
+       href="{{ href }}">{{ title }}{% if entry.title_ru %}<span class="lb-docs-side__ru">RU</span>{% endif %}</a>
+    <div class="lb-docs-side__children" data-section-key="{{ entry.url }}" hidden>
+      {% for child in entry.children -%}
+        {{ render_entry(child, lang, current_url, depth + 1) }}
+      {%- endfor %}
+    </div>
+  {%- else -%}
+    <a class="lb-docs-side__item"
+       data-level="{{ depth }}"
+       {% if is_active %}data-active="true"{% endif %}
+       href="{{ href }}">{{ title }}{% if entry.title_ru %}<span class="lb-docs-side__ru">RU</span>{% endif %}</a>
+  {%- endif -%}
 {%- endmacro %}
 
 <aside class="lb-docs-side" aria-label="Documentation navigation">
-  <header class="lb-docs-side__head">
-    <span class="lb-docs-side__icon" aria-hidden="true">
-      <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3.5 3h7.5l3 3v8.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-11A.5.5 0 0 1 3.5 3z"/>
-        <path d="M11 3v3.5h3"/>
-        <path d="M6 9h6M6 11.5h6M6 13.5h4"/>
-      </svg>
-    </span>
-    <span class="lb-docs-side__title">DOCUMENTATION</span>
-  </header>
-  <ul class="lb-docs-side__list">
-    {% for entry in nav %}{{ render_entry(entry, lang, current_url, 0) }}{% endfor %}
-  </ul>
+  <div class="lb-docs-side__brand">
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3.5 3h7.5l3 3v8.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-11A.5.5 0 0 1 3.5 3z"/>
+      <path d="M11 3v3.5h3"/>
+      <path d="M6 9h6M6 11.5h6M6 13.5h4"/>
+    </svg>
+    <span>Documentation</span>
+  </div>
+  {% for entry in nav -%}
+    {{ render_entry(entry, lang, current_url, 0) }}
+  {%- endfor %}
 </aside>
