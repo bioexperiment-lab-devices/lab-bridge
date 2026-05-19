@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.0...v0.12.1) (2026-05-19)
+
+
+### Bug Fixes
+
+* **siteapp:** declare packaging as direct dep + repair deploy health probe ([#69](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/69)) ([9eee508](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/9eee508bfcdc37fbed8a464102b60a34db52e881))
+
 ## [0.12.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.11.0...v0.12.0) (2026-05-19)
 
 
