@@ -159,6 +159,9 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
 }
 
 /* ---- Sticky home header ---------------------------------- */
+/* Header breaks out of the body's nav-width left padding so it spans the full
+   viewport. Paired with --rail-top-offset below, which pushes the platform
+   nav rail to start beneath the header. */
 .lb-home-header {
   position: sticky;
   top: 0;
@@ -166,11 +169,20 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   display: flex;
   align-items: center;
   gap: 16px;
+  width: calc(100% + var(--nav-width, 0px));
+  margin-left: calc(-1 * var(--nav-width, 0px));
   padding: 14px 32px;
+  padding-left: calc(32px + var(--nav-width, 0px));
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   /* no shadow by default; added on scroll via .is-scrolled */
   max-width: none;
+}
+/* Tell the platform nav rail to start beneath the sticky header on pages that
+   render one (home, agent). The nav rail picks this up via :host inheritance
+   in navbar-inner.css. */
+body:has(.lb-home-header) {
+  --rail-top-offset: 56px;
 }
 .lb-home-header.is-scrolled {
   box-shadow: 0 4px 10px -8px rgba(26, 25, 22, 0.18);
@@ -582,7 +594,7 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
 .lb-topo__node--accent .lb-topo__node-ico {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--text-inverse, #fff);
+  color: var(--accent-on);
 }
 
 /* Edge between nodes */
@@ -674,7 +686,7 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
 .lb-quick__card[data-primary="true"] .lb-quick__icon {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--text-inverse, #fff);
+  color: var(--accent-on);
 }
 .lb-quick__title {
   font-size: 13px;
@@ -933,10 +945,8 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   letter-spacing: 0.12em;
   padding: 4px 8px;
   border-radius: 3px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 1px;
+  display: inline-flex;
+  align-items: center;
 }
 /* --available maps to handoff __status--ok */
 .lb-dl-card__status--available {
@@ -957,18 +967,10 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   border: 1px solid var(--border);
   color: var(--text-muted);
 }
-/* status-main / status-eta map to handoff's status small */
 .lb-dl-card__status-main {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.12em;
-}
-.lb-dl-card__status-eta {
-  font-size: 9.5px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: none;
-  opacity: 0.85;
 }
 
 .lb-dl-card__body {
@@ -988,7 +990,7 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   text-decoration: none;
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-on);
   border-radius: 6px;
   padding: 14px 18px;
   display: grid;
@@ -1002,8 +1004,18 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   background: var(--accent-hover);
   border-color: var(--accent-hover);
 }
-[data-theme="dark"] .lb-dl-card__cta { color: var(--text-inverse); }
-[data-theme="dark"] .lb-dl-card__cta:hover { background: var(--accent-hover); }
+/* Dark theme: --accent is a bright light blue that's too loud on a big
+   surface. Use --accent-soft for the fill and --accent for the text/border.
+   :not(--disabled) so the greyed-out coming-soon button keeps its muted styling. */
+[data-theme="dark"] .lb-dl-card__cta:not(.lb-dl-card__cta--disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+[data-theme="dark"] .lb-dl-card__cta:not(.lb-dl-card__cta--disabled):hover {
+  background: var(--accent-border);
+  border-color: var(--accent);
+}
 /* --disabled state */
 .lb-dl-card__cta--disabled {
   background: var(--surface-sunken);

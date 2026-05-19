@@ -26,11 +26,11 @@
     <div class="lb-dl-cards">
       {% include "_dl_card_windows.html" %}
       {% with platform = "linux", name = s.platform_linux, sub = s.platform_linux_sub,
-              eta = s.eta_linux, icon = icon_linux %}
+              icon = icon_linux %}
         {% include "_dl_card_coming.html" %}
       {% endwith %}
       {% with platform = "rpi", name = s.platform_rpi, sub = s.platform_rpi_sub,
-              eta = s.eta_rpi, icon = icon_rpi %}
+              icon = icon_rpi %}
         {% include "_dl_card_coming.html" %}
       {% endwith %}
     </div>
