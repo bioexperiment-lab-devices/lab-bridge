@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.2](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.1...v0.12.2) (2026-05-19)
+
+
+### Bug Fixes
+
+* **platform:** unbreak navbar mount + close UI gaps vs design handoff ([#72](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/72)) ([e7cfe9a](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/e7cfe9ad54c8436d16258a219c3fa43dbccf0ec9))
+
 ## [0.12.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.0...v0.12.1) (2026-05-19)
 
 
