@@ -18,7 +18,7 @@ def test_doc_page_has_new_layout(http: httpx.Client) -> None:
     assert 'class="lb-page lb-page--docs"' in body
     assert 'class="lb-docs-side"' in body
     assert 'class="lb-docs-article"' in body
-    assert 'class="lb-docs-article__breadcrumb"' in body
+    assert 'class="lb-docs-article__crumbs"' in body
 
 
 def test_doc_with_code_block_emits_figure(http: httpx.Client) -> None:

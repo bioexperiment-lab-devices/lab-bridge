@@ -22,13 +22,14 @@ def tree(tmp_path: Path) -> Path:
     return d
 
 
-def test_top_level_order_dirs_then_files(tree: Path) -> None:
+def test_top_level_order_home_dirs_then_files(tree: Path) -> None:
     nav = build_nav(tree)
     titles_en = [e.title_en for e in nav]
-    # Directories first, then Home (the root index.md), then remaining files alphabetical.
-    # The 'alpha' file is intentionally ordered to ensure Home-first ordering is the
-    # actual behavior under test (not a coincidence of strict alphabetical sort).
-    assert titles_en == ["Advanced", "Home", "Alpha", "Guide"]
+    # Home first (the root index.md), then directory sections, then remaining
+    # root-level files alphabetical. The 'alpha' file is intentionally ordered
+    # to ensure Home-first ordering is the actual behavior under test (not a
+    # coincidence of strict alphabetical sort).
+    assert titles_en == ["Home", "Advanced", "Alpha", "Guide"]
 
 
 def test_translation_title_when_present(tree: Path) -> None:

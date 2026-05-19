@@ -239,7 +239,10 @@ def test_h2_gets_permalink_anchor():
     assert 'class="lb-anchor"' in out
 
 
-def test_pygments_css_uses_data_theme_selector():
+def test_pygments_css_emits_single_palette():
     css = pygments_css()
-    assert '[data-theme="dark"]' in css
+    # Code blocks live on a permanent dark surface (`.lb-code`), so the
+    # highlighter ships ONE palette — no media-query or data-theme gating.
+    assert ".highlight" in css
+    assert '[data-theme="dark"]' not in css
     assert "@media (prefers-color-scheme: dark)" not in css

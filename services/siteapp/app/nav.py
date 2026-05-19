@@ -85,6 +85,13 @@ def _walk(directory: Path, url_prefix: str) -> list[NavEntry]:
                     url=url_prefix + stem,
                 )
             )
+    # Order at every level: Home (the root index.md, only at /docs/) → directory
+    # sections → other root-level files. Putting the welcome page first matches
+    # the docs design, where the index lives above the section group headers
+    # rather than between them and the trailing root-level files.
+    result: list[NavEntry] = []
     if home_entry is not None:
-        files.insert(0, home_entry)
-    return dirs + files
+        result.append(home_entry)
+    result.extend(dirs)
+    result.extend(files)
+    return result
