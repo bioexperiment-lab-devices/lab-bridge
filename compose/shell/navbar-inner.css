@@ -19,6 +19,7 @@
   --accent-hover: #182E6F;
   --accent-soft: #E7ECF6;
   --accent-border: #B8C2DC;
+  --shadow-card: 0 1px 0 rgba(26,25,22,0.04), 0 1px 2px rgba(26,25,22,0.06);
   --shadow-popover: 0 10px 24px -8px rgba(26,25,22,0.25), 0 2px 6px rgba(26,25,22,0.08);
   --shadow-overlay: 0 24px 50px -20px rgba(26,25,22,0.45), 0 8px 18px -6px rgba(26,25,22,0.18);
   --rail-w-collapsed: 56px;
@@ -71,47 +72,49 @@ aside[data-mode="persistent"][data-state="expanded"]  {
   align-items: center;
   gap: 10px;
   height: 56px;
-  padding: 0 14px;
+  padding: 0 14px 0 12px;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
   overflow: hidden;
 }
 .brand__mark { display: inline-flex; flex-shrink: 0; }
+.brand__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  overflow: hidden;
+}
 .brand__wordmark {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13.5px;
   letter-spacing: -0.01em;
+  color: var(--text);
 }
 .brand__version {
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.12em;
   color: var(--text-muted);
-  padding: 2px 5px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  margin-left: auto;
 }
 aside[data-mode="persistent"][data-state="collapsed"] .brand {
   justify-content: center;
   padding: 0;
 }
-aside[data-mode="persistent"][data-state="collapsed"] .brand__wordmark,
-aside[data-mode="persistent"][data-state="collapsed"] .brand__version {
+aside[data-mode="persistent"][data-state="collapsed"] .brand__text {
   display: none;
 }
 
 /* ─── Nav items ──────────────────────────────────────────────────────── */
-nav { flex: 1; padding-top: 8px; overflow-y: auto; }
-ul { list-style: none; margin: 0; padding: 0; }
-li { margin: 1px 6px; position: relative; }
+nav { flex: 1; padding: 10px 8px; overflow-y: auto; }
+ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+li { position: relative; }
 a {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 10px;
+  gap: 11px;
+  padding: 7px 9px;
   height: 32px;
   color: var(--text-secondary);
   text-decoration: none;
@@ -120,66 +123,121 @@ a {
   font-size: 13px;
   font-weight: 500;
   letter-spacing: -0.003em;
-  border-radius: 4px;
+  border-radius: 5px;
+  border: 1px solid transparent;
 }
-a:hover { background: var(--surface-sunken); color: var(--text); }
+a:hover { background: rgba(0,0,0,0.035); color: var(--text); }
+:host([data-theme="dark"]) a:hover { background: rgba(255,255,255,0.04); }
 li.active a {
-  color: var(--accent);
+  background: var(--surface);
+  color: var(--text);
   font-weight: 600;
-  background: var(--accent-soft);
+  border-color: var(--border);
+  box-shadow: var(--shadow-card, 0 1px 0 rgba(26,25,22,0.04), 0 1px 2px rgba(26,25,22,0.06));
 }
+li.active a .icon { color: var(--accent); }
 li.active::before {
   content: "";
   position: absolute;
-  left: -6px;
-  top: 4px;
-  bottom: 4px;
-  width: 3px;
+  left: -8px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
   background: var(--accent);
   border-radius: 0 2px 2px 0;
 }
-.icon { display: inline-flex; flex-shrink: 0; width: 18px; height: 18px; }
-.label { display: inline-flex; align-items: baseline; gap: 6px; }
+.icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  color: var(--text-muted);
+}
+.icon svg { width: 18px; height: 18px; display: block; }
+.label {
+  flex: 1;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .ext {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
+  letter-spacing: 0.04em;
+  opacity: 0.7;
 }
 
 aside[data-mode="persistent"][data-state="collapsed"] .label {
   display: none;
 }
-aside[data-mode="persistent"][data-state="collapsed"] a { justify-content: center; padding: 8px; }
+aside[data-mode="persistent"][data-state="collapsed"] a {
+  justify-content: center;
+  padding: 7px 8px;
+}
 
 /* ─── Bottom block: theme toggle + chevron ──────────────────────────── */
 .rail-bottom {
   border-top: 1px solid var(--border);
-  padding: 8px 6px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.theme-toggle, .toggle {
+.theme-toggle {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 32px;
+  gap: 8px;
+  height: 30px;
   padding: 0 10px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 5px;
   color: var(--text-secondary);
   cursor: pointer;
   font: inherit;
+  font-size: 12px;
+  font-weight: 500;
 }
-.theme-toggle:hover, .toggle:hover { background: var(--surface-sunken); color: var(--text); }
-.theme-toggle__icon, .toggle svg { display: inline-flex; }
-aside[data-mode="persistent"][data-state="collapsed"] .theme-toggle__label { display: none; }
-aside[data-mode="persistent"][data-state="collapsed"] .theme-toggle,
-aside[data-mode="persistent"][data-state="collapsed"] .toggle {
+.theme-toggle:hover { background: var(--surface); color: var(--text); border-color: var(--border); }
+.theme-toggle__icon { display: inline-flex; }
+.theme-toggle__icon svg { width: 14px; height: 14px; display: block; }
+
+.toggle {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: -0.003em;
+}
+.toggle:hover { background: var(--surface); color: var(--text); }
+.toggle svg { width: 14px; height: 14px; display: block; transition: transform 200ms; }
+.toggle__label { display: inline-block; }
+
+aside[data-mode="persistent"][data-state="collapsed"] .theme-toggle__label,
+aside[data-mode="persistent"][data-state="collapsed"] .toggle__label { display: none; }
+aside[data-mode="persistent"][data-state="collapsed"] .theme-toggle {
   justify-content: center;
   padding: 0;
 }
+aside[data-mode="persistent"][data-state="collapsed"] .toggle {
+  padding: 0;
+}
+aside[data-mode="persistent"][data-state="collapsed"] .toggle svg { transform: rotate(180deg); }
 
 /* ─── Bookmark mode ──────────────────────────────────────────────────── */
 aside[data-mode="bookmark"][data-state="tab"] {

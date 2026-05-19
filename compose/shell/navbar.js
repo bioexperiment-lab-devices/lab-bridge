@@ -43,16 +43,29 @@
     `<svg viewBox="0 0 18 18" width="18" height="18" fill="none" stroke="currentColor"
           stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
           aria-hidden="true">${paths}</svg>`;
+  // Path data ported from docs/design_handoff_lab_bridge/source/lab-bridge-navbar.jsx Icons.
   const ICONS = {
-    home:    ICON(`<path d="M2 8 9 2l7 6"/><path d="M3.5 7v8h11V7"/><path d="M7.5 15v-4h3v4"/>`),
-    docs:    ICON(`<path d="M4 2h6l3 3v11H4z"/><path d="M10 2v3h3"/><path d="M6 8h5M6 10.5h5M6 13h3"/>`),
-    agent:   ICON(`<path d="M9 2v9"/><path d="M5.5 7.5 9 11l3.5-3.5"/><path d="M3 14h12"/>`),
-    jupyter: ICON(`<ellipse cx="9" cy="9" rx="6" ry="2.4" transform="rotate(-30 9 9)"/>
-                    <ellipse cx="9" cy="9" rx="6" ry="2.4" transform="rotate(30 9 9)"/>
-                    <ellipse cx="9" cy="9" rx="6" ry="2.4" transform="rotate(90 9 9)"/>
-                    <circle cx="9" cy="9" r="1" fill="currentColor"/>`),
-    grafana: ICON(`<path d="M3 14h12"/><path d="M3 14V8l3 3 3-5 3 3 3-4"/>`),
-    flasher: ICON(`<path d="M5 2h8v4l2 2-2 2v6H5v-6L3 8l2-2z"/><path d="M7 11h4"/>`),
+    home:    ICON(`<path d="M2.5 8L9 3l6.5 5"/><path d="M4 8v6.5h4v-4h2v4h4V8"/>`),
+    docs:    ICON(`<path d="M3.5 3h7.5l3 3v8.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-11A.5.5 0 0 1 3.5 3z"/>
+                    <path d="M11 3v3.5h3"/>
+                    <path d="M6 9h6M6 11.5h6M6 13.5h4"/>`),
+    agent:   ICON(`<path d="M9 2.5v8.5"/>
+                    <path d="M5.5 8L9 11.5 12.5 8"/>
+                    <path d="M3 12.5v2A.5.5 0 0 0 3.5 15h11a.5.5 0 0 0 .5-.5v-2"/>`),
+    jupyter: `<svg viewBox="0 0 18 18" width="18" height="18" fill="none" stroke="currentColor"
+                stroke-width="1.4" stroke-linecap="round" aria-hidden="true">
+                <ellipse cx="9" cy="9" rx="6.5" ry="2.6"/>
+                <ellipse cx="9" cy="9" rx="6.5" ry="2.6" transform="rotate(60 9 9)"/>
+                <ellipse cx="9" cy="9" rx="6.5" ry="2.6" transform="rotate(120 9 9)"/>
+                <circle cx="9" cy="9" r="1.5" fill="currentColor" stroke="none"/>
+              </svg>`,
+    grafana: ICON(`<path d="M2.5 14.5h13"/>
+                    <rect x="3.5"  y="9"    width="2"   height="4.5" rx="0.4"/>
+                    <rect x="7"    y="6"    width="2"   height="7.5" rx="0.4"/>
+                    <rect x="10.5" y="10.5" width="2"   height="3"   rx="0.4"/>
+                    <rect x="14"   y="7.5"  width="1.5" height="6"   rx="0.4"/>
+                    <path d="M4 5.5l3.5-2 3.5 3 4-2.5"/>`),
+    flasher: ICON(`<path d="M9.5 2L4 10h4l-1 6 5.5-8H8.5l1-6z"/>`),
     chevronRight: ICON(`<path d="m7 4 5 5-5 5"/>`),
     chevronLeft:  ICON(`<path d="m11 4-5 5 5 5"/>`),
     sun: ICON(`<circle cx="9" cy="9" r="3"/><path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.5 3.5l1.4 1.4M13.1 13.1l1.4 1.4M3.5 14.5l1.4-1.4M13.1 4.9l1.4-1.4"/>`),
@@ -117,8 +130,10 @@
     const brand = `
       <div class="brand">
         <span class="brand__mark">${BRAND_MARK_SVG}</span>
-        <span class="brand__wordmark">lab-bridge</span>
-        ${PLATFORM_VERSION ? `<span class="brand__version">v${PLATFORM_VERSION}</span>` : ''}
+        <span class="brand__text">
+          <span class="brand__wordmark">lab-bridge</span>
+          ${PLATFORM_VERSION ? `<span class="brand__version">v${PLATFORM_VERSION}</span>` : ''}
+        </span>
       </div>`;
 
     const themeBtn = mode === 'persistent' ? `
@@ -126,7 +141,7 @@
               aria-label="Switch to ${theme === 'dark' ? 'light' : 'dark'} theme"
               title="Lab Bridge theme only">
         <span class="theme-toggle__icon">${theme === 'dark' ? ICONS.sun : ICONS.moon}</span>
-        <span class="theme-toggle__label">${theme === 'dark' ? 'Light' : 'Dark'}</span>
+        <span class="theme-toggle__label">${theme === 'dark' ? 'Light theme' : 'Dark theme'}</span>
       </button>` : '';
 
     if (isBookmarkTab) {
@@ -142,10 +157,10 @@
       return;
     }
 
-    const chevronIcon =
-      (mode === 'persistent' && state === 'collapsed') ? ICONS.chevronRight : ICONS.chevronLeft;
     const chevronLabel =
       (mode === 'persistent' && state === 'collapsed') ? 'Expand sidebar' : 'Collapse sidebar';
+    const chevronLabelShort =
+      (mode === 'persistent' && state === 'collapsed') ? 'Expand' : 'Collapse';
 
     shadow.innerHTML = `
       <link rel="stylesheet" href="/_shared/navbar-inner.css">
@@ -155,7 +170,10 @@
         <nav><ul>${items}</ul></nav>
         <div class="rail-bottom">
           ${themeBtn}
-          <button class="toggle" type="button" aria-label="${chevronLabel}">${chevronIcon}</button>
+          <button class="toggle" type="button" aria-label="${chevronLabel}">
+            ${ICONS.chevronLeft}
+            <span class="toggle__label">${chevronLabelShort}</span>
+          </button>
         </div>
         ${mode === 'bookmark' ? '<div class="esc-hint">Esc to dismiss</div>' : ''}
       </aside>
@@ -176,7 +194,6 @@
         ? (localStorage.getItem(STATE_KEY) || 'collapsed')
         : 'tab';
       this._theme = currentTheme();
-      this.dataset.theme = this._theme;
       this._hoverTimer = null;
       this._leaveTimer = null;
       this._onKeydown = this._handleEscape.bind(this);
@@ -184,6 +201,7 @@
     }
 
     connectedCallback() {
+      this.dataset.theme = this._theme;
       this._render();
       this._wire();
       this._applyNavWidth();

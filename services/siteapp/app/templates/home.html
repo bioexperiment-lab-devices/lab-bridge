@@ -17,8 +17,8 @@
 
 <script>
 (function () {
-  // Poll /?_panel=1 every 5s; swap the labs panel innerHTML, tick "updated Ns ago".
-  var ROOT = document.querySelector('.lb-equip');
+  // Poll /?_panel=1 every 5s; swap the lab status section innerHTML, tick "updated Ns ago".
+  var ROOT = document.querySelector('.lb-labs-section');
   if (!ROOT) return;
   var META = ROOT.querySelector('[data-labs-updated]');
   var META_TEMPLATE = {
@@ -44,11 +44,11 @@
     try {
       var html = await fetch('/?_panel=1').then(function (r) { return r.text(); });
       var doc = new DOMParser().parseFromString(html, 'text/html');
-      var fresh = doc.querySelector('.lb-equip');
+      var fresh = doc.querySelector('.lb-labs-section');
       if (fresh && ROOT && ROOT.parentNode) {
         ROOT.parentNode.replaceChild(fresh, ROOT);
       }
-      ROOT = document.querySelector('.lb-equip');
+      ROOT = document.querySelector('.lb-labs-section');
       META = ROOT && ROOT.querySelector('[data-labs-updated]');
       lastFetchedAt = Date.now();
     } catch (e) { /* swallow; next poll retries */ }
