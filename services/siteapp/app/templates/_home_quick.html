@@ -22,8 +22,11 @@
   <rect x="14" y="7.5" width="1.5" height="6" rx="0.4"/>
   <path d="M4 5.5l3.5-2 3.5 3 4-2.5"/>
 </svg>{% endmacro %}
-<section class="lb-quick" aria-labelledby="lb-quick-title">
-  <h2 id="lb-quick-title" class="lb-section-title">{{ s.quick_title }}</h2>
+<section class="lb-section lb-quick" aria-labelledby="lb-quick-title">
+  <header class="lb-section__head">
+    <h2 id="lb-quick-title" class="lb-section__title">{{ s.quick_title }}</h2>
+    <div class="lb-section__rule" aria-hidden="true"></div>
+  </header>
   <div class="lb-quick__grid">
     <a class="lb-quick__card" data-primary="true" href="/jupyter/">
       <span class="lb-quick__icon" aria-hidden="true">{{ _ico_jupyter() }}</span>

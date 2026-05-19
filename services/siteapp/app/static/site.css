@@ -317,7 +317,6 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   margin-bottom: 28px;
 }
 .lb-status-row > .lb-section { margin-bottom: 0; min-width: 0; }
-.lb-status-row .lb-section__meta { white-space: nowrap; }
 
 /* ---- Outer section wrapper (rule-flanked head + body) ----- */
 .lb-section {
@@ -348,30 +347,6 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   font-size: 11px;
   color: var(--text-muted);
   font-family: var(--font-mono);
-}
-
-/* ---- Legacy section title (rule-flanked, single-element).
-   Kept for quick destinations + getting started where rule lines
-   flank an inline heading. ------------------------------------ */
-.lb-section-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.11em;
-  color: var(--text-muted);
-  margin: 0 0 14px;
-  white-space: nowrap;
-}
-.lb-section-title::before,
-.lb-section-title::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--border);
 }
 
 /* ---- Shared status dot ------------------------------------ */
@@ -411,12 +386,13 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   letter-spacing: -0.01em;
   margin: 0;
 }
-/* Timestamp / "just now" label in the header (legacy, now moved to .lb-section__meta) */
+/* "just now" timestamp inside the Registered labs panel header — right-aligned. */
 .lb-equip__meta {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 /* Group sub-header (Online / Offline divider) */
 .lb-equip__group-head {
@@ -629,9 +605,6 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
 }
 
 /* ---- Quick destinations grid ----------------------------- */
-.lb-quick {
-  margin-bottom: 28px;
-}
 .lb-quick__grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -692,9 +665,6 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
 }
 
 /* ---- Getting-started cards -------------------------------- */
-.lb-start {
-  margin-bottom: 28px;
-}
 .lb-start__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
