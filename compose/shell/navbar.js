@@ -72,13 +72,12 @@
     moon: ICON(`<path d="M14 11a5 5 0 1 1-7-7 5 5 0 0 0 7 7z"/>`),
   };
 
-  const EXT_GLYPH = '<span class="ext" aria-hidden="true">↗</span>';
   const BRAND_MARK_SVG =
     `<svg viewBox="0 0 28 28" width="28" height="28" aria-hidden="true">
        <rect x="2" y="2" width="24" height="24" rx="4" fill="var(--accent)"/>
-       <path d="M9 9h-2v10h2M19 9h2v10h-2" stroke="var(--text-inverse)" stroke-width="1.5"
+       <path d="M9 9h-2v10h2M19 9h2v10h-2" stroke="var(--accent-on)" stroke-width="1.5"
              stroke-linecap="round" fill="none"/>
-       <circle cx="14" cy="14" r="2.6" fill="var(--text-inverse)"/>
+       <circle cx="14" cy="14" r="2.6" fill="var(--accent-on)"/>
      </svg>`;
 
   // ─── Mode + active detection ──────────────────────────────────────────
@@ -120,7 +119,7 @@
         <a href="${svc.href}" data-id="${svc.id}"
            aria-label="${svc.label}"${svc.id === activeId ? ' aria-current="page"' : ''}>
           <span class="icon">${ICONS[svc.id]}</span>
-          <span class="label">${svc.label}${svc.external ? ' ' + EXT_GLYPH : ''}</span>
+          <span class="label">${svc.label}</span>
         </a>
       </li>
     `).join('');
@@ -136,13 +135,13 @@
         </span>
       </div>`;
 
-    const themeBtn = mode === 'persistent' ? `
+    const themeBtn = `
       <button class="theme-toggle" type="button"
               aria-label="Switch to ${theme === 'dark' ? 'light' : 'dark'} theme"
               title="Lab Bridge theme only">
         <span class="theme-toggle__icon">${theme === 'dark' ? ICONS.sun : ICONS.moon}</span>
         <span class="theme-toggle__label">${theme === 'dark' ? 'Light theme' : 'Dark theme'}</span>
-      </button>` : '';
+      </button>`;
 
     if (isBookmarkTab) {
       shadow.innerHTML = `
@@ -157,10 +156,20 @@
       return;
     }
 
-    const chevronLabel =
-      (mode === 'persistent' && state === 'collapsed') ? 'Expand sidebar' : 'Collapse sidebar';
-    const chevronLabelShort =
-      (mode === 'persistent' && state === 'collapsed') ? 'Expand' : 'Collapse';
+    const chevronLabel = state === 'collapsed' ? 'Expand sidebar' : 'Collapse sidebar';
+    const chevronLabelShort = state === 'collapsed' ? 'Expand' : 'Collapse';
+
+    const railBottom = mode === 'persistent' ? `
+      <div class="rail-bottom">
+        ${themeBtn}
+        <button class="toggle" type="button" aria-label="${chevronLabel}">
+          ${ICONS.chevronLeft}
+          <span class="toggle__label">${chevronLabelShort}</span>
+        </button>
+      </div>` : `
+      <div class="rail-bottom">
+        ${themeBtn}
+      </div>`;
 
     shadow.innerHTML = `
       <link rel="stylesheet" href="/_shared/navbar-inner.css">
@@ -168,13 +177,7 @@
              role="navigation" aria-label="Platform navigation">
         ${brand}
         <nav><ul>${items}</ul></nav>
-        <div class="rail-bottom">
-          ${themeBtn}
-          <button class="toggle" type="button" aria-label="${chevronLabel}">
-            ${ICONS.chevronLeft}
-            <span class="toggle__label">${chevronLabelShort}</span>
-          </button>
-        </div>
+        ${railBottom}
         ${mode === 'bookmark' ? '<div class="esc-hint">Esc to dismiss</div>' : ''}
       </aside>
       <div class="backdrop" hidden></div>`;

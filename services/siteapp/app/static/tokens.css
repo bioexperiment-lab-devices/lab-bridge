@@ -16,6 +16,10 @@
   --accent-hover: #182E6F;
   --accent-soft: #E7ECF6;
   --accent-border: #B8C2DC;
+  /* Foreground colour for content (SVG strokes/fills, text) sitting on a
+     var(--accent) background. Light theme: cream on dark navy. Dark theme:
+     near-black on light blue (overridden below). */
+  --accent-on: #FAF8F3;
   --success: #2F7D3F;
   --success-soft: #E5F1E6;
   --success-border: #BCD7BE;
@@ -52,6 +56,7 @@
   --accent-hover: #DBE3F8;
   --accent-soft: #2A3257;
   --accent-border: #4A5587;
+  --accent-on: #1B1A17;
   --success: #7CC18A;
   --success-soft: #1F2C22;
   --success-border: #335A3E;

@@ -19,6 +19,7 @@
   --accent-hover: #182E6F;
   --accent-soft: #E7ECF6;
   --accent-border: #B8C2DC;
+  --accent-on: #FAF8F3;
   --shadow-card: 0 1px 0 rgba(26,25,22,0.04), 0 1px 2px rgba(26,25,22,0.06);
   --shadow-popover: 0 10px 24px -8px rgba(26,25,22,0.25), 0 2px 6px rgba(26,25,22,0.08);
   --shadow-overlay: 0 24px 50px -20px rgba(26,25,22,0.45), 0 8px 18px -6px rgba(26,25,22,0.18);
@@ -41,12 +42,13 @@
   --accent-hover: #DBE3F8;
   --accent-soft: #2A3257;
   --accent-border: #4A5587;
+  --accent-on: #1B1A17;
 }
 
 aside {
   position: fixed;
   left: 0;
-  top: 0;
+  top: var(--rail-top-offset, 0);
   bottom: 0;
   background: var(--surface-rail);
   color: var(--text);
@@ -157,18 +159,8 @@ li.active::before {
 .icon svg { width: 18px; height: 18px; display: block; }
 .label {
   flex: 1;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.ext {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-muted);
-  letter-spacing: 0.04em;
-  opacity: 0.7;
 }
 
 aside[data-mode="persistent"][data-state="collapsed"] .label {
