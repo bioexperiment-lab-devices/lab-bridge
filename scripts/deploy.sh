@@ -134,17 +134,20 @@ main() {
     fi
     $ssh_base "$target" "cd $VPS_REMOTE_ROOT && (docker compose pull --ignore-pull-failures || true) && docker compose up -d --remove-orphans && docker compose restart $restart_services"
 
-    # 5. Health check (skippable for tests). Probe both routed paths:
-    # `/` (JupyterLab → 200/302) and `/grafana/login` (Grafana → 200, terminal,
-    # no redirect). Probing a terminal page rather than `/grafana/` itself is
-    # deliberate: a 3xx-only check passes a redirect loop (e.g. when the proxy
-    # is misconfigured to strip the sub-path Grafana expects to receive),
-    # which 200-on-login does not.
+    # 5. Health check (skippable for tests). Probe each routed path:
+    # `/` (siteapp Home → 200; was JupyterLab catchall pre-navbar split),
+    # `/jupyter/` (JupyterLab → 302 redirect to /jupyter/login), and
+    # `/grafana/login` (Grafana → 200, terminal, no redirect). Probing a
+    # terminal page rather than `/grafana/` itself is deliberate: a 3xx-only
+    # check passes a redirect loop (e.g. when the proxy is misconfigured to
+    # strip the sub-path Grafana expects to receive), which 200-on-login
+    # does not.
     if [[ "${LDS_SKIP_HEALTHCHECK:-}" != "1" ]]; then
         log "waiting for HTTPS to respond..."
-        local i jupyter_status grafana_status docs_status download_status flash_status static_status public_status server_info_status
+        local i home_status jupyter_status grafana_status docs_status download_status flash_status static_status public_status server_info_status
         for ((i=0; i<60; i++)); do
-            jupyter_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/" || true)"
+            home_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/" || true)"
+            jupyter_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/jupyter/" || true)"
             grafana_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/grafana/login" || true)"
             docs_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/docs/" || true)"
             download_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/download/agent" || true)"
@@ -162,7 +165,8 @@ main() {
             # siteapp or the router wasn't mounted. Probed alongside /api/public/health
             # so a broken render fails the deploy.
             server_info_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/api/public/server-info" || true)"
-            if [[ "$jupyter_status" =~ ^[23][0-9][0-9]$ ]] \
+            if [[ "$home_status" == "200" ]] \
+                && [[ "$jupyter_status" =~ ^[23][0-9][0-9]$ ]] \
                 && [[ "$grafana_status" == "200" ]] \
                 && [[ "$docs_status" == "200" ]] \
                 && [[ "$download_status" == "200" ]] \
@@ -170,12 +174,12 @@ main() {
                 && [[ "$static_status" == "200" ]] \
                 && [[ "$public_status" == "200" ]] \
                 && [[ "$server_info_status" == "200" ]]; then
-                log "deployed: jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, flash $flash_status, static $static_status, public $public_status, server_info $server_info_status"
+                log "deployed: home $home_status, jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, flash $flash_status, static $static_status, public $public_status, server_info $server_info_status"
                 return 0
             fi
             sleep 1
         done
-        warn "health check timed out (jupyter:$jupyter_status grafana:$grafana_status docs:$docs_status download:$download_status flash:$flash_status static:$static_status public:$public_status server_info:$server_info_status). Check: task logs"
+        warn "health check timed out (home:$home_status jupyter:$jupyter_status grafana:$grafana_status docs:$docs_status download:$download_status flash:$flash_status static:$static_status public:$public_status server_info:$server_info_status). Check: task logs"
         return 1
     fi
     log "deployed (healthcheck skipped)"
