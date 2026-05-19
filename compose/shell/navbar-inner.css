@@ -28,6 +28,12 @@
   --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 }
+/* Shadow DOM doesn't inherit the host page's `* { box-sizing: border-box }`,
+   so without this, height + padding compound and nav items render taller than
+   they should (48px instead of 32px, which makes the collapsed rail look
+   vertically stretched). */
+*, *::before, *::after { box-sizing: border-box; }
+
 :host([data-theme="dark"]) {
   --bg-page: #1B1A17;
   --surface: #232220;
@@ -182,11 +188,12 @@ aside[data-mode="persistent"][data-state="collapsed"] a {
 .theme-toggle {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   height: 30px;
   padding: 0 10px;
   background: transparent;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   border-radius: 5px;
   color: var(--text-secondary);
   cursor: pointer;
@@ -194,7 +201,7 @@ aside[data-mode="persistent"][data-state="collapsed"] a {
   font-size: 12px;
   font-weight: 500;
 }
-.theme-toggle:hover { background: var(--surface); color: var(--text); border-color: var(--border); }
+.theme-toggle:hover { background: var(--surface); color: var(--text); }
 .theme-toggle__icon { display: inline-flex; }
 .theme-toggle__icon svg { width: 14px; height: 14px; display: block; }
 
@@ -232,38 +239,49 @@ aside[data-mode="persistent"][data-state="collapsed"] .toggle {
 aside[data-mode="persistent"][data-state="collapsed"] .toggle svg { transform: rotate(180deg); }
 
 /* ─── Bookmark mode ──────────────────────────────────────────────────── */
+/* Position is driven by --bookmark-left / --bookmark-bottom (set on the host
+   element by navbar.js when the user drags the tab). Defaults pin it to the
+   bottom-left, matching the original design handoff. */
 aside[data-mode="bookmark"][data-state="tab"] {
-  left: 12px;
-  bottom: 12px;
+  left: var(--bookmark-left, 12px);
+  bottom: var(--bookmark-bottom, 12px);
   top: auto;
   height: 32px;
   width: 132px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
   background: var(--surface);
   box-shadow: var(--shadow-popover);
   flex-direction: row;
   align-items: center;
-  padding: 0 10px;
+  padding: 0 8px 0 7px;
   gap: 8px;
-  cursor: pointer;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
   font-family: var(--font-sans);
 }
-.bookmark__mark { display: inline-flex; }
-.bookmark__wordmark { font-weight: 600; font-size: 12.5px; }
-.bookmark__chev { margin-left: auto; color: var(--text-muted); font-size: 14px; }
+.bookmark__mark { display: inline-flex; flex-shrink: 0; }
+/* Resize the shared brand SVG down to the design's 20×20 tile in bookmark tab. */
+aside[data-mode="bookmark"] .bookmark__mark svg { width: 20px; height: 20px; }
+.bookmark__wordmark { flex: 1; font-weight: 600; font-size: 12px; letter-spacing: -0.005em; color: var(--text); }
+.bookmark__chev { color: var(--text-muted); font-size: 10px; font-family: var(--font-mono); }
 
 aside[data-mode="bookmark"][data-state="expanded"] {
-  left: 12px;
-  bottom: 12px;
+  left: var(--bookmark-left, 12px);
+  bottom: var(--bookmark-bottom, 12px);
   top: auto;
   height: auto;
-  width: var(--rail-w-expanded);
-  border: 1px solid var(--border);
+  width: 240px;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow-overlay);
   padding: 6px;
+  /* Keep the overlay inside the viewport even when the tab is dragged to a
+     position where the overlay would overflow downward. */
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
 }
 aside[data-mode="bookmark"][data-state="expanded"] nav { padding-top: 4px; }
 .esc-hint {

@@ -112,6 +112,32 @@
 
   // ─── DOM rendering ────────────────────────────────────────────────────
   const STATE_KEY = 'navbar:state';
+  const BOOKMARK_POS_KEY = 'navbar:bookmark-pos';
+  const DRAG_THRESHOLD_PX = 4;
+
+  function loadBookmarkPos() {
+    try {
+      const raw = localStorage.getItem(BOOKMARK_POS_KEY);
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      if (typeof p.left === 'number' && typeof p.bottom === 'number') return p;
+    } catch (_) { /* ignore parse errors — fall back to default */ }
+    return null;
+  }
+
+  function saveBookmarkPos(pos) {
+    try { localStorage.setItem(BOOKMARK_POS_KEY, JSON.stringify(pos)); } catch (_) { /* quota / private mode */ }
+  }
+
+  function applyBookmarkPos(host, pos) {
+    if (!pos) {
+      host.style.removeProperty('--bookmark-left');
+      host.style.removeProperty('--bookmark-bottom');
+      return;
+    }
+    host.style.setProperty('--bookmark-left', pos.left + 'px');
+    host.style.setProperty('--bookmark-bottom', pos.bottom + 'px');
+  }
 
   function renderShadow(shadow, mode, state, activeId, theme) {
     const items = SERVICES.map((svc) => `
@@ -197,14 +223,15 @@
         ? (localStorage.getItem(STATE_KEY) || 'collapsed')
         : 'tab';
       this._theme = currentTheme();
-      this._hoverTimer = null;
-      this._leaveTimer = null;
+      this._bookmarkPos = loadBookmarkPos();
+      this._suppressClick = false;
       this._onKeydown = this._handleEscape.bind(this);
       this._onStorage = this._handleStorage.bind(this);
     }
 
     connectedCallback() {
       this.dataset.theme = this._theme;
+      applyBookmarkPos(this, this._bookmarkPos);
       this._render();
       this._wire();
       this._applyNavWidth();
@@ -271,23 +298,75 @@
           });
         }
       } else {
-        rail.addEventListener('mouseenter', () => {
-          clearTimeout(this._leaveTimer);
-          if (this._state === 'expanded') return;
-          this._hoverTimer = setTimeout(() => this._setBookmarkState('expanded'), 150);
-        });
-        rail.addEventListener('mouseleave', () => {
-          clearTimeout(this._hoverTimer);
-          if (this._state === 'tab') return;
-          this._leaveTimer = setTimeout(() => this._setBookmarkState('tab'), 300);
-        });
+        // Bookmark mode: click-driven (no hover). Tab is also draggable so the
+        // user can park it anywhere on screen; the chosen position is persisted.
         if (this._state === 'tab') {
-          rail.addEventListener('click', () => this._setBookmarkState('expanded'));
+          this._wireBookmarkDrag(rail);
+          rail.addEventListener('click', (e) => {
+            if (this._suppressClick) {
+              // Click followed a drag — swallow it so the rail doesn't expand.
+              this._suppressClick = false;
+              e.stopPropagation();
+              return;
+            }
+            this._setBookmarkState('expanded');
+          });
         }
         if (backdrop) {
           backdrop.addEventListener('click', () => this._setBookmarkState('tab'));
         }
       }
+    }
+
+    _wireBookmarkDrag(rail) {
+      let startX, startY, startLeft, startBottom, dragging = false, pointerId = null;
+
+      const onMove = (ev) => {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        if (!dragging && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
+          dragging = true;
+          rail.setPointerCapture(pointerId);
+          rail.style.cursor = 'grabbing';
+        }
+        if (dragging) {
+          ev.preventDefault();
+          const rect = rail.getBoundingClientRect();
+          const newLeft = Math.max(0, Math.min(window.innerWidth - rect.width, startLeft + dx));
+          const newBottom = Math.max(0, Math.min(window.innerHeight - rect.height, startBottom - dy));
+          this.style.setProperty('--bookmark-left', newLeft + 'px');
+          this.style.setProperty('--bookmark-bottom', newBottom + 'px');
+          this._bookmarkPos = { left: newLeft, bottom: newBottom };
+        }
+      };
+
+      const onUp = () => {
+        rail.removeEventListener('pointermove', onMove);
+        rail.removeEventListener('pointerup', onUp);
+        rail.removeEventListener('pointercancel', onUp);
+        rail.style.cursor = '';
+        if (dragging) {
+          saveBookmarkPos(this._bookmarkPos);
+          // Defer suppression flag clear until after the trailing click event fires.
+          this._suppressClick = true;
+        }
+        dragging = false;
+        pointerId = null;
+      };
+
+      rail.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        const rect = rail.getBoundingClientRect();
+        startX = e.clientX;
+        startY = e.clientY;
+        startLeft = rect.left;
+        startBottom = window.innerHeight - rect.bottom;
+        pointerId = e.pointerId;
+        dragging = false;
+        rail.addEventListener('pointermove', onMove);
+        rail.addEventListener('pointerup', onUp);
+        rail.addEventListener('pointercancel', onUp);
+      });
     }
 
     _handleEscape(e) {

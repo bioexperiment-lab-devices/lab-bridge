@@ -106,14 +106,16 @@ body {
 /* ===== Topbar ===== */
 /* Topbar breaks out of the body's nav-width left padding so it spans the full
    viewport. Paired with --rail-top-offset below, which pushes the platform
-   nav rail to start beneath the topbar. */
+   nav rail to start beneath the topbar. 56px tall to align with the navbar's
+   brand row (matches siteapp's .lb-home-header). */
 .fl-topbar {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   width: calc(100% + var(--nav-width, 0px));
   margin-left: calc(-1 * var(--nav-width, 0px));
-  padding: 0 24px;
-  padding-left: calc(24px + var(--nav-width, 0px));
+  padding: 0 32px;
+  padding-left: calc(32px + var(--nav-width, 0px));
+  min-height: 56px;
   display: flex;
   align-items: stretch;
   gap: 32px;
@@ -122,10 +124,10 @@ body {
 }
 /* The exact value is written by the topbar's ResizeObserver in Shell.tsx
    (the topbar can wrap on narrow viewports, so a static value would drift).
-   50px is the natural single-row height and acts as a fallback before the
+   56px is the natural single-row height and acts as a fallback before the
    observer fires. The nav rail picks this up via :host inheritance. */
 body:has(.fl-topbar) {
-  --rail-top-offset: 50px;
+  --rail-top-offset: 56px;
 }
 .fl-brand {
   display: flex;
