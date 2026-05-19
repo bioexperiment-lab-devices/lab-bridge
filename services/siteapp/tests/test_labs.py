@@ -12,14 +12,18 @@ from app.labs import LabsAggregator, _compare_versions, aggregate_labs
 
 def _write_roster(clients_file: Path, entries: dict[str, int]) -> None:
     clients_file.write_text(
-        json.dumps({name: {"port": port, "password_sha256": "00" * 32} for name, port in entries.items()}),
+        json.dumps(
+            {name: {"port": port, "password_sha256": "00" * 32} for name, port in entries.items()}
+        ),
         encoding="utf-8",
     )
 
 
 def _write_meta(agent_root: Path, version: str) -> None:
     (agent_root / "meta.json").write_text(
-        json.dumps({"version": version, "size": 1, "sha256": "x", "uploaded_at": "2026-05-01T00:00:00Z"}),
+        json.dumps(
+            {"version": version, "size": 1, "sha256": "x", "uploaded_at": "2026-05-01T00:00:00Z"}
+        ),
         encoding="utf-8",
     )
     (agent_root / "windows").mkdir(exist_ok=True)

@@ -174,20 +174,16 @@ def _highlight(code: str, name: str | None, attrs: object) -> str:
     inner = highlight(code, lexer, formatter).rstrip("\n")
     safe_lang = re.sub(r"[^a-zA-Z0-9_-]", "", name)
     title = _parse_title(attrs)
-    file_span = (
-        f'<span class="lb-code__file">{html_escape(title)}</span>'
-        if title
-        else ""
-    )
+    file_span = f'<span class="lb-code__file">{html_escape(title)}</span>' if title else ""
     return (
         f'<figure class="lb-code" data-lang="{safe_lang}">'
         f'<figcaption class="lb-code__head">'
         f'<span class="lb-code__lang">{safe_lang}</span>'
-        f'{file_span}'
+        f"{file_span}"
         f'<button class="lb-code__copy" type="button" aria-label="Copy code">Copy</button>'
-        f'</figcaption>'
+        f"</figcaption>"
         f'<pre class="highlight"><code class="language-{safe_lang}">{inner}</code></pre>'
-        f'</figure>\n'
+        f"</figure>\n"
     )
 
 
@@ -217,8 +213,14 @@ def _make_md() -> MarkdownIt:
     md = (
         MarkdownIt("commonmark", {"html": True, "linkify": True, "typographer": True})
         .enable(["table", "strikethrough"])
-        .use(anchors_plugin, min_level=2, max_level=4, permalink=True,
-             permalinkSymbol="#", slug_func=_slug)
+        .use(
+            anchors_plugin,
+            min_level=2,
+            max_level=4,
+            permalink=True,
+            permalinkSymbol="#",
+            slug_func=_slug,
+        )
         .use(footnote_plugin)
         .use(tasklists_plugin, enabled=True)
     )

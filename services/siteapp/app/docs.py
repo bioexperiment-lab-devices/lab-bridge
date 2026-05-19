@@ -46,9 +46,7 @@ def build_breadcrumb(nav: list[NavEntry], current_url: str) -> list[BreadcrumbCr
     return crumbs
 
 
-def _find_siblings(
-    nav: list[NavEntry], target_url: str
-) -> tuple[list[NavEntry], int] | None:
+def _find_siblings(nav: list[NavEntry], target_url: str) -> tuple[list[NavEntry], int] | None:
     """Locate the parent's children list + index of target. None if not found.
 
     Considers top-level entries as siblings of each other.
@@ -63,9 +61,7 @@ def _find_siblings(
     return None
 
 
-def prev_next(
-    nav: list[NavEntry], current_url: str
-) -> tuple[NavEntry | None, NavEntry | None]:
+def prev_next(nav: list[NavEntry], current_url: str) -> tuple[NavEntry | None, NavEntry | None]:
     """Return (prev, next) siblings of current_url within its parent group.
 
     Siblings = immediate children of the same parent. A child with no

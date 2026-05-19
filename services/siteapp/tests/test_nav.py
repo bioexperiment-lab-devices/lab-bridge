@@ -98,14 +98,16 @@ def test_empty_dir_is_skipped(tmp_path: Path) -> None:
 def _sample_nav() -> list:
     return [
         NavEntry(
-            title_en="Researchers", title_ru=None, url="/docs/researcher/",
+            title_en="Researchers",
+            title_ru=None,
+            url="/docs/researcher/",
             children=(
-                NavEntry(title_en="First notebook", title_ru=None,
-                         url="/docs/researcher/first-notebook"),
+                NavEntry(
+                    title_en="First notebook", title_ru=None, url="/docs/researcher/first-notebook"
+                ),
             ),
         ),
-        NavEntry(title_en="System overview", title_ru=None,
-                 url="/docs/system-overview"),
+        NavEntry(title_en="System overview", title_ru=None, url="/docs/system-overview"),
     ]
 
 

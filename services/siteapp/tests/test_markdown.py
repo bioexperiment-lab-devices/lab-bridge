@@ -223,7 +223,7 @@ def test_fenced_block_without_title_omits_filename():
     md = '```python\nprint("hi")\n```\n'
     out = render_markdown(md).html
     assert '<figure class="lb-code"' in out
-    assert 'lb-code__file' not in out
+    assert "lb-code__file" not in out
     assert 'class="lb-code__lang">python' in out
 
 
@@ -242,4 +242,4 @@ def test_h2_gets_permalink_anchor():
 def test_pygments_css_uses_data_theme_selector():
     css = pygments_css()
     assert '[data-theme="dark"]' in css
-    assert '@media (prefers-color-scheme: dark)' not in css
+    assert "@media (prefers-color-scheme: dark)" not in css
