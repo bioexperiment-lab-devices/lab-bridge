@@ -310,8 +310,43 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   align-items: start;
   margin-bottom: 28px;
 }
+.lb-status-row > .lb-section { margin-bottom: 0; min-width: 0; }
+.lb-status-row .lb-section__meta { white-space: nowrap; }
 
-/* ---- Section title (rule-flanked uppercase heading) ------- */
+/* ---- Outer section wrapper (rule-flanked head + body) ----- */
+.lb-section {
+  margin: 0 0 28px;
+}
+.lb-section__head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.lb-section__title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin: 0;
+  white-space: nowrap;
+}
+.lb-section__rule {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.lb-section__meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* ---- Legacy section title (rule-flanked, single-element).
+   Kept for quick destinations + getting started where rule lines
+   flank an inline heading. ------------------------------------ */
 .lb-section-title {
   display: flex;
   align-items: center;
@@ -363,13 +398,14 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   border-bottom: 1px solid var(--border);
   background: var(--surface-strip);
 }
-.lb-equip__head h2 {
+.lb-equip__head h2,
+.lb-equip__head h3 {
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
   margin: 0;
 }
-/* Timestamp / "just now" label in the header */
+/* Timestamp / "just now" label in the header (legacy, now moved to .lb-section__meta) */
 .lb-equip__meta {
   margin-left: auto;
   font-family: var(--font-mono);
@@ -475,31 +511,13 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   color: var(--warning);
 }
 
-/* ---- Topology section ------------------------------------- */
-.lb-topo-section {
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  overflow: hidden;
-  box-shadow: var(--shadow-card);
-}
-.lb-topo-section__head {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-strip);
-}
-.lb-topo-section__head h2 {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  margin: 0;
-}
+/* ---- Topology — vertical diagram with icons + edge labels --- */
+.lb-topo-section { min-width: 0; }
 
-/* Vertical topology list */
 .lb-topo {
   list-style: none;
   margin: 0;
-  padding: 14px 16px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -511,25 +529,97 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 5px;
-  padding: 9px 14px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text);
-  text-align: center;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 2px 12px;
+  align-items: center;
 }
-.lb-topo__node--primary {
+.lb-topo__node-ico {
+  grid-row: 1 / span 2;
+  width: 30px; height: 30px;
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+}
+.lb-topo__node-ico svg { width: 16px; height: 16px; display: block; }
+.lb-topo__node-body {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+.lb-topo__node-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.008em;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lb-topo__node-sub {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lb-topo__node--accent {
   border-color: var(--accent-border);
   background: var(--accent-soft);
-  font-weight: 600;
-  color: var(--accent);
+}
+.lb-topo__node--accent .lb-topo__node-title { color: var(--accent); }
+.lb-topo__node--accent .lb-topo__node-ico {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-inverse, #fff);
 }
 
-/* Arrow between nodes */
-.lb-topo__arrow {
-  text-align: center;
+/* Edge between nodes */
+.lb-topo__edge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 6px 16px;
+  min-height: 26px;
+}
+.lb-topo__edge::before {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: linear-gradient(to bottom, var(--border-strong) 0 4px, transparent 4px);
+  background-size: 1.5px 7px;
+  background-repeat: repeat-y;
+}
+.lb-topo__edge::after {
+  content: "▾";
+  position: absolute;
+  left: 15px;
+  bottom: -1px;
+  transform: translateX(-50%);
   color: var(--border-strong);
-  font-size: 12px;
-  line-height: 1.8;
+  font-size: 9px;
+  line-height: 1;
+}
+.lb-topo__edge-label {
+  margin-left: 30px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  white-space: nowrap;
 }
 
 /* ---- Quick destinations grid ----------------------------- */
@@ -567,9 +657,21 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   border-color: var(--accent);
 }
 .lb-quick__icon {
-  font-size: 18px;
-  line-height: 1;
-  margin-bottom: 4px;
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.lb-quick__icon svg { width: 16px; height: 16px; display: block; }
+.lb-quick__card[data-primary="true"] .lb-quick__icon {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-inverse, #fff);
 }
 .lb-quick__title {
   font-size: 13px;
@@ -1137,9 +1239,12 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   margin-bottom: 6px;
 }
 .lb-docs-side__icon {
-  font-size: 14px;
-  line-height: 1;
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  color: var(--accent);
 }
+.lb-docs-side__icon svg { width: 18px; height: 18px; display: block; }
 .lb-docs-side__title {
   font-family: var(--font-mono);
   font-size: 10px;
