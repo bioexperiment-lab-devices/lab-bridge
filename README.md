@@ -1,172 +1,172 @@
 # lab-bridge
 
-Self-hosted lab portal: shared JupyterLab + chisel reverse tunnels that
-bring NAT'd lab instruments onto the notebook network, with an operator
-public docs (deployed from git), a Windows-agent download page, and an operator firmware-flashing UI (/flash/*) in front.
-VPS provisioning + Docker Compose stack.
+Lab-bridge connects research-lab instruments to a shared JupyterLab environment.
+Devices behind NAT in a lab site are exposed to the notebook environment over
+chisel reverse tunnels; researchers drive experiments remotely, operators push
+firmware and watch logs from a single web portal.
 
-The public root (`https://<vps-host>/`) lands on a docs welcome page;
-JupyterLab moved to `/lab`. Grafana stays at `/grafana/`. See
-"What runs on the VPS" for the full route map.
+The platform runs as a single Docker Compose stack behind Caddy with Let's
+Encrypt TLS. The public surface includes a home page, a public documentation
+site, a Windows-agent download, JupyterLab, Grafana, and an admin
+firmware-flashing UI.
 
-Design docs:
-- `docs/superpowers/specs/2026-04-26-vps-provisioning-design.md` — base stack
-- `docs/superpowers/specs/2026-04-28-chisel-client-logs-design.md` — internal
-  Loki/Grafana for client log forwarding
-- `docs/superpowers/specs/2026-05-01-public-docs-and-agent-downloads-design.md` —
-  public docs portal + Windows agent download
-- `docs/superpowers/specs/2026-05-15-per-service-isolation-design.md` —
-  the current `services/<name>/` layout, multi-component release-please,
-  per-service parallel CI
+Example deployment: `https://<vps-host>/`.
 
-For adding a new service to the stack, follow `docs/adding-a-service.md`
-(checklist mirroring siteapp/flasher). The "Architecture philosophy"
-section in `CLAUDE.md` summarises the invariants the repo enforces.
+## SerialHop
 
-## What runs on the VPS
+Windows agent that exposes lab-PC serial devices to lab-bridge over a chisel
+reverse tunnel. Ships from its own repo:
+https://github.com/bioexperiment-lab-devices/serialhop
 
-One Docker Compose stack on `labnet`:
+## Architecture
 
-- **caddy** — public entrypoint on 80/443, TLS via Let's Encrypt. Route map:
-  - `/` → 302 redirect to `/docs/` (the welcome page)
-  - `/docs/*`, `/download/*`, `/_static/*`, `/api/agent/upload` → siteapp
-  - `/grafana/*` → grafana
-  - everything else → jupyter (`/lab`, `/login`, `/api/sessions`, …)
-- **jupyter** — JupyterLab; cookie-based shared-password auth (not edge
-  basic_auth, which breaks WebSocket kernels on mobile).
-- **chisel** — public on `chisel.listen_port`; reverse tunnels for device
-  ports + a forward tunnel to `loki:3100` for log push.
-- **siteapp** — Python (FastAPI) service that serves the public docs portal
-  at `/docs/*`, the Windows agent download page at `/download/agent`. CI uploads
-  new agent builds via `POST /api/agent/upload` with a static bearer token.
-  Public docs live in `public_docs/` at the repo root and ship to the VPS via
-  the `deploy-public-docs` workflow on every push to main.
-- **loki** + **grafana** — internal only; Loki has no published port, only
-  reachable via Grafana on `labnet` and via chisel-tunneled clients.
+```
+  Lab site                          Internet               VPS
+  --------                          --------               ----------------
+  [devices] --serial--> [lab PC]    =======>   [caddy] --> [siteapp ]
+                         SerialHop  chisel        |        [flasher ]
+                          agent     reverse       |        [jupyter ]
+                                    tunnel        |        [grafana ] --+
+                                                  |                     +- loki
+                                                  v                     +- prometheus
+                                            Researcher --> /jupyter
+                                            Operator   --> /grafana
+                                            Admin      --> /flash
+```
 
-## Quick start
+Services on the `labnet` Docker network:
+
+- **caddy** — TLS edge on 80/443, applies the route table below, and injects a
+  shared navbar into every HTML response.
+- **siteapp** — FastAPI service serving the home page, public docs (`/docs/`),
+  the agent download (`/download/agent`), and the public API (`/api/public/*`).
+- **flasher** — Firmware library and flashing UI at `/flash/*`; pushes firmware
+  to lab devices over the chisel tunnels.
+- **jupyter** — Shared JupyterLab at `/jupyter/`, cookie-authenticated.
+- **chisel** — Public chisel server. Reverse tunnels expose device ports to the
+  VPS; a forward tunnel pushes lab-agent logs to Loki.
+- **grafana**, **loki**, **prometheus**, **node-exporter**, **cadvisor** —
+  Observability for lab-agent logs and VPS host/container metrics.
+
+Route map:
+
+| Path | Service | Auth |
+|------|---------|------|
+| `/` | siteapp | public |
+| `/docs/*` | siteapp | public |
+| `/download/*` | siteapp | public |
+| `/api/agent/upload` | siteapp | bearer token |
+| `/api/public/*` | siteapp | public |
+| `/jupyter/*` | jupyter | shared password |
+| `/grafana/*` | grafana | own login |
+| `/flash/*` | flasher | admin basic_auth |
+| `/_shared/*` | caddy (navbar) | public |
+
+Each service lives at `services/<name>/` with its own Dockerfile, tests, and CI
+workflow. See `docs/superpowers/specs/2026-05-15-per-service-isolation-design.md`
+for the isolation model.
+
+## User flow
+
+Three roles operate the platform:
+
+- **Researcher** — drives experiments from JupyterLab using the `bioexperiment`
+  Python package; addresses each lab by name and talks to its devices remotely.
+- **Lab operator** — runs a specific lab site: installs SerialHop on the lab PC,
+  keeps physical devices connected, watches that lab's agent logs in Grafana.
+- **Server administrator** — operates the platform: provisions SerialHop
+  credentials, pushes firmware via `/flash/*`, monitors system metrics, ships
+  releases via CI.
+
+End-to-end loop:
+
+1. Lab staff connect instruments (pumps, valves, densitometers, thermostats, …)
+   to a lab PC over serial.
+2. SerialHop on the lab PC exposes those ports through a chisel reverse tunnel
+   to the VPS.
+3. A researcher addresses the lab by name from a JupyterLab notebook and drives
+   the experiment.
+4. The administrator pushes firmware updates over the same tunnel via Flasher;
+   SerialHop itself auto-updates.
+
+One lab = one SerialHop installation = one lab PC = many physical devices.
+Client names registered via `task secrets:add-client` are lab-level identifiers;
+per-device health lives in Grafana.
+
+## Working with the repo
+
+### Locally
+
+Prerequisites: [`task`](https://taskfile.dev),
+[`yq` v4](https://github.com/mikefarah/yq) (mikefarah, not the Python one),
+`openssl`, `ssh`, `rsync`. Development additionally needs Docker, `bats-core`,
+and `uv`.
+
+Run tests at each layer:
+
+```bash
+cd services/siteapp && uv run pytest                 # unit
+cd services/siteapp && uv run pytest tests/e2e/      # service e2e
+bats tests/integration/test_routes_smoke.bats        # cross-service wiring
+```
+
+To add a new service, follow `docs/adding-a-service.md`.
+
+### Via CI
+
+CI is the path to production. Manual deploys exist only for first-time bring-up
+and recovery.
+
+1. Open a PR. Conventional Commit title (`feat fix chore docs refactor …`);
+   squash-merge only.
+2. Per-service workflows (`pr-caddy`, `pr-siteapp`, `pr-flasher`, `pr-platform`)
+   gate the merge. `dorny/paths-filter` fast-skips workflows for services the PR
+   doesn't touch.
+3. After merge, release-please maintains a single platform release PR with the
+   next version. Merging it cuts a `vX.Y.Z` tag.
+4. The tag triggers `release-please.yml`, which builds the service images to
+   GHCR and deploys the stack to the VPS.
+
+See `docs/superpowers/specs/2026-05-12-cicd-design.md` and
+`docs/superpowers/specs/2026-05-17-unified-release-design.md` for the full
+release model.
+
+## Operations reference
+
+Day-to-day operation is via CI; the commands below cover first-time bring-up
+and recovery.
 
 ```bash
 task doctor                                   # check local prerequisites
-cp config.example.yaml config.yaml            # then edit with your VPS details
-task secrets:set-jupyter-password             # set the shared JupyterLab password
-task secrets:set-grafana-password             # set the Grafana admin password
-task secrets:set-admin-password               # bcrypt hash for /flash/* operator gate
-task secrets:rotate-agent-upload-token        # token CI uses to publish agent builds
-task secrets:add-client -- microscope-1 9001  # add a lab device
+cp config.example.yaml config.yaml            # then fill in VPS details
+task secrets:set-jupyter-password             # shared JupyterLab password
+task secrets:set-grafana-password             # Grafana admin password
+task secrets:set-admin-password               # /flash/* operator gate (bcrypt)
+task secrets:rotate-agent-upload-token        # CI upload token for new agent builds
+task secrets:rotate-flasher-upload-token      # CI upload token for new firmware
+task secrets:add-client -- microscope-1 9001  # register a lab
 task provision                                # first-time VPS setup
-
-# Publish the siteapp image to GHCR (or your registry) — see "Publishing the
-# siteapp image" below. The image tag is pinned in the root VERSION file.
-
 task deploy                                   # render configs + bring up stack
+task ops:logs -- siteapp                      # tail a service's logs
+task ops:loki-disk                            # show Loki retention/size
 ```
 
-After deploy:
-- `https://<vps-host>/` — public welcome page (docs portal landing)
-- `https://<vps-host>/lab` — JupyterLab; everyone uses the shared password
-- `https://<vps-host>/grafana/` — Grafana login (separate password)
-
-Auth is handled by JupyterLab itself (cookie-based) rather than HTTP
-Basic Auth at the edge — basic_auth re-prompts on every WebSocket upgrade
-on mobile browsers, breaking notebook kernels.
-
-## Prerequisites (operator laptop)
-
-- [task](https://taskfile.dev)
-- [yq v4](https://github.com/mikefarah/yq) (mikefarah, *not* the Python one)
-- `openssl`, `ssh`, `rsync`
-- For development: `bats-core`, Docker (for the fake-VPS test container)
-
-## Lab client logs
-
-The server-side stack (Loki + Grafana, the chisel forward tunnel to
-`loki:3100`, and the "Lab client logs" Grafana dashboard) is in place and
-queryable at `https://<vps-ip>/grafana/` — log in with `admin` / the password
-set via `task secrets:set-grafana-password`. The dashboard is provisioned
-automatically: live tail, log volume by client, errors, and current versions
-per client.
-
-The matching push code lives in `lab_devices_client` (separate repo) and is
-not yet shipped. The contract it must implement is in
-`docs/superpowers/specs/2026-04-28-chisel-client-logs-client-spec.md`. Until
-clients are updated, Loki will be running but empty.
-
-Operations:
-
-- `task ops:logs:loki` / `task ops:logs:grafana` — tail container stderr
-- `task ops:loki-disk` — show `loki_data/` size and the configured retention
-
-## Public docs & agent download
-
-Siteapp serves a public docs portal at `/docs/` and a Windows agent
-download page at `/download/agent`. Both routes carve out a public surface
-in front of JupyterLab without disturbing JupyterLab's cookie auth or
-Grafana's login.
-
-- Operator commits markdown to `public_docs/` on main; the `deploy-public-docs` workflow rsyncs to the VPS.
-- CI publishes a new agent build via `POST /api/agent/upload` with a
-  bearer token. Uploads stream to disk; the binary is atomically renamed
-  into place so concurrent downloads never see a half-written file.
-
-### Russian translations
-
-Drop a `*.ru.md` next to any `*.md` (e.g. `intro.ru.md`) and an EN/RU
-toggle appears on the page. English is always the source of truth — a
-`*.ru.md` without a matching `*.md` is ignored. The selected language
-persists in a cookie.
-
-### CI example (GitHub Actions)
-
-```yaml
-- name: Upload agent build
-  run: |
-    curl -fsSL -X POST https://${{ secrets.VPS_HOST }}/api/agent/upload \
-      -H "Authorization: Bearer ${{ secrets.AGENT_UPLOAD_TOKEN }}" \
-      -F "version=${{ github.ref_name }}" \
-      -F "binary=@dist/agent.exe"
-```
-
-### Operations
-
-- `task ops:logs:siteapp` — tail siteapp container stderr
-- `task ops:site-disk` — show `site_data/` size by section
-
-### Publishing the siteapp image
-
-Two files control the image reference — no `config.yaml` field is involved:
-
-- **`compose/pins.yaml`** → `siteapp_image_repo` — the GHCR repository path
-  (e.g. `ghcr.io/<owner>/lab-bridge-siteapp`).
-- **`VERSION`** at repo root — the image tag (e.g. `0.6.1`), shared by every
-  service. Owned by release-please; do not bump by hand.
-
-`task siteapp:build-and-push` reads both and builds
-`${siteapp_image_repo}:${VERSION}` — no environment variables needed.
-Manual rebuilds are rare; the normal flow is the release-please workflow
-which builds both service images at every release.
-
-See `docs/superpowers/specs/2026-05-17-unified-release-design.md` for the
-release model and `docs/superpowers/specs/2026-05-12-cicd-design.md` for
-the original CI/CD design.
-
-The package on GHCR is private by default; flip its visibility to public
-once (Org → Packages → ⋯ → Package settings → Change visibility) so the
-VPS can pull anonymously. Otherwise you'll need to `docker login ghcr.io`
-on the VPS with a read-only token.
+`task --list` shows the full menu.
 
 ## Repo layout
 
-- `Taskfile.yml` — operator entrypoints (`task --list` for the full menu)
-- `config.example.yaml` — copy to `config.yaml` (gitignored) and fill in
-- `compose/` — Docker Compose template, Caddyfile template, Loki config
-  template, Grafana provisioning (datasource + dashboard JSON)
-- `services/siteapp/` — Python source for the siteapp service (Dockerfile,
-  pyproject.toml, app/, templates/, static/, tests/), plus `build.sh` for
-  GHCR publish
-- `.github/workflows/` — CI: `pr.yml` (PR gate), `release-please.yml` (release + deploy), `ghcr-cleanup.yml` (monthly retention). See `docs/superpowers/specs/2026-05-12-cicd-design.md`.
-- `scripts/` — `provision.sh`, `deploy.sh`, `secrets.sh`, `ops.sh`,
-  `doctor.sh`, plus `lib/` helpers and a `fake_vps/` test container
-- `tests/` — bats suites; `task test` runs them all (the integration
-  suites that build the fake-VPS stack require Docker Hub access — they
-  cleanly skip if anonymous-pull is rate-limited on the runner)
+- `services/<name>/` — siteapp, flasher, caddy. Each has its own `Dockerfile`,
+  `app/`, `tests/`, `tests/e2e/`, and `build.sh`.
+- `compose/` — `docker-compose.yml.tmpl`, `Caddyfile.tmpl`, `pins.yaml` (image
+  pins, paths, retention), `grafana/`, `loki/`, `prometheus/`, `shell/` (shared
+  navbar assets).
+- `scripts/` — `provision.sh`, `deploy.sh`, `secrets.sh`, `ops.sh`, `doctor.sh`,
+  plus `lib/` helpers and a `fake_vps/` test container.
+- `public_docs/` — Markdown for the public documentation portal; deployed via
+  the `deploy-public-docs` workflow on every push to main. Drop a `*.ru.md` next
+  to any `*.md` to surface an EN/RU language toggle.
+- `tests/integration/` — bats suites for cross-service wiring (`task test`).
+- `.github/workflows/` — per-service PR workflows, `release-please.yml`,
+  `ghcr-cleanup.yml`, `deploy-public-docs.yml`.
+- `docs/superpowers/specs/` — design docs covering the base stack, CI/CD, the
+  per-service isolation model, and the unified release flow.
