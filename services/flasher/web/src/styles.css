@@ -20,6 +20,9 @@
   --accent-hover: #182E6F;
   --accent-soft: #E7ECF6;
   --accent-border: #B8C2DC;
+  /* Foreground colour for content sitting on a var(--accent) background.
+     Light: cream on dark navy. Dark: near-black on light blue (override below). */
+  --accent-on: #FAF8F3;
 
   --success: #2F7D3F;
   --success-soft: #E5F1E6;
@@ -57,6 +60,7 @@
   --accent-hover: #B0C2EE;
   --accent-soft: #232844;
   --accent-border: #3A4170;
+  --accent-on: #1B1A17;
   --success: #7CC18A;
   --success-soft: #1F2C22;
   --success-border: #335A3E;
@@ -100,15 +104,28 @@ body {
 }
 
 /* ===== Topbar ===== */
+/* Topbar breaks out of the body's nav-width left padding so it spans the full
+   viewport. Paired with --rail-top-offset below, which pushes the platform
+   nav rail to start beneath the topbar. */
 .fl-topbar {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  width: calc(100% + var(--nav-width, 0px));
+  margin-left: calc(-1 * var(--nav-width, 0px));
   padding: 0 24px;
+  padding-left: calc(24px + var(--nav-width, 0px));
   display: flex;
   align-items: stretch;
   gap: 32px;
   flex: 0 0 auto;
   flex-wrap: wrap;
+}
+/* The exact value is written by the topbar's ResizeObserver in Shell.tsx
+   (the topbar can wrap on narrow viewports, so a static value would drift).
+   50px is the natural single-row height and acts as a fallback before the
+   observer fires. The nav rail picks this up via :host inheritance. */
+body:has(.fl-topbar) {
+  --rail-top-offset: 50px;
 }
 .fl-brand {
   display: flex;
@@ -125,7 +142,7 @@ body {
   background: var(--accent);
   border-radius: 4px;
   display: grid; place-items: center;
-  color: #fff;
+  color: var(--accent-on);
   font-family: 'IBM Plex Mono', monospace;
   font-weight: 700;
   font-size: 12px;
@@ -295,11 +312,22 @@ body {
 .shp-btn--primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #FFFFFF;
+  color: var(--accent-on);
 }
 .shp-btn--primary:hover:not(:disabled) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
+}
+/* Dark theme: --accent is a bright light blue that reads as glare on a primary
+   fill. Use --accent-soft for the surface, --accent for the text/border. */
+[data-theme="dark"] .shp-btn--primary {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+[data-theme="dark"] .shp-btn--primary:hover:not(:disabled) {
+  background: var(--accent-border);
+  border-color: var(--accent);
 }
 .shp-btn--danger {
   background: var(--surface);

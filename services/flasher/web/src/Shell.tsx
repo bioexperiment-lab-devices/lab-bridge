@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useContext, useEffect, useState } from "react";
+import { ReactNode, createContext, useContext, useEffect, useRef, useState } from "react";
 import { Topbar } from "./components/Topbar";
 import { getCurrentFlash, getFlash } from "./api";
 import { FlashRowDetail } from "./types";
@@ -19,6 +19,7 @@ export function useFlashRun(): FlashRunContext {
 export function Shell({ children }: { children: ReactNode }) {
   const [runningFlashId, setRunningFlashId] = useState<string | null>(null);
   const [, setBeat] = useState(0);
+  const topbarRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -27,6 +28,21 @@ export function Shell({ children }: { children: ReactNode }) {
         setRunningFlashId((body as FlashRowDetail).id);
       }
     })();
+  }, []);
+
+  // Track topbar height so --rail-top-offset stays accurate when the topbar
+  // wraps on narrow viewports. The CSS fallback covers the un-mounted moment.
+  useEffect(() => {
+    const el = topbarRef.current ?? document.querySelector<HTMLElement>(".fl-topbar");
+    if (!el) return;
+    topbarRef.current = el;
+    const apply = () => {
+      document.body.style.setProperty("--rail-top-offset", `${el.getBoundingClientRect().height}px`);
+    };
+    apply();
+    const obs = new ResizeObserver(apply);
+    obs.observe(el);
+    return () => obs.disconnect();
   }, []);
 
   useEffect(() => {
