@@ -1,0 +1,15 @@
+{% if info %}
+  <a class="lb-dl-card__cta" href="/download/agent/windows/agent.exe">
+    <span class="lb-dl-card__cta-icon" aria-hidden="true">↓</span>
+    <span class="lb-dl-card__cta-text">
+      <span class="lb-dl-card__cta-line1">{{ s.cta_download_for }} {{ s.platform_windows }}</span>
+      <span class="lb-dl-card__cta-line2">
+        v{{ info.version }} · {{ "%.1f"|format(info.size / 1048576) }} MB
+      </span>
+    </span>
+  </a>
+{% else %}
+  <button class="lb-dl-card__cta lb-dl-card__cta--disabled" type="button" disabled>
+    {{ s.cta_disabled }}
+  </button>
+{% endif %}

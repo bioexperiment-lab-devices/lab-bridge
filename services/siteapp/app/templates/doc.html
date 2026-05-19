@@ -1,10 +1,45 @@
 {% extends "base.html" %}
 {% block title %}{{ title }} · lab-bridge docs{% endblock %}
 {% block main %}
-<div class="layout-with-sidebar">
+<div class="lb-page lb-page--docs">
   {% include "_nav.html" %}
-  <article class="prose">
-    {{ html|safe }}
+  <article class="lb-docs-article">
+    <nav class="lb-docs-article__breadcrumb" aria-label="Breadcrumb">
+      {% for crumb in crumbs %}
+        {% if crumb.url %}
+          <a href="{{ crumb.url }}">{{ crumb.title }}</a>
+        {% else %}
+          <span>{{ crumb.title }}</span>
+        {% endif %}
+        {% if not loop.last %}<span class="lb-docs-article__sep" aria-hidden="true">/</span>{% endif %}
+      {% endfor %}
+      {% if doc.ru_exists %}
+        <nav class="lb-lang lb-docs-article__lang" aria-label="Language">
+          <a href="?lang=en" class="lb-lang__pill{% if lang == 'en' %} is-active{% endif %}">EN</a>
+          <a href="?lang=ru" class="lb-lang__pill{% if lang == 'ru' %} is-active{% endif %}">RU</a>
+        </nav>
+      {% endif %}
+    </nav>
+
+    <div class="lb-docs-article__body prose">
+      {{ html|safe }}
+    </div>
+
+    {% if prev or next %}
+    <footer class="lb-docs-article__prevnext">
+      {% if prev %}
+        <a class="lb-docs-article__prev" href="{{ prev.url }}">
+          <span class="lb-docs-article__nav-label">← {{ prev.title_en }}</span>
+        </a>
+      {% else %}<span></span>{% endif %}
+      {% if next %}
+        <a class="lb-docs-article__next" href="{{ next.url }}">
+          <span class="lb-docs-article__nav-label">{{ next.title_en }} →</span>
+        </a>
+      {% else %}<span></span>{% endif %}
+    </footer>
+    {% endif %}
   </article>
 </div>
+<script src="/_static/docs-sidebar.js" defer></script>
 {% endblock %}

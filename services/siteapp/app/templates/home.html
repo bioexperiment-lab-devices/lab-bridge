@@ -1,18 +1,74 @@
 {% extends "base.html" %}
-{% block title %}lab-bridge — Home{% endblock %}
+{% block title %}{{ s.page_title }}{% endblock %}
 {% block main %}
-<section class="home">
-  <h1>lab-bridge</h1>
-  <p>
-    Welcome to the lab-bridge platform. Use the sidebar to navigate between
-    services.
-  </p>
-  <ul>
-    <li><a href="/docs/">Documentation</a></li>
-    <li><a href="/download/">SerialHop agent download</a></li>
-    <li><a href="/jupyter/">JupyterLab</a></li>
-    <li><a href="/grafana/">Grafana</a></li>
-    <li><a href="/flash/">Flasher</a></li>
-  </ul>
-</section>
+<div class="lb-page lb-page--home">
+  {% with target_page = "home" %}{% include "_home_header.html" %}{% endwith %}
+
+  <div class="lb-page__body">
+    {% include "_home_intro.html" %}
+
+    {% with labs = labs_initial %}{% include "_home_status_row.html" %}{% endwith %}
+
+    {% include "_home_quick.html" %}
+
+    {% include "_home_start.html" %}
+  </div>
+</div>
+
+<script>
+(function () {
+  // Poll /?_panel=1 every 5s; swap the labs panel innerHTML, tick "updated Ns ago".
+  var ROOT = document.querySelector('.lb-equip');
+  if (!ROOT) return;
+  var META = ROOT.querySelector('[data-labs-updated]');
+  var META_TEMPLATE = {
+    just_now: {{ s.labs_just_now | tojson }},
+    prefix: {{ s.labs_updated_prefix | tojson }},
+    suffix: {{ s.labs_updated_suffix | tojson }}
+  };
+  var lastFetchedAt = Date.now();
+
+  function fmtAgo(ms) {
+    var s = Math.max(0, Math.floor(ms / 1000));
+    if (s < 5) return META_TEMPLATE.just_now;
+    if (s < 60) return META_TEMPLATE.prefix + ' ' + s + 's ' + META_TEMPLATE.suffix;
+    var m = Math.floor(s / 60);
+    return META_TEMPLATE.prefix + ' ' + m + 'm ' + META_TEMPLATE.suffix;
+  }
+
+  function tickMeta() {
+    if (META) META.textContent = fmtAgo(Date.now() - lastFetchedAt);
+  }
+
+  async function poll() {
+    try {
+      var html = await fetch('/?_panel=1').then(function (r) { return r.text(); });
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var fresh = doc.querySelector('.lb-equip');
+      if (fresh && ROOT && ROOT.parentNode) {
+        ROOT.parentNode.replaceChild(fresh, ROOT);
+      }
+      ROOT = document.querySelector('.lb-equip');
+      META = ROOT && ROOT.querySelector('[data-labs-updated]');
+      lastFetchedAt = Date.now();
+    } catch (e) { /* swallow; next poll retries */ }
+  }
+
+  setInterval(poll, 5000);
+  setInterval(tickMeta, 1000);
+})();
+
+// Sticky header shadow: toggle .is-scrolled when content scrolls beneath.
+(function () {
+  var header = document.querySelector('.lb-home-header');
+  if (!header) return;
+  var sentinel = document.createElement('div');
+  sentinel.style.cssText = 'position:absolute;top:0;left:0;height:1px;width:1px;';
+  header.parentNode.insertBefore(sentinel, header);
+  var io = new IntersectionObserver(function (entries) {
+    header.classList.toggle('is-scrolled', !entries[0].isIntersecting);
+  });
+  io.observe(sentinel);
+})();
+</script>
 {% endblock %}

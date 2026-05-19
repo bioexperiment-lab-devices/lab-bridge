@@ -4,6 +4,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}lab-bridge{% endblock %}</title>
+
+  <script>
+    (function () {
+      var t = localStorage.getItem('theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.dataset.theme = t;
+    })();
+    window.addEventListener('storage', function (e) {
+      if (e.key === 'theme' && (e.newValue === 'light' || e.newValue === 'dark')) {
+        document.documentElement.dataset.theme = e.newValue;
+      }
+    });
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+  <link rel="stylesheet" href="/_static/tokens.css">
   <link rel="stylesheet" href="/_static/site.css">
   {% if pygments_css %}<style>{{ pygments_css|safe }}</style>{% endif %}
   <style>
@@ -15,8 +35,7 @@
 </head>
 <body>
   <main>{% block main %}{% endblock %}</main>
-  <footer><a href="/">lab-bridge</a></footer>
-  <script src="/_static/copy-code.js" defer></script>
+  <script src="/_static/copy-inline.js" defer></script>
   {% if needs_mermaid %}
   <script src="/_static/vendor/mermaid.min.js" defer></script>
   <script src="/_static/mermaid-init.js" defer></script>

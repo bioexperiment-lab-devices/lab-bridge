@@ -13,7 +13,43 @@ from mdit_py_plugins.tasklists import tasklists_plugin
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import get_lexer_by_name
+from pygments.style import Style
+from pygments.token import Comment, Keyword, Name, Number, Operator, Punctuation, String, Token
 from pygments.util import ClassNotFound
+
+
+class _LightStyle(Style):
+    default_style = ""
+    background_color = "transparent"
+    styles = {
+        Token: "#1A1916",
+        Keyword: "bold #6B3FA0",
+        Name.Function: "#1F3A8A",
+        Name.Class: "#1F3A8A",
+        Name.Builtin: "#1F3A8A",
+        String: "#2F7D3F",
+        Number: "#A37200",
+        Comment: "italic #8A8678",
+        Operator: "#1F3A8A",
+        Punctuation: "#514E47",
+    }
+
+
+class _DarkStyle(Style):
+    default_style = ""
+    background_color = "transparent"
+    styles = {
+        Token: "#F0EDE3",
+        Keyword: "bold #C6A6F2",
+        Name.Function: "#BCCBF2",
+        Name.Class: "#BCCBF2",
+        Name.Builtin: "#BCCBF2",
+        String: "#7CC18A",
+        Number: "#E3C067",
+        Comment: "italic #7E7A6E",
+        Operator: "#BCCBF2",
+        Punctuation: "#B8B3A4",
+    }
 
 
 # --- bleach allow-list ------------------------------------------------------
@@ -58,10 +94,14 @@ ALLOWED_TAGS: frozenset[str] = frozenset(
         "br",
         "details",
         "summary",
+        # code block figure wrapper
+        "figure",
+        "figcaption",
+        "button",
     }
 )
 ALLOWED_ATTRS: dict[str, set[str]] = {
-    "a": {"href", "title", "rel", "target"},
+    "a": {"href", "title", "rel", "target", "class"},
     "img": {"src", "alt", "width", "height", "title", "loading"},
     "input": {"type", "disabled", "checked", "class"},  # tasklists
     "li": {"class"},  # tasklists
@@ -79,6 +119,9 @@ ALLOWED_ATTRS: dict[str, set[str]] = {
     "td": {"style"},  # column alignment
     "section": {"class"},  # footnotes
     "sup": {"class"},  # footnote-ref
+    "figure": {"class", "data-lang"},
+    "figcaption": {"class"},
+    "button": {"class", "type", "aria-label"},
 }
 ALLOWED_PROTOCOLS: frozenset[str] = frozenset({"http", "https"})  # plus relative
 
@@ -96,19 +139,28 @@ class _TableAlignCSSsanitizer:
         return style if _TEXT_ALIGN_RE.match(style.strip()) else ""
 
 
-def _highlight(code: str, name: str | None, _attrs: object) -> str:
-    """Return highlighted code wrapped in our own <pre><code>.
+_TITLE_RE = re.compile(r'(?:title|file)\s*=\s*"([^"]+)"')
+
+
+def _parse_title(attrs: object) -> str | None:
+    if not isinstance(attrs, str):
+        return None
+    m = _TITLE_RE.search(attrs)
+    return m.group(1) if m else None
+
+
+def _highlight(code: str, name: str | None, attrs: object) -> str:
+    """Return highlighted code wrapped in our own <figure> / <pre><code>.
 
     Special-cases `mermaid`: emit <pre class="mermaid"> with the source
     HTML-escaped, so the client-side mermaid runtime can pick it up
     without any chance of injecting markup into the page. Pygments is
     skipped for mermaid (the source is a diagram DSL, not code).
 
-    The output MUST start with `<pre` — markdown-it auto-wraps any
-    highlighter output that doesn't, producing nested `<pre>` boxes that
-    double-up padding and borders. We use `nowrap=True` to get just the
-    Pygments spans, then wrap with a single <pre class="highlight"><code>
-    so the .highlight CSS still applies for syntax colors.
+    The output MUST start with `<pre` or `<figure` — markdown-it auto-wraps
+    any highlighter output that doesn't start with `<pre`, producing nested
+    `<pre>` boxes. We wrap with a single <figure class="lb-code"> so the
+    .highlight CSS still applies for syntax colors.
     """
     if name == "mermaid":
         return f'<pre class="mermaid">{html_escape(code)}</pre>\n'
@@ -118,21 +170,61 @@ def _highlight(code: str, name: str | None, _attrs: object) -> str:
         lexer = get_lexer_by_name(name)
     except ClassNotFound:
         return ""
-    formatter = HtmlFormatter(nowrap=True)
+    formatter = HtmlFormatter(style=_LightStyle, nowrap=True)
     inner = highlight(code, lexer, formatter).rstrip("\n")
     safe_lang = re.sub(r"[^a-zA-Z0-9_-]", "", name)
-    return f'<pre class="highlight"><code class="language-{safe_lang}">{inner}</code></pre>\n'
+    title = _parse_title(attrs)
+    file_span = f'<span class="lb-code__file">{html_escape(title)}</span>' if title else ""
+    return (
+        f'<figure class="lb-code" data-lang="{safe_lang}">'
+        f'<figcaption class="lb-code__head">'
+        f'<span class="lb-code__lang">{safe_lang}</span>'
+        f"{file_span}"
+        f'<button class="lb-code__copy" type="button" aria-label="Copy code">Copy</button>'
+        f"</figcaption>"
+        f'<pre class="highlight"><code class="language-{safe_lang}">{inner}</code></pre>'
+        f"</figure>\n"
+    )
+
+
+def _fence_renderer(self, tokens, idx, options, env) -> str:  # type: ignore[no-untyped-def]
+    """Custom fence rule: delegates to _highlight and returns result directly.
+
+    markdown-it's built-in fence renderer wraps the highlight output in a
+    second <pre><code> if it doesn't start with ``<pre``.  Registering our
+    own render rule avoids that unwanted wrapping when we emit ``<figure>``.
+    """
+    token = tokens[idx]
+    info = token.info.strip() if token.info else ""
+    lang_name = ""
+    lang_attrs = ""
+    if info:
+        parts = info.split(maxsplit=1)
+        lang_name = parts[0]
+        if len(parts) == 2:
+            lang_attrs = parts[1]
+    result = _highlight(token.content, lang_name, lang_attrs)
+    if result:
+        return result
+    return f"<pre><code>{html_escape(token.content)}</code></pre>\n"
 
 
 def _make_md() -> MarkdownIt:
     md = (
         MarkdownIt("commonmark", {"html": True, "linkify": True, "typographer": True})
         .enable(["table", "strikethrough"])
-        .use(anchors_plugin, min_level=2, max_level=4, permalink=False, slug_func=_slug)
+        .use(
+            anchors_plugin,
+            min_level=2,
+            max_level=4,
+            permalink=True,
+            permalinkSymbol="#",
+            slug_func=_slug,
+        )
         .use(footnote_plugin)
         .use(tasklists_plugin, enabled=True)
     )
-    md.options["highlight"] = _highlight
+    md.add_render_rule("fence", _fence_renderer)
     return md
 
 
@@ -313,13 +405,15 @@ def render_markdown(text: str) -> Rendered:
     title = _title_from_tokens(tokens)
     needs_mermaid = _has_mermaid(tokens)
     raw_html = _MD.renderer.render(tokens, _MD.options, {})
+    # Rename the anchors_plugin hardcoded class to our design-system name.
+    raw_html = raw_html.replace('class="header-anchor"', 'class="lb-anchor"')
     return Rendered(html=_sanitize(raw_html), title=title, needs_mermaid=needs_mermaid)
 
 
 _PYGMENTS_BG_RE = re.compile(r"^\.highlight\s*\{[^}]*\}\s*$", re.MULTILINE)
 
 
-def _theme_css(style: str) -> str:
+def _theme_css(style: type[Style]) -> str:
     """Pygments style defs minus the embedded `.highlight { background: ... }`
     rule, which would otherwise override the page's own --code-bg variable."""
     css = HtmlFormatter(style=style, cssclass="highlight").get_style_defs(".highlight")
@@ -327,8 +421,8 @@ def _theme_css(style: str) -> str:
 
 
 def pygments_css() -> str:
-    """Light + dark code-highlighting CSS. The dark variant is gated on
-    `prefers-color-scheme: dark` so the colors track the rest of the site."""
-    light = _theme_css("friendly")
-    dark = _theme_css("github-dark")
-    return f"{light}\n@media (prefers-color-scheme: dark) {{\n{dark}\n}}\n"
+    """Light + dark code-highlighting CSS. Dark variant gated on
+    `[data-theme="dark"]` so manual theme toggle wins over OS preference."""
+    light = _theme_css(_LightStyle)
+    dark = _theme_css(_DarkStyle).replace(".highlight", '[data-theme="dark"] .highlight')
+    return f"{light}\n{dark}\n"

@@ -121,7 +121,7 @@ https://__VPS_HOST__ {
         match {
             header Content-Type *text/html*
         }
-        "</head>" `<script src="/_shared/navbar.js?v=__PLATFORM_VERSION__" defer></script></head>`
+        "</head>" `<script src="/_shared/navbar.js?v=__PLATFORM_VERSION__" data-version="__PLATFORM_VERSION__" defer></script></head>`
     }
 
     # No catchall — unmatched paths return Caddy's default 404 by design.

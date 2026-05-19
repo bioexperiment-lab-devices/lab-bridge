@@ -1,0 +1,53 @@
+{% if info %}
+<details class="lb-dl-explainer">
+  <summary class="lb-dl-explainer__summary">
+    <span class="lb-dl-explainer__icon" aria-hidden="true">!</span>
+    <span class="lb-dl-explainer__summary-text">{{ s.explainer_summary }}</span>
+    <span class="lb-dl-explainer__chev" aria-hidden="true">▾</span>
+  </summary>
+  <div class="lb-dl-explainer__body">
+    <p>{{ s.explainer_intro }}</p>
+
+    {% if lang == 'ru' %}
+    <h4 class="lb-dl-explainer__h4">{{ s.explainer_h4_browser }}</h4>
+    <ol>
+      <li>Откройте список загрузок (<kbd>Ctrl</kbd>+<kbd>J</kbd>).</li>
+      <li>Найдите <code>SerialHop-Setup-v{{ info.version }}.exe</code>,
+          нажмите <code>⋯</code> (или правой кнопкой) и выберите
+          <strong>Сохранить</strong> / <strong>Keep</strong>.</li>
+      <li>Если появится «Этот файл может нанести вред компьютеру» —
+          выберите <strong>Сохранить опасный файл</strong> /
+          <strong>Keep dangerous file</strong>.</li>
+    </ol>
+    <h4 class="lb-dl-explainer__h4">{{ s.explainer_h4_windows }}</h4>
+    <ol>
+      <li>Нажмите <strong>Подробнее</strong> / <strong>More info</strong>
+          в окне SmartScreen.</li>
+      <li>Под текстом появится кнопка <strong>Выполнить в любом случае</strong> /
+          <strong>Run anyway</strong> — нажмите её.</li>
+      <li>Этот выбор Windows запомнит, и при следующих запусках
+          предупреждение больше не появится.</li>
+    </ol>
+    {% else %}
+    <h4 class="lb-dl-explainer__h4">{{ s.explainer_h4_browser }}</h4>
+    <ol>
+      <li>Open the downloads list (<kbd>Ctrl</kbd>+<kbd>J</kbd>).</li>
+      <li>Find <code>SerialHop-Setup-v{{ info.version }}.exe</code>,
+          click the <code>⋯</code> menu (or right-click) and choose
+          <strong>Keep</strong>.</li>
+      <li>If a second prompt warns "This file might harm your computer",
+          choose <strong>Keep dangerous file</strong>.</li>
+    </ol>
+    <h4 class="lb-dl-explainer__h4">{{ s.explainer_h4_windows }}</h4>
+    <ol>
+      <li>Click <strong>More info</strong> in the SmartScreen dialog
+          (the "Run anyway" button is hidden until you do).</li>
+      <li>A <strong>Run anyway</strong> button appears beneath the text —
+          click it.</li>
+      <li>Windows remembers the choice on this PC, so the prompt won't
+          come back on later launches.</li>
+    </ol>
+    {% endif %}
+  </div>
+</details>
+{% endif %}

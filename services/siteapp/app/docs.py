@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypedDict
 
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
@@ -9,10 +9,71 @@ from starlette.status import HTTP_308_PERMANENT_REDIRECT
 
 from app.config import Settings
 from app.markdown import pygments_css, render_markdown
-from app.nav import build_nav
+from app.nav import NavEntry, build_nav
 from app.paths import safe_join
 from app.templates import templates
 from app.translations import find_doc, resolve_lang_file
+
+
+class BreadcrumbCrumb(TypedDict):
+    title: str
+    url: str | None  # None for the leaf (current page)
+
+
+def _find_path(nav: list[NavEntry], target_url: str) -> list[NavEntry]:
+    """DFS for target_url through children; return ancestor + self list."""
+    for entry in nav:
+        if entry.url == target_url:
+            return [entry]
+        if entry.children:
+            sub = _find_path(list(entry.children), target_url)
+            if sub:
+                return [entry, *sub]
+    return []
+
+
+def build_breadcrumb(nav: list[NavEntry], current_url: str) -> list[BreadcrumbCrumb]:
+    """Compose [Docs, ancestors..., self] crumbs for the current URL.
+
+    Returns at least one crumb (the 'Docs' root). Leaf crumb has ``url=None``
+    so the template can render it as plain text.
+    """
+    path = _find_path(nav, current_url)
+    crumbs: list[BreadcrumbCrumb] = [{"title": "Docs", "url": "/docs/"}]
+    for i, entry in enumerate(path):
+        is_leaf = i == len(path) - 1
+        crumbs.append({"title": entry.title_en, "url": None if is_leaf else entry.url})
+    return crumbs
+
+
+def _find_siblings(nav: list[NavEntry], target_url: str) -> tuple[list[NavEntry], int] | None:
+    """Locate the parent's children list + index of target. None if not found.
+
+    Considers top-level entries as siblings of each other.
+    """
+    for i, entry in enumerate(nav):
+        if entry.url == target_url:
+            return nav, i
+        if entry.children:
+            sub = _find_siblings(list(entry.children), target_url)
+            if sub:
+                return sub
+    return None
+
+
+def prev_next(nav: list[NavEntry], current_url: str) -> tuple[NavEntry | None, NavEntry | None]:
+    """Return (prev, next) siblings of current_url within its parent group.
+
+    Siblings = immediate children of the same parent. A child with no
+    siblings (sole child of a section) returns (None, None).
+    """
+    found = _find_siblings(nav, current_url)
+    if found is None:
+        return None, None
+    siblings, idx = found
+    prev = siblings[idx - 1] if idx > 0 else None
+    nxt = siblings[idx + 1] if idx + 1 < len(siblings) else None
+    return prev, nxt
 
 
 DOC_STATIC_EXTS: frozenset[str] = frozenset(
@@ -84,6 +145,8 @@ def make_router(settings: Settings) -> APIRouter:
         result = render_markdown(text)
 
         nav = build_nav(settings.docs_root)
+        crumbs = build_breadcrumb(nav, str(request.url.path))
+        prev, nxt = prev_next(nav, str(request.url.path))
         response = templates.TemplateResponse(
             request,
             "doc.html",
@@ -96,6 +159,9 @@ def make_router(settings: Settings) -> APIRouter:
                 "nav": nav,
                 "current_url": str(request.url.path),
                 "pygments_css": pygments_css(),
+                "crumbs": crumbs,
+                "prev": prev,
+                "next": nxt,
             },
         )
         if lang in ("en", "ru"):

@@ -1,0 +1,64 @@
+:root {
+  /* Colors — Light theme */
+  --bg-page: #ECE9E0;
+  --surface: #FFFFFF;
+  --surface-sunken: #F8F6F0;
+  --surface-strip: #FAF8F3;
+  --surface-rail: #F3F0E6;
+  --border: #E2DED2;
+  --border-strong: #C8C3B5;
+  --border-input: #C3BFB2;
+  --text: #1A1916;
+  --text-secondary: #514E47;
+  --text-muted: #8A8678;
+  --text-inverse: #FAF8F3;
+  --accent: #1F3A8A;
+  --accent-hover: #182E6F;
+  --accent-soft: #E7ECF6;
+  --accent-border: #B8C2DC;
+  --success: #2F7D3F;
+  --success-soft: #E5F1E6;
+  --success-border: #BCD7BE;
+  --danger: #B23A2A;
+  --danger-soft: #F8E5E0;
+  --danger-border: #ECC5BC;
+  --warning: #A37200;
+  --warning-soft: #F5EAC8;
+  --warning-border: #E2D096;
+  --neutral-dot: #9F9B8E;
+  --shadow-card: 0 1px 0 rgba(26,25,22,0.04), 0 1px 2px rgba(26,25,22,0.06);
+  --shadow-popover: 0 10px 24px -8px rgba(26,25,22,0.25), 0 2px 6px rgba(26,25,22,0.08);
+  --shadow-overlay: 0 24px 50px -20px rgba(26,25,22,0.45), 0 8px 18px -6px rgba(26,25,22,0.18);
+
+  /* Typography */
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --base-size: 13px;
+  --base-line: 1.45;
+}
+
+[data-theme="dark"] {
+  --bg-page: #1B1A17;
+  --surface: #232220;
+  --surface-sunken: #1D1C19;
+  --surface-strip: #1F1E1B;
+  --surface-rail: #1E1D1A;
+  --border: #34322D;
+  --border-strong: #4A4740;
+  --text: #F0EDE3;
+  --text-secondary: #B8B3A4;
+  --text-muted: #7E7A6E;
+  --accent: #BCCBF2;
+  --accent-hover: #DBE3F8;
+  --accent-soft: #2A3257;
+  --accent-border: #4A5587;
+  --success: #7CC18A;
+  --success-soft: #1F2C22;
+  --success-border: #335A3E;
+  --danger: #E58879;
+  --danger-soft: #34211D;
+  --danger-border: #6A3D34;
+  --warning: #E3C067;
+  --warning-soft: #2F2715;
+  --warning-border: #5E4C20;
+}

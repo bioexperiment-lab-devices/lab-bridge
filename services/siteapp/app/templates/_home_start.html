@@ -1,0 +1,25 @@
+<section class="lb-start" aria-labelledby="lb-start-title">
+  <h2 id="lb-start-title" class="lb-section-title">{{ s.start_title }}</h2>
+  <div class="lb-start__grid">
+    <a class="lb-start__card" href="{{ s.start_card_researcher_path }}">
+      <span class="lb-start__role">
+        <span class="lb-start__role-dot lb-start__role-dot--researcher" aria-hidden="true"></span>
+        {{ s.start_role_researcher }}
+      </span>
+      <h3 class="lb-start__title">{{ s.start_card_researcher_title }}</h3>
+      <p class="lb-start__desc">{{ s.start_card_researcher_desc }}</p>
+      <span class="lb-start__path">{{ s.start_card_researcher_path }}</span>
+      <span class="lb-start__chev" aria-hidden="true">›</span>
+    </a>
+    <a class="lb-start__card" href="{{ s.start_card_operator_path }}">
+      <span class="lb-start__role">
+        <span class="lb-start__role-dot lb-start__role-dot--operator" aria-hidden="true"></span>
+        {{ s.start_role_operator }}
+      </span>
+      <h3 class="lb-start__title">{{ s.start_card_operator_title }}</h3>
+      <p class="lb-start__desc">{{ s.start_card_operator_desc }}</p>
+      <span class="lb-start__path">{{ s.start_card_operator_path }}</span>
+      <span class="lb-start__chev" aria-hidden="true">›</span>
+    </a>
+  </div>
+</section>

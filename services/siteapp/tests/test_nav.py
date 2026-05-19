@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from app.nav import build_nav
+from app.docs import build_breadcrumb, prev_next
+from app.nav import NavEntry, build_nav
 
 
 @pytest.fixture
@@ -92,3 +93,43 @@ def test_empty_dir_is_skipped(tmp_path: Path) -> None:
     (d / "empty").mkdir()
     nav = build_nav(d)
     assert all(e.url != "/docs/empty/" for e in nav)
+
+
+def _sample_nav() -> list:
+    return [
+        NavEntry(
+            title_en="Researchers",
+            title_ru=None,
+            url="/docs/researcher/",
+            children=(
+                NavEntry(
+                    title_en="First notebook", title_ru=None, url="/docs/researcher/first-notebook"
+                ),
+            ),
+        ),
+        NavEntry(title_en="System overview", title_ru=None, url="/docs/system-overview"),
+    ]
+
+
+def test_breadcrumb_for_nested_doc():
+    crumbs = build_breadcrumb(_sample_nav(), "/docs/researcher/first-notebook")
+    assert [c["title"] for c in crumbs] == ["Docs", "Researchers", "First notebook"]
+
+
+def test_breadcrumb_for_root_doc():
+    crumbs = build_breadcrumb(_sample_nav(), "/docs/system-overview")
+    assert [c["title"] for c in crumbs] == ["Docs", "System overview"]
+
+
+def test_prev_next_in_section():
+    # Single-child section: first-notebook has no siblings → both None.
+    prev, nxt = prev_next(_sample_nav(), "/docs/researcher/first-notebook")
+    assert prev is None and nxt is None
+
+
+def test_prev_next_across_top_level():
+    nav = _sample_nav()
+    prev, nxt = prev_next(nav, "/docs/system-overview")
+    # System-overview comes after Researchers section (top-level order is dirs then files).
+    assert prev is not None and prev.title_en == "Researchers"
+    assert nxt is None

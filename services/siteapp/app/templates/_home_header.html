@@ -1,0 +1,17 @@
+{# Reusable sticky header used by Home + Download. Includes EN/RU toggle. #}
+<header class="lb-home-header" data-target-page="{{ target_page }}">
+  <div class="lb-home-header__left">
+    <span class="lb-home-header__dot" aria-hidden="true"></span>
+    <span class="lb-home-header__wordmark">lab-bridge</span>
+    <span class="lb-home-header__rule" aria-hidden="true"></span>
+    <span class="lb-home-header__tagline">{{ s.tagline }}</span>
+  </div>
+  <div class="lb-home-header__right">
+    <nav class="lb-lang" aria-label="Language">
+      <a href="?lang=en" class="lb-lang__pill{% if lang == 'en' %} is-active{% endif %}"
+         aria-current="{% if lang == 'en' %}true{% else %}false{% endif %}">{{ s.lang_en }}</a>
+      <a href="?lang=ru" class="lb-lang__pill{% if lang == 'ru' %} is-active{% endif %}"
+         aria-current="{% if lang == 'ru' %}true{% else %}false{% endif %}">{{ s.lang_ru }}</a>
+    </nav>
+  </div>
+</header>

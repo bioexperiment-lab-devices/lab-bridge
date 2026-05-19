@@ -1,0 +1,37 @@
+{% set online = labs | selectattr('online') | list %}
+{% set offline = labs | rejectattr('online') | list %}
+<section class="lb-equip" aria-labelledby="lb-equip-title">
+  <header class="lb-equip__head">
+    <h2 id="lb-equip-title">{{ s.labs_panel_title }}</h2>
+    <span class="lb-equip__meta" data-labs-updated>{{ s.labs_just_now }}</span>
+  </header>
+
+  <div class="lb-equip__group" data-group="online">
+    <header class="lb-equip__group-head">
+      <span>{{ s.labs_online }} · <span data-online-count>{{ online | length }}</span></span>
+    </header>
+    {% for lab in online %}
+      <button class="lb-labrow" type="button" data-copy-text="{{ lab.name }}">
+        <span class="lb-labrow__dot lb-labrow__dot--online" aria-hidden="true"></span>
+        <span class="lb-labrow__name">{{ lab.name }}</span>
+        {% if lab.outdated %}
+          <span class="lb-labrow__pill lb-labrow__pill--outdated"
+                title="{{ s.labs_outdated_tooltip }}">{{ s.labs_outdated_pill }}</span>
+        {% endif %}
+        {% if lab.version %}<span class="lb-labrow__version">v{{ lab.version }}</span>{% endif %}
+      </button>
+    {% endfor %}
+  </div>
+
+  <div class="lb-equip__group" data-group="offline">
+    <header class="lb-equip__group-head">
+      <span>{{ s.labs_offline }} · <span data-offline-count>{{ offline | length }}</span></span>
+    </header>
+    {% for lab in offline %}
+      <button class="lb-labrow lb-labrow--offline" type="button" data-copy-text="{{ lab.name }}">
+        <span class="lb-labrow__dot lb-labrow__dot--offline" aria-hidden="true"></span>
+        <span class="lb-labrow__name">{{ lab.name }}</span>
+      </button>
+    {% endfor %}
+  </div>
+</section>

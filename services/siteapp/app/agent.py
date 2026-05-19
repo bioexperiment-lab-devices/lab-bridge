@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
 
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, Response
 
 from app.config import Settings
 from app.markdown import Rendered, pygments_css, render_markdown
+from app.strings import DL_STRINGS, Lang, pick_lang
 from app.templates import templates
 
 
@@ -35,13 +36,35 @@ def load_meta(agent_root: Path) -> AgentInfo | None:
     )
 
 
-def _pick_lang(query: str | None, cookie: str | None) -> Literal["en", "ru"]:
-    for v in (query, cookie):
-        if v == "en":
-            return "en"
-        if v == "ru":
-            return "ru"
-    return "en"
+def _relative_time(iso: str, lang: Lang) -> str:
+    """Localized 'X units ago' string for a UTC ISO timestamp.
+
+    Returns "" on parse failure (template should fall back to the raw
+    timestamp). Uses DL_STRINGS for unit phrases so they stay in one place.
+    """
+    try:
+        normalized = iso.replace("Z", "+00:00")
+        then = datetime.fromisoformat(normalized)
+    except ValueError:
+        return ""
+    if then.tzinfo is None:
+        then = then.replace(tzinfo=UTC)
+    delta = datetime.now(UTC) - then
+    seconds = max(int(delta.total_seconds()), 0)
+    s = DL_STRINGS[lang]
+    if seconds < 60:
+        return s["just_now"]
+    minutes = seconds // 60
+    if minutes < 60:
+        return s["minutes_ago"].format(n=minutes)
+    hours = minutes // 60
+    if hours < 24:
+        return s["hours_ago"].format(n=hours)
+    days = hours // 24
+    if days < 14:
+        return s["days_ago"].format(n=days)
+    weeks = days // 7
+    return s["weeks_ago"].format(n=weeks)
 
 
 def _body_markdown(agent_root: Path, lang: str) -> Rendered | None:
@@ -65,12 +88,12 @@ def make_router(settings: Settings) -> APIRouter:
 
     @router.get("/download/agent")
     def agent_page(request: Request, lang: str | None = None) -> Response:
-        chosen = _pick_lang(lang, request.cookies.get("lang"))
+        chosen = pick_lang(lang, request.cookies.get("lang"))
         info = load_meta(settings.agent_root)
         body = _body_markdown(settings.agent_root, chosen)
         body_html = body.html if body else None
         needs_mermaid = body.needs_mermaid if body else False
-        ru_body_exists = (settings.agent_root / "page.ru.md").is_file()
+        released_relative = _relative_time(info.uploaded_at, chosen) if info else ""
         response = templates.TemplateResponse(
             request,
             "agent.html",
@@ -79,7 +102,8 @@ def make_router(settings: Settings) -> APIRouter:
                 "body_html": body_html,
                 "needs_mermaid": needs_mermaid,
                 "lang": chosen,
-                "ru_exists": ru_body_exists,
+                "s": DL_STRINGS[chosen],
+                "released_relative": released_relative,
                 "pygments_css": pygments_css(),
             },
         )

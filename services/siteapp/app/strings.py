@@ -1,0 +1,174 @@
+# app/strings.py
+from __future__ import annotations
+
+from typing import Literal
+
+Lang = Literal["en", "ru"]
+
+# Ported from docs/design_handoff_lab_bridge/source/lab-bridge-home.jsx STRINGS.
+HOME_STRINGS: dict[Lang, dict[str, str]] = {
+    "en": {
+        "page_title": "lab-bridge — Home",
+        "tagline": "lab instrumentation platform",
+        "lang_en": "EN",
+        "lang_ru": "RU",
+        "intro_eyebrow": "WHAT LAB-BRIDGE IS",
+        "intro_headline": "One bridge from every lab instrument to the researchers using it.",
+        "intro_p1": "Lab PCs run the SerialHop agent, which opens a secure reverse tunnel back to lab-bridge. Researchers reach the instruments from a shared JupyterLab — no VPN, no port-forward, no instrument moved.",
+        "intro_p2": "One portal, every lab. Auth scoped per user. Operators manage the fleet from one place.",
+        "labs_panel_title": "Registered labs",
+        "labs_updated_prefix": "updated",
+        "labs_updated_suffix": "ago",
+        "labs_just_now": "just now",
+        "labs_online": "ONLINE",
+        "labs_offline": "OFFLINE",
+        "labs_outdated_pill": "OUTDATED",
+        "labs_outdated_tooltip": "This lab is on an older SerialHop than the rest of the fleet",
+        "topo_title": "How it works",
+        "topo_node_lab": "Lab PC + instruments",
+        "topo_node_bridge": "lab-bridge",
+        "topo_node_researcher": "Researcher in JupyterLab",
+        "quick_title": "Quick destinations",
+        "quick_jupyter": "JupyterLab",
+        "quick_docs": "Browse docs",
+        "quick_agent": "Download agent",
+        "quick_grafana": "Grafana",
+        "start_title": "Getting started",
+        "start_role_researcher": "FOR RESEARCHERS",
+        "start_role_operator": "FOR LAB OPERATORS",
+        "start_card_researcher_title": "Run your first notebook",
+        "start_card_researcher_desc": "Open JupyterLab, connect to your lab's instruments, and run a one-cell smoke test in five minutes.",
+        "start_card_researcher_path": "/docs/researcher/first-notebook",
+        "start_card_operator_title": "Set up a new lab PC",
+        "start_card_operator_desc": "Install the SerialHop agent, claim a user, register your instruments, and verify the tunnel is alive.",
+        "start_card_operator_path": "/docs/operator/setup-lab-pc",
+    },
+    "ru": {
+        "page_title": "lab-bridge — Главная",
+        "tagline": "платформа управления лабораторным оборудованием",
+        "lang_en": "EN",
+        "lang_ru": "RU",
+        "intro_eyebrow": "ЧТО ТАКОЕ LAB-BRIDGE",
+        "intro_headline": "Один мост от каждого прибора в лаборатории до исследователей, которые им пользуются.",
+        "intro_p1": "Лабораторные ПК запускают агент SerialHop, который открывает защищённый обратный туннель к lab-bridge. Исследователи работают с приборами из общего JupyterLab — без VPN, без проброса портов, без переноса оборудования.",
+        "intro_p2": "Один портал, все лаборатории. Доступ — по пользователю. Операторы управляют парком из одного места.",
+        "labs_panel_title": "Зарегистрированные лаборатории",
+        "labs_updated_prefix": "обновлено",
+        "labs_updated_suffix": "назад",
+        "labs_just_now": "только что",
+        "labs_online": "ОНЛАЙН",
+        "labs_offline": "ОФФЛАЙН",
+        "labs_outdated_pill": "УСТАРЕЛО",
+        "labs_outdated_tooltip": "На этой лаборатории установлена устаревшая версия SerialHop",
+        "topo_title": "Как это работает",
+        "topo_node_lab": "Лабораторный ПК + приборы",
+        "topo_node_bridge": "lab-bridge",
+        "topo_node_researcher": "Исследователь в JupyterLab",
+        "quick_title": "Куда дальше",
+        "quick_jupyter": "JupyterLab",
+        "quick_docs": "Документация",
+        "quick_agent": "Скачать агент",
+        "quick_grafana": "Grafana",
+        "start_title": "С чего начать",
+        "start_role_researcher": "ИССЛЕДОВАТЕЛЯМ",
+        "start_role_operator": "ОПЕРАТОРАМ ЛАБОРАТОРИИ",
+        "start_card_researcher_title": "Запустите первый ноутбук",
+        "start_card_researcher_desc": "Откройте JupyterLab, подключитесь к приборам своей лаборатории и запустите тестовую ячейку за пять минут.",
+        "start_card_researcher_path": "/docs/researcher/first-notebook",
+        "start_card_operator_title": "Настройте новый лабораторный ПК",
+        "start_card_operator_desc": "Установите агент SerialHop, заведите пользователя, зарегистрируйте приборы и убедитесь, что туннель работает.",
+        "start_card_operator_path": "/docs/operator/setup-lab-pc",
+    },
+}
+
+# Ported from docs/design_handoff_lab_bridge/source/lab-bridge-download.jsx DL_STRINGS.
+DL_STRINGS: dict[Lang, dict[str, str]] = {
+    "en": {
+        "page_title": "Download SerialHop — lab-bridge",
+        # Shared header strings (the Download page reuses _home_header.html).
+        "tagline": "lab instrumentation platform",
+        "lang_en": "EN",
+        "lang_ru": "RU",
+        "hero_title": "SerialHop",
+        "hero_lede": "Single-binary agent that exposes a lab PC's instruments to lab-bridge through a secure reverse tunnel.",
+        "source_label": "Source, releases, and protocol notes:",
+        "source_link_text": "github.com/bioexperiment-lab-devices/serialhop",
+        "platform_windows": "Windows",
+        "platform_linux": "Linux",
+        "platform_rpi": "Raspberry Pi",
+        "platform_windows_sub": "Windows 10 / 11 · 64-bit",
+        "platform_linux_sub": "x86_64 · glibc 2.31+",
+        "platform_rpi_sub": "ARM64 · Raspberry Pi OS 12+",
+        "status_available": "Available",
+        "status_coming_soon": "Coming soon",
+        "eta_linux": "expected Q3 2026",
+        "eta_rpi": "expected Q4 2026",
+        "cta_download_for": "Download for",
+        "cta_disabled": "Not yet available — check back soon",
+        "meta_version": "Version",
+        "meta_released": "Released",
+        "meta_sha256": "SHA-256",
+        "meta_copy": "Copy",
+        "meta_copied": "✓ copied",
+        "explainer_summary": "Your browser may block this download",
+        "explainer_intro": "The agent installer is a fresh Windows binary that doesn't yet carry a trusted publisher signature or any reputation in Microsoft Defender SmartScreen. As a result, browsers often hide the downloaded file and Windows refuses to launch it on first run. The file is safe — if you'd like to be sure, verify the SHA-256 below against the value the lab-bridge operator gave you.",
+        "explainer_h4_browser": "IF THE BROWSER HIDES THE DOWNLOAD",
+        "explainer_h4_windows": "IF WINDOWS BLOCKS THE .EXE ON FIRST RUN",
+        "just_now": "just now",
+        "minutes_ago": "{n} minutes ago",
+        "hours_ago": "{n} hours ago",
+        "days_ago": "{n} days ago",
+        "weeks_ago": "{n} weeks ago",
+    },
+    "ru": {
+        "page_title": "Скачать SerialHop — lab-bridge",
+        # Shared header strings.
+        "tagline": "платформа управления лабораторным оборудованием",
+        "lang_en": "EN",
+        "lang_ru": "RU",
+        "hero_title": "SerialHop",
+        "hero_lede": "Single-binary агент, который через защищённый обратный туннель открывает приборы лабораторного ПК для lab-bridge.",
+        "source_label": "Исходный код, релизы, заметки по протоколу:",
+        "source_link_text": "github.com/bioexperiment-lab-devices/serialhop",
+        "platform_windows": "Windows",
+        "platform_linux": "Linux",
+        "platform_rpi": "Raspberry Pi",
+        "platform_windows_sub": "Windows 10 / 11 · 64-бит",
+        "platform_linux_sub": "x86_64 · glibc 2.31+",
+        "platform_rpi_sub": "ARM64 · Raspberry Pi OS 12+",
+        "status_available": "Доступно",
+        "status_coming_soon": "Скоро",
+        "eta_linux": "ожидается Q3 2026",
+        "eta_rpi": "ожидается Q4 2026",
+        "cta_download_for": "Скачать для",
+        "cta_disabled": "Пока недоступно — загляните позже",
+        "meta_version": "Версия",
+        "meta_released": "Выпущено",
+        "meta_sha256": "SHA-256",
+        "meta_copy": "Копировать",
+        "meta_copied": "✓ скопировано",
+        "explainer_summary": "Браузер может заблокировать эту загрузку",
+        "explainer_intro": "Установщик агента — свежая Windows-программа, у которой пока нет подписи доверенного издателя и накопленной репутации в Microsoft Defender SmartScreen. Из-за этого браузер часто прячет скачанный файл, а Windows отказывается запускать его при первом открытии. Сам файл безопасен — при желании сверьте SHA-256 ниже с тем, что прислал оператор lab-bridge.",
+        "explainer_h4_browser": "ЕСЛИ БРАУЗЕР СКРЫЛ ЗАГРУЗКУ",
+        "explainer_h4_windows": "ЕСЛИ WINDOWS ЗАБЛОКИРОВАЛ .EXE ПРИ ЗАПУСКЕ",
+        "just_now": "только что",
+        "minutes_ago": "{n} мин назад",
+        "hours_ago": "{n} ч назад",
+        "days_ago": "{n} дн назад",
+        "weeks_ago": "{n} нед назад",
+    },
+}
+
+
+def pick_lang(query: str | None, cookie: str | None) -> Lang:
+    """Resolve lang from query param, then cookie, defaulting to 'en'.
+
+    Mirrors the same precedence used by app/docs.py and app/agent.py
+    (query wins, then cookie, then 'en').
+    """
+    for v in (query, cookie):
+        if v == "en":
+            return "en"
+        if v == "ru":
+            return "ru"
+    return "en"
