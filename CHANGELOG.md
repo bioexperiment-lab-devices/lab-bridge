@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.3](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.2...v0.12.3) (2026-05-19)
+
+
+### Bug Fixes
+
+* **platform:** close design gaps in nav, header, and dark-mode accents ([#76](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/76)) ([75c693c](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/75c693c86454c73ded3da4dcb1e3625974caa299))
+* **siteapp:** rebuild docs page to match design handoff ([#74](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/74)) ([a29e3c9](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/a29e3c9283f5acc7698059f7e14a787a041091e4))
+
 ## [0.12.2](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.1...v0.12.2) (2026-05-19)
 
 
