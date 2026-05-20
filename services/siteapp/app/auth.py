@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Cookie, Header, Request
+from fastapi import APIRouter, Cookie, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from app.config import Settings
