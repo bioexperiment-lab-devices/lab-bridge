@@ -30,6 +30,10 @@ access_control:
   rules:
     - domain: siteapp.local
       resources:
+        - '^/api/auth/whoami$'
+      policy: one_factor
+    - domain: siteapp.local
+      resources:
         - '^/flash.*'
       policy: one_factor
       subject: 'group:admins'

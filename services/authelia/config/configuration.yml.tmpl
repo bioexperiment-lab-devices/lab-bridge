@@ -32,6 +32,10 @@ access_control:
   rules:
     - domain: __VPS_HOST__
       resources:
+        - '^/api/auth/whoami$'
+      policy: one_factor
+    - domain: __VPS_HOST__
+      resources:
         - '^/flash.*'
       policy: one_factor
       subject: 'group:admins'

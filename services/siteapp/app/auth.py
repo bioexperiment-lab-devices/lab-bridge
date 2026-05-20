@@ -77,14 +77,20 @@ def make_router(settings: Settings) -> APIRouter:
     ) -> JSONResponse:
         if not authelia_session:
             return JSONResponse({"user": None})
+        # Use a fixed sentinel URI that any authenticated user can access
+        # (see access_control rule for ^/api/auth/whoami$).  The proto must
+        # be https because Authelia issues secure cookies tied to the TLS
+        # session domain; in prod Caddy provides https, so we hardcode it here.
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+        verify_headers = {
+            "Cookie": f"authelia_session={authelia_session}",
+            "X-Forwarded-Host": host,
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Uri": "/api/auth/whoami",
+            "X-Forwarded-Method": "GET",
+        }
         try:
-            r = await client.get(
-                "/api/verify",
-                headers={
-                    "Cookie": f"authelia_session={authelia_session}",
-                    **_forwarded_headers(request, "/"),
-                },
-            )
+            r = await client.get("/api/verify", headers=verify_headers)
         except httpx.RequestError:
             return JSONResponse({"user": None})
         if r.status_code != 200:
@@ -104,15 +110,22 @@ def make_router(settings: Settings) -> APIRouter:
     @router.get("/logout")
     async def logout(request: Request) -> Response:
         cookie = request.headers.get("cookie", "")
+        # Authelia 4.38 /api/logout is POST-only; it invalidates the session
+        # server-side but does not emit a Set-Cookie header.  We POST to
+        # invalidate, then clear the client-side cookie ourselves.
         try:
-            r = await client.get("/api/logout", headers={"Cookie": cookie})
+            await client.post("/api/logout", headers={"Cookie": cookie})
         except httpx.RequestError:
-            r = None
+            pass
         resp = RedirectResponse("/", status_code=302)
-        if r is not None:
-            for key, value in r.headers.multi_items():
-                if key.lower() == "set-cookie":
-                    resp.raw_headers.append((b"set-cookie", value.encode("latin-1")))
+        # Expire the authelia_session cookie on the client.
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+        domain = host.split(":")[0]  # strip port if present
+        expire_cookie = (
+            f"authelia_session=; Max-Age=0; domain={domain}; path=/; "
+            "HttpOnly; SameSite=Lax"
+        )
+        resp.raw_headers.append((b"set-cookie", expire_cookie.encode("latin-1")))
         return resp
 
     @router.get("/_errors/403", response_class=HTMLResponse, include_in_schema=False)
