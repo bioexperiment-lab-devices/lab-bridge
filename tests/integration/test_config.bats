@@ -115,7 +115,7 @@ PINS
     [ "$status" -eq 0 ]
     [[ "$output" == *"prom/prometheus:v3.0.1"* ]]
     [[ "$output" == *"quay.io/prometheus/node-exporter:v1.8.2"* ]]
-    [[ "$output" == *"gcr.io/cadvisor/cadvisor:v0.49.1"* ]]
+    [[ "$output" == *"gcr.io/cadvisor/cadvisor:v0.57.0"* ]]
     [[ "$output" == *"30"* ]]
 }
 

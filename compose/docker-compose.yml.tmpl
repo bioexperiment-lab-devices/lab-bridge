@@ -95,6 +95,15 @@ services:
       - --path.sysfs=/host/sys
       - --path.rootfs=/host/root
       - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)
+      # Extra collectors used by the bundled node-exporter-full dashboard;
+      # off by default in node-exporter so the panels would otherwise sit
+      # empty even though the metric names exist in the dashboard JSON:
+      #   processes  → node_processes_{state,pids,threads,max_*}
+      #   interrupts → node_interrupts_total (IRQ Detail panel)
+      #   tcpstat    → node_tcp_connection_states (TCP Stat Persistent/Transient/Queue)
+      - --collector.processes
+      - --collector.interrupts
+      - --collector.tcpstat
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -104,6 +113,15 @@ services:
   cadvisor:
     image: __CADVISOR_IMAGE__
     restart: unless-stopped
+    # privileged + /dev/kmsg match the upstream-recommended deployment for
+    # bare-metal Docker. Without /dev/kmsg cadvisor cannot subscribe to OOM
+    # events (spams "Could not configure a source for OOM detection"). The
+    # privileged bit ensures cadvisor can traverse every cgroup subtree on
+    # the host — required after Docker switched to the systemd cgroup driver
+    # under cgroup v2 (the default on Ubuntu 24.04).
+    privileged: true
+    devices:
+      - /dev/kmsg
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
