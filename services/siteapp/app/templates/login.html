@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Sign in — lab-bridge{% endblock %}
+{% block main %}
+  <section class="lb-login">
+    <h1>Sign in</h1>
+    <form id="login-form">
+      <label>
+        <span>Username</span>
+        <input type="text" name="username" autocomplete="username" autofocus required>
+      </label>
+      <label>
+        <span>Password</span>
+        <input type="password" name="password" autocomplete="current-password" required>
+      </label>
+      <label class="lb-login-remember">
+        <input type="checkbox" name="remember" checked>
+        Remember me
+      </label>
+      <button type="submit">Sign in</button>
+      <p class="lb-login-error" hidden></p>
+    </form>
+  </section>
+
+  <script>
+    (function () {
+      const params = new URLSearchParams(location.search);
+      const rd = params.get('rd') || {{ rd|tojson }};
+      const form = document.getElementById('login-form');
+      const errEl = form.querySelector('.lb-login-error');
+
+      form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        errEl.hidden = true;
+        const data = new FormData(form);
+        try {
+          const r = await fetch('/api/auth/firstfactor', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: data.get('username'),
+              password: data.get('password'),
+              targetURL: rd,
+              keepMeLoggedIn: data.get('remember') === 'on',
+            }),
+          });
+          if (r.status === 200) {
+            const body = await r.json();
+            location.href = body.redirect || '/';
+            return;
+          }
+          errEl.textContent = r.status === 401
+            ? 'Incorrect username or password.'
+            : 'Sign-in failed (' + r.status + ').';
+          errEl.hidden = false;
+        } catch (e) {
+          errEl.textContent = 'Network error.';
+          errEl.hidden = false;
+        }
+      });
+    })();
+  </script>
+{% endblock %}
