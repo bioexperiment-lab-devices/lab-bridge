@@ -7,6 +7,7 @@ VERSION="$(awk 'NF { print $1; exit }' "$REPO_ROOT/VERSION")"
 GIT_SHA="$(git -C "$REPO_ROOT" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)"
 
 : "${AUTHELIA_IMAGE_REPO:=$(yq e '.authelia_image_repo' "$REPO_ROOT/compose/pins.yaml")}"
+: "${AUTHELIA_VERSION:=$(yq e '.authelia_image' "$REPO_ROOT/compose/pins.yaml" | cut -d: -f2)}"
 AUTHELIA_IMAGE="${AUTHELIA_IMAGE_REPO}:${VERSION}"
 
 cd "$SCRIPT_DIR"
@@ -14,6 +15,7 @@ docker buildx build \
     --platform linux/amd64 \
     --build-arg "LAB_BRIDGE_VERSION=${VERSION}" \
     --build-arg "LAB_BRIDGE_GIT_SHA=${GIT_SHA}" \
+    --build-arg "AUTHELIA_VERSION=${AUTHELIA_VERSION}" \
     --tag "$AUTHELIA_IMAGE" \
     --push \
     .
