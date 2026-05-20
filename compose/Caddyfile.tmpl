@@ -3,18 +3,18 @@
     default_sni __VPS_HOST__
     admin :2019
 
-    # Enable HTTP request metrics on the admin /metrics endpoint. Without
-    # this, only admin/runtime/Go metrics are exposed and the Caddy + platform
-    # dashboards (caddy_http_requests_total, caddy_http_request_duration_*,
-    # caddy_http_request_errors_total, etc.) sit empty.
     servers {
         metrics
     }
 
-    # replace-response does not self-register; required for the top-level
-    # replace block below. See services/caddy/tests/e2e/Caddyfile.fixture
-    # for the testbed that validated this syntax.
     order replace after encode
+}
+
+(authelia_required) {
+    forward_auth authelia:9091 {
+        uri /api/verify?rd=https://__VPS_HOST__/login
+        copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
+    }
 }
 
 https://__VPS_HOST__ {
@@ -25,9 +25,6 @@ https://__VPS_HOST__ {
     }
 
     # ─── Platform shell assets ───────────────────────────────────────────
-    # Files live FLAT at compose/shell/{navbar.js,navbar-inner.css}; we
-    # strip the /_shared prefix here so file_server resolves them at
-    # /srv/shell/<name>, not /srv/shell/_shared/<name>.
     handle /_shared/* {
         uri strip_prefix /_shared
         root * /srv/shell
@@ -37,10 +34,14 @@ https://__VPS_HOST__ {
         header Cache-Control "public, max-age=60, must-revalidate"
     }
 
-    # ─── siteapp routes (unchanged paths) ────────────────────────────────
-    # All siteapp handlers use `handle` (not `handle_path`): siteapp's
-    # FastAPI routes are declared with full paths (e.g., `/docs/{path:path}`,
-    # `/download/agent/...`), so prefix-stripping would 404 every request.
+    # ─── Authelia (public — OIDC discovery + redirects) ──────────────────
+    handle /auth/* {
+        reverse_proxy authelia:9091 {
+            header_up -Accept-Encoding
+        }
+    }
+
+    # ─── siteapp public routes (unchanged) ───────────────────────────────
     handle /_static/* {
         reverse_proxy siteapp:8000 {
             header_up -Accept-Encoding
@@ -67,21 +68,37 @@ https://__VPS_HOST__ {
         }
     }
 
-    # ─── Flasher ─────────────────────────────────────────────────────────
+    # ─── siteapp auth surface (login form, API, error pages) ─────────────
+    handle /login {
+        reverse_proxy siteapp:8000 {
+            header_up -Accept-Encoding
+        }
+    }
+    handle /logout {
+        reverse_proxy siteapp:8000 {
+            header_up -Accept-Encoding
+        }
+    }
+    handle /api/auth/* {
+        reverse_proxy siteapp:8000 {
+            header_up -Accept-Encoding
+        }
+    }
+
+    # ─── Flasher (admins only — forward_auth replaces basic_auth) ────────
     handle /flash/api/v1/* {
         reverse_proxy flasher:8000 {
             header_up -Accept-Encoding
         }
     }
     handle /flash* {
+        import authelia_required
         reverse_proxy flasher:8000 {
             header_up -Accept-Encoding
         }
     }
 
-    # ─── Grafana ─────────────────────────────────────────────────────────
-    # CSP rewrite: regex-append 'self' to script-src and style-src so the
-    # navbar bundle loads cleanly within Grafana's own CSP.
+    # ─── Grafana (OIDC handled inside Grafana; Caddy stays as proxy) ─────
     handle /grafana/* {
         header Content-Security-Policy "(script-src[^;]*)" "${1} 'self'"
         header Content-Security-Policy "(style-src[^;]*)" "${1} 'self'"
@@ -90,11 +107,9 @@ https://__VPS_HOST__ {
         }
     }
 
-    # ─── JupyterLab ──────────────────────────────────────────────────────
-    # Jupyter is configured with --ServerApp.base_url=/jupyter (Task 13
-    # adds this to the compose file). We use `handle` (not handle_path)
-    # because Jupyter expects to see the prefix.
+    # ─── JupyterLab (forward_auth replaces shared password) ──────────────
     handle /jupyter* {
+        import authelia_required
         header Content-Security-Policy "(script-src[^;]*)" "${1} 'self'"
         header Content-Security-Policy "(style-src[^;]*)" "${1} 'self'"
         reverse_proxy jupyter:8888 {
@@ -103,25 +118,19 @@ https://__VPS_HOST__ {
     }
 
     # ─── Temporary redirect for old Jupyter bookmarks ────────────────────
-    # Remove in the release following the navbar release.
     @old_jupyter {
-        path /lab* /tree* /login
+        path /lab* /tree*
     }
     redir @old_jupyter /jupyter{uri} 302
 
     # ─── Home — siteapp serves / ─────────────────────────────────────────
-    # The previous bare-root redirect (@bare_root path_regexp ^/$ →
-    # /docs/ 302) is removed; siteapp now owns / and renders home.html.
     handle / {
         reverse_proxy siteapp:8000 {
             header_up -Accept-Encoding
         }
     }
 
-    # ─── Global HTML rewrite ─────────────────────────────────────────────
-    # Inject the platform navbar script tag before </head> on every
-    # text/html response from any handle above. The match block is a
-    # response-header matcher (plugin syntax), not a Caddy request matcher.
+    # ─── Global HTML rewrite — navbar injection ──────────────────────────
     replace {
         match {
             header Content-Type *text/html*
@@ -129,7 +138,19 @@ https://__VPS_HOST__ {
         "</head>" `<script src="/_shared/navbar.js?v=__PLATFORM_VERSION__" data-version="__PLATFORM_VERSION__" defer></script></head>`
     }
 
-    # No catchall — unmatched paths return Caddy's default 404 by design.
-    # The previous "reverse_proxy jupyter:8888" fallback is removed; Jupyter
-    # is now reachable only via the explicit /jupyter* handler above.
+    # ─── Error pages → siteapp templates ─────────────────────────────────
+    handle_errors {
+        @e403 expression {http.error.status_code} == 403
+        @e404 expression {http.error.status_code} == 404
+        @e401 expression {http.error.status_code} == 401
+        rewrite @e403 /_errors/403
+        rewrite @e404 /_errors/404
+        # 401 from forward_auth is already turned into a 302 to /login by the
+        # snippet's rd= parameter. If we still see a 401 here, treat it as a
+        # 403 so the user sees a useful page instead of Caddy's raw error.
+        rewrite @e401 /_errors/403
+        reverse_proxy siteapp:8000 {
+            header_up -Accept-Encoding
+        }
+    }
 }

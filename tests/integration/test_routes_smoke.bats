@@ -2,7 +2,7 @@
 # Caddy routing smoke test — one fake-VPS bring-up, all curl assertions.
 #
 # Asserts only the *route map* (which public path reaches which backend
-# service) and the *Caddy-edge auth gate* (/flash/ basic_auth).
+# service) and the *Caddy-edge auth gate* (/flash/ forward_auth → 302).
 # Behavior assertions live in services/<name>/tests/e2e/.
 
 load helpers
@@ -85,9 +85,9 @@ _through_caddy() {
     [[ "$code" == "200" ]] || { echo "got: $code"; false; }
 }
 
-@test "/flash/ is gated by basic_auth (401)" {
+@test "/flash/ is gated by forward_auth (302 to /login)" {
     code="$(_through_caddy 'https://127.0.0.1/flash/')"
-    [[ "$code" == "401" ]] || { echo "got: $code"; false; }
+    [[ "$code" == "302" ]] || { echo "got: $code"; false; }
 }
 
 @test "/grafana/login routes to grafana (200)" {
@@ -107,10 +107,10 @@ _through_caddy() {
 }
 
 # Helper: curl through Caddy with a Bearer Authorization header. With a valid
-# flasher bearer token the bearer endpoint succeeds past auth and the response
-# code reflects the app's own validation (e.g., 404 for an unknown sha256).
-# A Caddy basic_auth intercept would still return 401 regardless of the
-# bearer header. Token matches what setup_file() wrote to LDS_FLASHER_UPLOAD_TOKEN_FILE.
+# flasher bearer token the /flash/api/v1/* endpoint (no forward_auth) succeeds
+# past auth and the response code reflects the app's own validation (e.g., 404
+# for an unknown sha256). Token matches what setup_file() wrote to
+# LDS_FLASHER_UPLOAD_TOKEN_FILE.
 _through_caddy_with_bearer() {
     docker exec lds-fake-vps bash -c "
         cd /srv/lab-bridge && docker compose exec -T caddy sh -c '
@@ -120,18 +120,17 @@ _through_caddy_with_bearer() {
 }
 
 @test "/flash/api/v1/firmware reaches flasher (404 with bearer — Caddy bypassed)" {
-    # With the runtime bearer token the request passes auth in flasher and
-    # we get 404 (no firmware with sha256=deadbeef). If Caddy intercepted
-    # with basic_auth, the response would be 401 regardless of bearer.
+    # /flash/api/v1/* has no forward_auth gate; bearer token passes through
+    # to flasher which returns 404 (no firmware with sha256=deadbeef).
     code="$(_through_caddy_with_bearer 'https://127.0.0.1/flash/api/v1/firmware?sha256=deadbeef')"
     [[ "$code" == "404" ]] || { echo "got: $code"; false; }
 }
 
-@test "/flash/ is still gated by basic_auth (401 even with bearer)" {
-    # Bearer header is meaningless to Caddy's basic_auth challenge — the
-    # request never reaches flasher.
+@test "/flash/ is gated by forward_auth (302 even with bearer)" {
+    # forward_auth ignores the Bearer header — Authelia is the gatekeeper.
+    # The request is redirected to /login regardless of the Authorization header.
     code="$(_through_caddy_with_bearer 'https://127.0.0.1/flash/')"
-    [[ "$code" == "401" ]] || { echo "got: $code"; false; }
+    [[ "$code" == "302" ]] || { echo "got: $code"; false; }
 }
 
 # Helper: fetch response BODY through the fake-VPS Caddy.
