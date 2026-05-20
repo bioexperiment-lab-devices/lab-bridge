@@ -17,7 +17,9 @@ node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
 # `overlayfs` storage driver (default on Ubuntu 24.04 with Docker 28+).
 # Older versions fail with "Failed to identify the read-write layer ID"
 # and never attach the `name` label, leaving every container_* panel empty.
-cadvisor_image: gcr.io/cadvisor/cadvisor:v0.57.0
+# Registry: from v0.56 onwards cadvisor only publishes to ghcr.io/google/cadvisor
+# (the legacy gcr.io/cadvisor/cadvisor mirror stopped at v0.54.x).
+cadvisor_image: ghcr.io/google/cadvisor:v0.57.0
 
 # Prometheus TSDB retention. Mirrors loki_retention_days for symmetry between
 # logs and metrics history (see compose/pins.yaml:loki_retention_days).

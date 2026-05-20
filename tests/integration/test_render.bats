@@ -479,7 +479,7 @@ CFG
         cat $TMPDIR/docker-compose.yml
     "
     [ "$status" -eq 0 ]
-    [[ "$output" == *"image: gcr.io/cadvisor/cadvisor:v0.57.0"* ]]
+    [[ "$output" == *"image: ghcr.io/google/cadvisor:v0.57.0"* ]]
     [[ "$output" == *"/var/run/docker.sock:/var/run/docker.sock:ro"* ]]
     [[ "$output" == *"/:/rootfs:ro"* ]]
     [[ "$output" == *"/var/lib/docker:/var/lib/docker:ro"* ]]
