@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.6](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.5...v0.12.6) (2026-05-20)
+
+
+### Bug Fixes
+
+* **flasher:** keep platform nav rail flush with viewport top ([#82](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/82)) ([1dde337](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/1dde337998a869770c020bff2ce2d268fa8e1ca5))
+
 ## [0.12.5](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.4...v0.12.5) (2026-05-19)
 
 
