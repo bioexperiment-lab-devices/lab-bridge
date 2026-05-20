@@ -10,17 +10,45 @@ services:
       SITEAPP_CLIENTS_FILE: /etc/siteapp/clients.json
       SITEAPP_AGENT_UPLOAD_TOKEN__FILE: /run/secrets/agent_upload_token
       SITEAPP_DOCS_DIR: /srv/docs
+      SITEAPP_AUTHELIA_URL: http://authelia:9091
       SITE_DATA: /data
     volumes:
       - ./fixtures/clients.json:/etc/siteapp/clients.json:ro
       - ./fixtures/agent_upload_token:/run/secrets/agent_upload_token:ro
       - ./fixtures/docs:/srv/docs:ro
       - siteapp_data:/data
+    depends_on:
+      authelia:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz').status==200 else 1)\""]
       interval: 1s
       timeout: 2s
       retries: 30
 
+  authelia:
+    image: ${AUTHELIA_TEST_IMAGE:-authelia/authelia:4.38.10}
+    volumes:
+      - ./fixtures/authelia_config.yml:/config/configuration.yml:ro
+      - ./fixtures/authelia_users.yml:/config/users_database.yml:ro
+      - ./fixtures/authelia_secrets/jwt_secret:/run/secrets/jwt_secret:ro
+      - ./fixtures/authelia_secrets/session_secret:/run/secrets/session_secret:ro
+      - ./fixtures/authelia_secrets/storage_encryption_key:/run/secrets/storage_encryption_key:ro
+      - ./fixtures/authelia_secrets/oidc_hmac_secret:/run/secrets/oidc_hmac_secret:ro
+      - ./fixtures/authelia_secrets/oidc_jwks_key.pem:/run/secrets/oidc_jwks_key.pem:ro
+      - authelia_data:/data
+    environment:
+      AUTHELIA_JWT_SECRET_FILE: /run/secrets/jwt_secret
+      AUTHELIA_SESSION_SECRET_FILE: /run/secrets/session_secret
+      AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE: /run/secrets/storage_encryption_key
+      AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET_FILE: /run/secrets/oidc_hmac_secret
+      AUTHELIA_IDENTITY_PROVIDERS_OIDC_ISSUER_PRIVATE_KEY_FILE: /run/secrets/oidc_jwks_key.pem
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:9091/api/health"]
+      interval: 1s
+      timeout: 2s
+      retries: 30
+
 volumes:
   siteapp_data:
+  authelia_data:
