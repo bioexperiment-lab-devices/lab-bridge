@@ -3,6 +3,14 @@
     default_sni __VPS_HOST__
     admin :2019
 
+    # Enable HTTP request metrics on the admin /metrics endpoint. Without
+    # this, only admin/runtime/Go metrics are exposed and the Caddy + platform
+    # dashboards (caddy_http_requests_total, caddy_http_request_duration_*,
+    # caddy_http_request_errors_total, etc.) sit empty.
+    servers {
+        metrics
+    }
+
     # replace-response does not self-register; required for the top-level
     # replace block below. See services/caddy/tests/e2e/Caddyfile.fixture
     # for the testbed that validated this syntax.

@@ -479,16 +479,21 @@ CFG
         cat $TMPDIR/docker-compose.yml
     "
     [ "$status" -eq 0 ]
-    [[ "$output" == *"image: gcr.io/cadvisor/cadvisor:v0.49.1"* ]]
+    [[ "$output" == *"image: ghcr.io/google/cadvisor:v0.57.0"* ]]
     [[ "$output" == *"/var/run/docker.sock:/var/run/docker.sock:ro"* ]]
     [[ "$output" == *"/:/rootfs:ro"* ]]
     [[ "$output" == *"/var/lib/docker:/var/lib/docker:ro"* ]]
     run yq e '.services.cadvisor | has("ports")' "$TMPDIR/docker-compose.yml"
     [ "$status" -eq 0 ]
     [[ "$output" == "false" ]]
+    # cadvisor needs privileged + /dev/kmsg to read container cgroups and OOM
+    # events under the systemd cgroup driver — see compose/docker-compose.yml.tmpl.
     run yq e '.services.cadvisor.privileged // false' "$TMPDIR/docker-compose.yml"
     [ "$status" -eq 0 ]
-    [[ "$output" == "false" ]]
+    [[ "$output" == "true" ]]
+    run yq e '.services.cadvisor.devices[0]' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "/dev/kmsg" ]]
     run grep -qE '__[A-Z][A-Z0-9_]*__' "$TMPDIR/docker-compose.yml"
     [ "$status" -eq 1 ]
 }
