@@ -34,6 +34,8 @@ _REQUIRED_PINS_FIELDS=(
     .siteapp_image_repo
     .flasher_image_repo
     .caddy_image_repo
+    .authelia_image_repo
+    .authelia_image
     .acme_email
     .remote_root
     .notebooks_path
@@ -168,4 +170,7 @@ load_config() {
     export SITEAPP_IMAGE_REPO    ; SITEAPP_IMAGE_REPO="$(_yq e '.siteapp_image_repo' "$pins_path")"
     export FLASHER_IMAGE_REPO    ; FLASHER_IMAGE_REPO="$(_yq e '.flasher_image_repo' "$pins_path")"
     export CADDY_IMAGE_REPO      ; CADDY_IMAGE_REPO="$(_yq e '.caddy_image_repo' "$pins_path")"
+    export AUTHELIA_IMAGE_REPO   ; AUTHELIA_IMAGE_REPO="$(_yq e '.authelia_image_repo' "$pins_path")"
+    export AUTHELIA_IMAGE        ; AUTHELIA_IMAGE="$(_yq e '.authelia_image' "$pins_path")"
+    export AUTHELIA_GRAFANA_OIDC_SECRET_HASH ; AUTHELIA_GRAFANA_OIDC_SECRET_HASH="$(_yq e '.authelia.grafana_oidc_secret_hash // ""' "$config_path")"
 }

@@ -47,11 +47,8 @@ teardown() { teardown_tmpdir; }
     [[ "$output" == *"profile shortlived"* ]]
     [[ "$output" == *"default_sni 192.0.2.10"* ]]
     [[ "$output" == *"reverse_proxy jupyter:8888"* ]]
-    # basic_auth must ONLY appear inside the /flash* handle block (mobile WebSocket
-    # upgrades break under top-level basic_auth on JupyterLab). Verify that every
-    # basic_auth occurrence is preceded by "handle /flash" within a few lines.
-    grep -q 'basic_auth' <<< "$output" && \
-        grep -B 5 'basic_auth' <<< "$output" | grep -q '/flash'
+    # basic_auth is no longer present — Authelia handles auth via forward_auth.
+    ! grep -q 'basic_auth' <<< "$output"
     ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
 }
 
@@ -340,6 +337,8 @@ grafana_image: gra:1
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
 caddy_image_repo: ghcr.io/example/lab-bridge-caddy
+authelia_image_repo: ghcr.io/example/lab-bridge-authelia
+authelia_image: ghcr.io/example/lab-bridge-authelia:latest
 acme_email: x@example.com
 remote_root: /srv/lb
 notebooks_path: /srv/lb/nb
@@ -387,6 +386,8 @@ grafana_image: gra:1
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
 caddy_image_repo: ghcr.io/example/lab-bridge-caddy
+authelia_image_repo: ghcr.io/example/lab-bridge-authelia
+authelia_image: ghcr.io/example/lab-bridge-authelia:latest
 acme_email: x@example.com
 remote_root: /srv/lb
 notebooks_path: /srv/lb/nb
@@ -496,6 +497,80 @@ CFG
     [[ "$output" == "/dev/kmsg" ]]
     run grep -qE '__[A-Z][A-Z0-9_]*__' "$TMPDIR/docker-compose.yml"
     [ "$status" -eq 1 ]
+}
+
+@test "render_authelia_config substitutes __VPS_HOST__ and __GRAFANA_OIDC_SECRET_HASH__" {
+    export VPS_HOST="vps.example"
+    export AUTHELIA_GRAFANA_OIDC_SECRET_HASH='$pbkdf2-sha512$test$hash'
+
+    local tmpl="$BATS_TEST_TMPDIR/configuration.yml.tmpl"
+    local out="$BATS_TEST_TMPDIR/configuration.yml"
+    cat > "$tmpl" <<'EOF'
+session:
+  domain: __VPS_HOST__
+identity_providers:
+  oidc:
+    clients:
+      - id: grafana
+        secret: '__GRAFANA_OIDC_SECRET_HASH__'
+EOF
+
+    source "$ROOT/scripts/lib/common.sh"
+    source "$ROOT/scripts/lib/render.sh"
+    render_authelia_config "$tmpl" "$out"
+
+    grep -q "domain: vps.example" "$out"
+    grep -q 'secret: ..pbkdf2-sha512.test.hash.' "$out"
+}
+
+@test "render_compose substitutes __AUTHELIA_IMAGE__" {
+    source "$ROOT/scripts/lib/common.sh"
+    source "$ROOT/scripts/lib/config.sh"
+    source "$ROOT/scripts/lib/render.sh"
+
+    # Minimal pins with authelia fields.
+    mkdir -p "$BATS_TEST_TMPDIR/compose"
+    cat > "$BATS_TEST_TMPDIR/compose/pins.yaml" <<'PINS'
+jupyter_image: jup:1
+chisel_image: chi:1
+chisel_listen_port: 8080
+loki_image: lok:1
+loki_retention_days: 30
+grafana_image: gra:1
+siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
+flasher_image_repo: ghcr.io/example/lab-bridge-flasher
+caddy_image_repo: ghcr.io/example/lab-bridge-caddy
+authelia_image_repo: ghcr.io/test/authelia
+authelia_image: ghcr.io/test/authelia:latest
+acme_email: x@example.com
+remote_root: /srv/lb
+notebooks_path: /srv/lb/nb
+ssh_port: 22
+prometheus_image: prom/prometheus:v3.0.1
+node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
+cadvisor_image: gcr.io/cadvisor/cadvisor:v0.49.1
+prometheus_retention_days: 30
+PINS
+    cat > "$BATS_TEST_TMPDIR/config.yaml" <<'EOF'
+vps: { host: vps.example, ssh_user: root }
+jupyter: { password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567" }
+siteapp: { admin_password_hash: "$2a$14$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345" }
+chisel_clients: []
+EOF
+    LDS_VERSION_FILE="$BATS_TEST_TMPDIR/VERSION"
+    echo "9.9.9" > "$LDS_VERSION_FILE"
+    export LDS_VERSION_FILE
+    export LDS_PINS_FILE="$BATS_TEST_TMPDIR/compose/pins.yaml"
+    export AUTHELIA_IMAGE_REPO="ghcr.io/test/authelia"
+
+    CONFIG_PATH="$BATS_TEST_TMPDIR/config.yaml" load_config "$BATS_TEST_TMPDIR/config.yaml"
+
+    local tmpl="$BATS_TEST_TMPDIR/compose.yml.tmpl"
+    local out="$BATS_TEST_TMPDIR/compose.yml"
+    echo "image: __AUTHELIA_IMAGE__" > "$tmpl"
+    render_compose "$tmpl" "$out"
+
+    grep -q "image: ghcr.io/test/authelia:9.9.9" "$out"
 }
 
 @test "render_caddyfile: emits admin :2019 directive so Prometheus can scrape /metrics" {

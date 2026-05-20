@@ -39,14 +39,21 @@ _caddy_image() {
     printf '%s:%s' "$repo" "$(_unified_version)"
 }
 
+# _authelia_image — print ghcr.io/<owner>/lab-bridge-authelia:<version>
+_authelia_image() {
+    local repo="${AUTHELIA_IMAGE_REPO:?AUTHELIA_IMAGE_REPO not set — did load_config run?}"
+    printf '%s:%s' "$repo" "$(_unified_version)"
+}
+
 # render_compose <template_path> <output_path>
 render_compose() {
     local tmpl="${1:?}" out="${2:?}"
     [[ -f "$tmpl" ]] || die "template not found: $tmpl"
-    local siteapp_image flasher_image caddy_image
+    local siteapp_image flasher_image caddy_image authelia_image
     siteapp_image="$(_siteapp_image)"
     flasher_image="$(_flasher_image)"
     caddy_image="$(_caddy_image)"
+    authelia_image="$(_authelia_image)"
     # The password_hash contains $ and : characters but no | (sha1:hex:hex),
     # so | as the sed delimiter is safe.
     sed \
@@ -65,6 +72,7 @@ render_compose() {
         -e "s|__SITEAPP_IMAGE__|${siteapp_image}|g" \
         -e "s|__FLASHER_IMAGE__|${flasher_image}|g" \
         -e "s|__CADDY_IMAGE__|${caddy_image}|g" \
+        -e "s|__AUTHELIA_IMAGE__|${authelia_image}|g" \
         "$tmpl" \
         > "$out"
 }
@@ -78,7 +86,6 @@ render_caddyfile() {
     sed \
         -e "s|__ACME_EMAIL__|${CADDY_ACME_EMAIL:?}|g" \
         -e "s|__VPS_HOST__|${VPS_HOST:?}|g" \
-        -e "s|__ADMIN_BCRYPT_HASH__|${SITEAPP_ADMIN_PASSWORD_HASH:?}|g" \
         -e "s|__PLATFORM_VERSION__|${platform_version}|g" \
         "$tmpl" > "$out"
 }
@@ -150,6 +157,20 @@ render_loki_config() {
     [[ "$days" =~ ^[0-9]+$ ]] || die "LOKI_RETENTION_DAYS must be a positive integer, got: $days"
     local hours=$(( days * 24 ))
     sed -e "s|__LOKI_RETENTION_HOURS__|${hours}|g" "$tmpl" > "$out"
+}
+
+# render_authelia_config <template_path> <output_path>
+# Substitutes __VPS_HOST__ and __GRAFANA_OIDC_SECRET_HASH__. The grafana
+# OIDC secret hash is PBKDF2-derived from a raw secret in the laptop's
+# config.yaml (.authelia.grafana_oidc_secret_hash), set by
+# `task secrets:bootstrap-authelia`.
+render_authelia_config() {
+    local tmpl="${1:?}" out="${2:?}"
+    [[ -f "$tmpl" ]] || die "template not found: $tmpl"
+    sed \
+        -e "s|__VPS_HOST__|${VPS_HOST:?}|g" \
+        -e "s|__GRAFANA_OIDC_SECRET_HASH__|${AUTHELIA_GRAFANA_OIDC_SECRET_HASH:?}|g" \
+        "$tmpl" > "$out"
 }
 
 # render_prometheus_config <template_path> <output_path>

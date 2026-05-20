@@ -74,9 +74,6 @@ https://__VPS_HOST__ {
         }
     }
     handle /flash* {
-        basic_auth {
-            admin __ADMIN_BCRYPT_HASH__
-        }
         reverse_proxy flasher:8000 {
             header_up -Accept-Encoding
         }
