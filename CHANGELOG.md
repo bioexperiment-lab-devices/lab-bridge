@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.7](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.6...v0.12.7) (2026-05-20)
+
+
+### Bug Fixes
+
+* **platform:** unblock Grafana panels stuck at zero data ([#84](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/84)) ([0a991dc](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/0a991dc899ec70f0065e8e2631516b10d2e551a1))
+
 ## [0.12.6](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.5...v0.12.6) (2026-05-20)
 
 
