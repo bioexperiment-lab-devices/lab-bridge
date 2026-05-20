@@ -15,6 +15,7 @@ class Settings:
     docs_root: Path
     version: str = "dev"
     git_sha: str = "unknown"
+    authelia_url: str = "http://authelia:9091"
 
     @property
     def agent_root(self) -> Path:
@@ -64,6 +65,8 @@ def load_settings() -> Settings:
         # Local-dev convenience: synthesize a per-process token so the app boots.
         token = secrets.token_urlsafe(32)
 
+    authelia_url = os.environ.get("SITEAPP_AUTHELIA_URL", "http://authelia:9091").strip()
+
     version = os.environ.get("LAB_BRIDGE_VERSION", "dev").strip() or "dev"
     git_sha = os.environ.get("LAB_BRIDGE_GIT_SHA", "unknown").strip() or "unknown"
 
@@ -72,6 +75,7 @@ def load_settings() -> Settings:
         agent_upload_token=token,
         clients_file=clients_file,
         chisel_listen_port=chisel_listen_port,
+        authelia_url=authelia_url,
         docs_root=docs_root,
         version=version,
         git_sha=git_sha,
