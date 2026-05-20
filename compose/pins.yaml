@@ -35,6 +35,16 @@ siteapp_image_repo: ghcr.io/bioexperiment-lab-devices/lab-bridge-siteapp
 # "${flasher_image_repo}:$(cat VERSION)".
 flasher_image_repo: ghcr.io/bioexperiment-lab-devices/lab-bridge-flasher
 
+# Authelia identity provider. Renovate-managed.
+authelia_image: authelia/authelia:4.38.10
+
+# GHCR repository for the (currently passthrough) authelia image.
+# We rebuild upstream Authelia under our own GHCR namespace to keep image
+# provenance + Sigstore attestation uniform across the stack. The image
+# *tag* lives in the root VERSION (release-please-managed); the full
+# reference is "${authelia_image_repo}:$(cat VERSION)".
+authelia_image_repo: ghcr.io/bioexperiment-lab-devices/lab-bridge-authelia
+
 # GHCR repository for the custom Caddy image (carries the replace-response
 # plugin used for the platform navbar injection). The image *tag* lives in
 # the root VERSION (release-please-managed); the full reference is
