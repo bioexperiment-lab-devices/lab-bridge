@@ -26,7 +26,10 @@ teardown() { teardown_tmpdir; }
     # grep (not [[ ]]) so a missing env var actually fails the test;
     # bats does not reliably enforce mid-test [[ ]] failures (see bats-assert).
     grep -q "SITEAPP_CHISEL_LISTEN_PORT: 8080" <<< "$output"
-    [[ "$output" == *"--ServerApp.password=sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"* ]]
+    # Jupyter password auth is disabled — Authelia handles auth via forward_auth.
+    [[ "$output" == *"--ServerApp.password="* ]]
+    ! grep -q -- "--ServerApp.password=sha1" <<< "$output"
+    [[ "$output" == *"--ServerApp.disable_check_xsrf=true"* ]]
     # No leftover placeholders. Match `__NAME__` (bracketed both sides) to
     # avoid false positives on Docker secret env var suffixes like `__FILE`.
     ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"

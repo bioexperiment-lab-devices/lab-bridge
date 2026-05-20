@@ -11,7 +11,7 @@ services:
       - ./caddy_config:/config
       - ./shell:/srv/shell:ro
     networks: [labnet]
-    depends_on: [jupyter, siteapp, flasher, grafana]
+    depends_on: [jupyter, siteapp, flasher, grafana, authelia]
 
   jupyter:
     image: __JUPYTER_IMAGE__
@@ -19,12 +19,34 @@ services:
     command:
       - start-notebook.sh
       - --ServerApp.token=
-      - --ServerApp.password=__JUPYTER_PASSWORD_HASH__
+      - --ServerApp.password=
       - --ServerApp.allow_origin=*
       - --ServerApp.base_url=/jupyter
       - --ServerApp.root_dir=/home/jovyan/work
+      - --ServerApp.disable_check_xsrf=true
     volumes:
       - __NOTEBOOKS_PATH__:/home/jovyan/work
+    networks: [labnet]
+
+  authelia:
+    image: __AUTHELIA_IMAGE__
+    restart: unless-stopped
+    volumes:
+      - ./authelia/configuration.yml:/config/configuration.yml:ro
+      - ./authelia/users_database.yml:/config/users_database.yml:ro
+      - ./authelia_data:/data
+    secrets:
+      - authelia_jwt_secret
+      - authelia_session_secret
+      - authelia_storage_encryption_key
+      - authelia_oidc_hmac_secret
+      - authelia_oidc_jwks_key
+    environment:
+      AUTHELIA_JWT_SECRET_FILE: /run/secrets/authelia_jwt_secret
+      AUTHELIA_SESSION_SECRET_FILE: /run/secrets/authelia_session_secret
+      AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE: /run/secrets/authelia_storage_encryption_key
+      AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET_FILE: /run/secrets/authelia_oidc_hmac_secret
+      AUTHELIA_IDENTITY_PROVIDERS_OIDC_ISSUER_PRIVATE_KEY_FILE: /run/secrets/authelia_oidc_jwks_key
     networks: [labnet]
 
   chisel:
@@ -59,11 +81,24 @@ services:
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
+      GF_AUTH_GENERIC_OAUTH_NAME: Authelia
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: grafana
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET__FILE: /run/secrets/grafana_oidc_secret
+      GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email groups"
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: https://__VPS_HOST__/auth/api/oidc/authorization
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: https://__VPS_HOST__/auth/api/oidc/token
+      GF_AUTH_GENERIC_OAUTH_API_URL: https://__VPS_HOST__/auth/api/oidc/userinfo
+      GF_AUTH_GENERIC_OAUTH_USE_PKCE: "true"
+      GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "contains(groups[*], 'admins') && 'Admin' || contains(groups[*], 'researchers') && 'Viewer'"
+      GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN: "true"
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana_data:/var/lib/grafana
     secrets:
       - grafana_admin_password
+      - grafana_oidc_secret
     networks: [labnet]
     depends_on: [loki, prometheus]
 
@@ -173,3 +208,15 @@ secrets:
     file: ./siteapp/agent_upload_token
   flasher_upload_token:
     file: ./flasher/upload_token
+  authelia_jwt_secret:
+    file: ./authelia/secrets/jwt_secret
+  authelia_session_secret:
+    file: ./authelia/secrets/session_secret
+  authelia_storage_encryption_key:
+    file: ./authelia/secrets/storage_encryption_key
+  authelia_oidc_hmac_secret:
+    file: ./authelia/secrets/oidc_hmac_secret
+  authelia_oidc_jwks_key:
+    file: ./authelia/secrets/oidc_jwks_key.pem
+  grafana_oidc_secret:
+    file: ./grafana/oidc_secret

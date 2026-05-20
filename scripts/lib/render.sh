@@ -58,7 +58,6 @@ render_compose() {
     # so | as the sed delimiter is safe.
     sed \
         -e "s|__JUPYTER_IMAGE__|${JUPYTER_IMAGE:?}|g" \
-        -e "s|__JUPYTER_PASSWORD_HASH__|${JUPYTER_PASSWORD_HASH:?}|g" \
         -e "s|__CHISEL_IMAGE__|${CHISEL_IMAGE:?}|g" \
         -e "s|__CHISEL_LISTEN_PORT__|${CHISEL_LISTEN_PORT:?}|g" \
         -e "s|__NOTEBOOKS_PATH__|${VPS_NOTEBOOKS_PATH:?}|g" \
