@@ -108,6 +108,7 @@ preload_fake_vps_images() {
         grafana/loki:3.2.1
         grafana/grafana:11.3.0
         quay.io/jupyter/scipy-notebook:2026-04-20
+        authelia/authelia:4.38.10
     )
     local img
     for img in "${imgs[@]}"; do
@@ -129,6 +130,7 @@ compose_images_available() {
         grafana/loki:3.2.1
         grafana/grafana:11.3.0
         quay.io/jupyter/scipy-notebook:2026-04-20
+        authelia/authelia:4.38.10
     )
     local img
     for img in "${imgs[@]}"; do
@@ -165,6 +167,139 @@ patch_caddyfile_tls_internal() {
         sleep 1
     done
     return 1
+}
+
+# Mirror of load_siteapp_test_image for the Authelia image. The fixture's
+# authelia tag (ghcr.io/test/lab-bridge-authelia:VERSION) is not pullable, so
+# we build it locally (it's a thin FROM authelia/authelia:... passthrough) and
+# side-load it into fake-VPS so `docker compose up` finds it after `pull
+# --ignore-pull-failures` no-ops.
+load_authelia_test_image() {
+    local fixture_tag
+    local repo version
+    repo="$(yq -e '.authelia_image_repo' "$ROOT/tests/integration/fixtures/valid_pins.yaml")"
+    version="$(awk 'NF { print $1; exit }' "$ROOT/VERSION")"
+    fixture_tag="${repo}:${version}"
+    docker build --load -q -t "$fixture_tag" "$ROOT/services/authelia" >&2 || return 1
+    _save_and_load_into_fake_vps "$fixture_tag"
+}
+
+# Wait for Authelia's /api/health to return 200 inside the fake-VPS network.
+# Returns non-zero on timeout. Call after deploy + patch_caddyfile_tls_internal.
+wait_authelia_ready() {
+    local i
+    local deadline=$(( $(date +%s) + 120 ))
+    for i in $(seq 1 60); do
+        if [[ $(date +%s) -ge $deadline ]]; then
+            echo "wait_authelia_ready: timed out after 120s" >&2
+            return 1
+        fi
+        if docker exec lds-fake-vps bash -c '
+            cd /srv/lab-bridge && docker compose exec -T authelia \
+                wget -q -O- http://127.0.0.1:9091/api/health >/dev/null 2>&1
+        '; then
+            return 0
+        fi
+        sleep 2
+    done
+    return 1
+}
+
+# Bring up the fake-VPS with a full Authelia-enabled stack and seed user
+# accounts. Intended for setup_file() in auth smoke tests.
+#
+# Usage: fake_vps_up_with_users user1:password1:group1 [user2:password2:group2 ...]
+#
+# Skips (writes a skip file) if compose images are unavailable. Call setup()
+# at the start of each test to honour the skip file.
+#
+# After this returns, the following variables are exported:
+#   TMPDIR            — scratch directory for this file's run
+#   FAKE_VPS_HOST     — host:port for curl (127.0.0.1:2443)
+#   LDS_CONFIG        — path to the rendered config.yaml
+#   LDS_PINS_FILE     — path to the rendered pins.yaml
+#   LDS_USERS_DB      — path to the populated users_database.yml
+fake_vps_up_with_users() {
+    if ! compose_images_available; then
+        echo "host docker can't reach all compose images (Docker Hub rate-limited?)" \
+            > "$BATS_FILE_TMPDIR/skip"
+        return 0
+    fi
+
+    bash "$ROOT/tests/integration/fake_vps/start.sh"
+    setup_tmpdir
+
+    # ── Config + pins ──────────────────────────────────────────────────────
+    cp "$ROOT/tests/integration/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
+    yq -i ".vps.host = \"127.0.0.1\"" "$TMPDIR/config.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
+    yq -i ".ssh_port = 2222" "$TMPDIR/pins.yaml"
+    export LDS_CONFIG="$TMPDIR/config.yaml"
+    export LDS_PINS_FILE="$TMPDIR/pins.yaml"
+
+    # ── Bootstrap Authelia secrets ─────────────────────────────────────────
+    export LDS_AUTHELIA_SECRETS_DIR="$TMPDIR/authelia_secrets"
+    export LDS_GRAFANA_OIDC_SECRET_FILE="$TMPDIR/grafana_oidc_secret"
+    # AUTHELIA_IMAGE is normally set by load_config (called inside deploy.sh),
+    # but bootstrap-authelia runs before deploy. The test fixture pins.yaml
+    # overrides authelia_image to a non-existent GHCR test tag, so we read
+    # the upstream pin from the real compose/pins.yaml instead. This is the
+    # same image that compose_images_available() guarantees is on the host.
+    export AUTHELIA_IMAGE
+    AUTHELIA_IMAGE="$(yq e '.authelia_image' "$ROOT/compose/pins.yaml")"
+    # Use the real Authelia image for PBKDF2 hashing so the rendered
+    # configuration.yml contains a hash that Authelia's config parser accepts.
+    # authelia/authelia:4.38.10 is guaranteed present (compose_images_available
+    # checked for it above). One docker run here, no LDS_PBKDF2_HASH_CMD bypass.
+    bash "$ROOT/scripts/secrets.sh" bootstrap-authelia
+    # bootstrap-authelia writes .authelia.grafana_oidc_secret_hash to the
+    # config; read it so render_authelia_config picks it up via config.sh.
+    local oidc_hash
+    oidc_hash="$(yq e '.authelia.grafana_oidc_secret_hash' "$TMPDIR/config.yaml")"
+    export AUTHELIA_GRAFANA_OIDC_SECRET_HASH="$oidc_hash"
+
+    # ── Seed users (before deploy so rsync ships the populated DB) ─────────
+    export LDS_USERS_DB="$TMPDIR/authelia_users_database.yml"
+    # Real argon2id hashing via `docker run authelia/authelia hash-password`
+    # is required so Authelia can actually verify the test passwords at
+    # login time. The authelia/authelia image is guaranteed present on the
+    # host because compose_images_available() checks for it above.
+    local triple user password group
+    for triple in "$@"; do
+        user="${triple%%:*}"
+        password="${triple#*:}"
+        group="${password##*:}"
+        password="${password%%:*}"
+        PASSWORD="$password" bash "$ROOT/scripts/users.sh" add "$user" "$group"
+    done
+
+    # ── SSH / deploy env ───────────────────────────────────────────────────
+    export LDS_SSH_KEY="$ROOT/tests/integration/fake_vps/id_test"
+    export LDS_SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    export LDS_SKIP_HEALTHCHECK=1
+    export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
+    printf 'testpw' > "$LDS_GRAFANA_PASSWORD_FILE"
+    export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
+    printf 'smoke-tok' > "$LDS_AGENT_TOKEN_FILE"
+    export LDS_FLASHER_UPLOAD_TOKEN_FILE="$TMPDIR/flasher_upload_token"
+    printf 'flasher-smoke-tok' > "$LDS_FLASHER_UPLOAD_TOKEN_FILE"
+    chmod 600 "$LDS_GRAFANA_PASSWORD_FILE" "$LDS_AGENT_TOKEN_FILE" "$LDS_FLASHER_UPLOAD_TOKEN_FILE"
+
+    # ── Provision + load images + deploy ──────────────────────────────────
+    bash "$ROOT/scripts/provision.sh"
+    load_siteapp_test_image
+    load_flasher_test_image
+    load_caddy_test_image
+    load_authelia_test_image
+    preload_fake_vps_images
+    bash "$ROOT/scripts/deploy.sh"
+    patch_caddyfile_tls_internal
+    wait_siteapp_ready
+    wait_authelia_ready
+
+    # ── Export host-side address for curl ─────────────────────────────────
+    # Caddy's HTTPS is exposed on host port 2443 (start.sh: -p 2443:443).
+    export FAKE_VPS_HOST="127.0.0.1:2443"
 }
 
 # Wait for siteapp's /healthz to return 200 inside the fake-VPS network,

@@ -39,8 +39,13 @@ hash_password() {
     require_cmd docker
     # Use the same Authelia image pin as the running container.
     local image="${AUTHELIA_IMAGE:-authelia/authelia:4.38.10}"
-    docker run --rm "$image" authelia hash-password --no-confirm "$plain" \
-        | awk -F': ' '/Password hash:/ {print $2; exit}'
+    # `authelia hash-password` was deprecated/removed in 4.38.x; use the new
+    # `crypto hash generate argon2` subcommand (variant defaults to argon2id).
+    # Older builds prefix the hash with "Password hash: ", newer ones use
+    # "Digest: "; match both to be forward-compatible.
+    docker run --rm "$image" authelia crypto hash generate argon2 \
+        --password "$plain" --no-confirm 2>/dev/null \
+        | awk -F': ' '/Password hash:|Digest:/ {print $2; exit}'
 }
 
 prompt_or_env() {

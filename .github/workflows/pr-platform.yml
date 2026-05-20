@@ -94,6 +94,8 @@ jobs:
             files: tests/integration/test_metrics_smoke.bats
           - suite: navbar
             files: tests/integration/test_navbar_smoke.bats
+          - suite: auth
+            files: tests/integration/test_auth_smoke.bats
     name: bats (${{ matrix.suite }})
     steps:
       - uses: actions/checkout@v4

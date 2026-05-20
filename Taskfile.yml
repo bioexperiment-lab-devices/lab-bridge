@@ -62,16 +62,16 @@ tasks:
 
   # --- Users (Authelia identities) ---
   "users:add":
-    desc: Add a user (prompts for password). Usage: task users:add -- USER GROUP[,GROUP]
+    desc: "Add a user (prompts for password). Usage: task users:add -- USER GROUP[,GROUP]"
     cmd: bash scripts/users.sh add {{.CLI_ARGS}}
   "users:rm":
-    desc: Remove a user. Usage: task users:rm -- USER
+    desc: "Remove a user. Usage: task users:rm -- USER"
     cmd: bash scripts/users.sh rm {{.CLI_ARGS}}
   "users:set-password":
-    desc: Set a new password for a user (prompts). Usage: task users:set-password -- USER
+    desc: "Set a new password for a user (prompts). Usage: task users:set-password -- USER"
     cmd: bash scripts/users.sh set-password {{.CLI_ARGS}}
   "users:set-groups":
-    desc: Set the group list for a user. Usage: task users:set-groups -- USER GROUP[,GROUP]
+    desc: "Set the group list for a user. Usage: task users:set-groups -- USER GROUP[,GROUP]"
     cmd: bash scripts/users.sh set-groups {{.CLI_ARGS}}
   "users:list":
     desc: Print all users with their groups

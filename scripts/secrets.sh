@@ -253,12 +253,13 @@ cmd_bootstrap_authelia() {
         hash="$(bash -c "$LDS_PBKDF2_HASH_CMD" _ "$raw")"
     else
         require_cmd docker
-        # `authelia crypto hash generate pbkdf2 --password <p>` prints
-        # "Password hash: $pbkdf2-sha512$...". Strip the prefix.
+        # `authelia crypto hash generate pbkdf2 --password <p>` prints the
+        # hash after a label prefix. Older builds used "Password hash: " while
+        # 4.38.x uses "Digest: "; match either to be forward-compatible.
         hash="$(docker run --rm "$AUTHELIA_IMAGE" \
             authelia crypto hash generate pbkdf2 --variant sha512 \
             --password "$raw" 2>/dev/null \
-            | awk -F': ' '/Password hash:/ {print $2; exit}')"
+            | awk -F': ' '/Password hash:|Digest:/ {print $2; exit}')"
     fi
     [[ -n "$hash" ]] || die "failed to derive PBKDF2 hash for grafana OIDC secret"
 
