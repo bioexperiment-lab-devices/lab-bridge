@@ -61,22 +61,6 @@ cmd_set_grafana_password() {
     log "wrote Grafana admin password to $pwfile (deploy to apply)"
 }
 
-cmd_set_admin_password() {
-    ensure_config
-    require_cmd docker
-
-    local pw hash
-    pw="$(prompt_password "Operator password (used at /flash/*)")"
-    # Use the official Caddy image's hash-password subcommand to produce a
-    # bcrypt hash. We pipe via stdin to avoid the password ever appearing on
-    # the process command line. Caddy reads one newline-terminated line from
-    # stdin (the older --plaintext-stdin flag was removed in newer releases).
-    hash="$(printf '%s\n' "$pw" | docker run --rm -i caddy:2 caddy hash-password)"
-    [[ "$hash" =~ ^\$2[abxy]\$ ]] || die "hash-password produced unexpected output: $hash"
-    yq -i ".siteapp.admin_password_hash = \"$hash\"" "$CONFIG"
-    log "set admin panel password (deploy to apply)"
-}
-
 cmd_rotate_agent_upload_token() {
     require_cmd python3
     local tokfile="${LDS_AGENT_TOKEN_FILE:-$SCRIPT_DIR/../compose/siteapp/agent_upload_token}"
@@ -273,7 +257,6 @@ cmd_bootstrap_authelia() {
 main() {
     local sub="${1:-}"; shift || true
     case "$sub" in
-        set-admin-password)   cmd_set_admin_password "$@" ;;
         set-jupyter-password) cmd_set_jupyter_password "$@" ;;
         set-grafana-password) cmd_set_grafana_password "$@" ;;
         rotate-agent-upload-token)   cmd_rotate_agent_upload_token "$@" ;;

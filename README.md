@@ -139,9 +139,10 @@ and recovery.
 ```bash
 task doctor                                   # check local prerequisites
 cp config.example.yaml config.yaml            # then fill in VPS details
-task secrets:set-jupyter-password             # shared JupyterLab password
+task secrets:set-jupyter-password             # shared JupyterLab password (deprecated)
 task secrets:set-grafana-password             # Grafana admin password
-task secrets:set-admin-password               # /flash/* operator gate (bcrypt)
+task secrets:bootstrap-authelia               # generate Authelia runtime secrets (once per VPS)
+task users:add -- admin admins                # add bootstrap admin user
 task secrets:rotate-agent-upload-token        # CI upload token for new agent builds
 task secrets:rotate-flasher-upload-token      # CI upload token for new firmware
 task secrets:add-client -- microscope-1 9001  # register a lab
@@ -152,6 +153,11 @@ task ops:loki-disk                            # show Loki retention/size
 ```
 
 `task --list` shows the full menu.
+
+## Users & authentication
+
+See [docs/adding-a-user.md](docs/adding-a-user.md). Users are managed via
+`task users:*`; the first one is the bootstrap admin.
 
 ## Repo layout
 

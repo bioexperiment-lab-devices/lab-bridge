@@ -16,11 +16,12 @@ _default_pins_file() {
 }
 
 # Required fields in config.yaml (post-refactor: shrunk).
+# NOTE: .jupyter.password_hash is kept here as a deprecated key for one more
+# release. It will be removed once every operator has cleared the value.
 _REQUIRED_CONFIG_FIELDS=(
     .vps.host
     .vps.ssh_user
     .jupyter.password_hash
-    .siteapp.admin_password_hash
 )
 
 # Required fields in pins.yaml.
@@ -86,16 +87,13 @@ validate_config() {
         fi
     done
 
-    # Password-hash format checks (unchanged).
+    # Password-hash format checks.
+    # jupyter.password_hash: deprecated — Authelia now gates Jupyter via forward_auth.
+    # Allow empty (operators migrating away) but reject a set value in wrong format.
     local hash
     hash="$(_yq e '.jupyter.password_hash // ""' "$config_path")"
     if [[ -n "$hash" ]] && ! [[ "$hash" =~ ^sha1:[0-9a-f]+:[0-9a-f]{40}$ ]]; then
-        errors+=("jupyter.password_hash is not in sha1:<salt>:<digest> format (run: task secrets:set-jupyter-password)")
-    fi
-    local admin_hash
-    admin_hash="$(_yq e '.siteapp.admin_password_hash // ""' "$config_path")"
-    if [[ -n "$admin_hash" ]] && ! [[ "$admin_hash" =~ ^\$2[abxy]\$[0-9]{2}\$[A-Za-z0-9./]{53}$ ]]; then
-        errors+=("siteapp.admin_password_hash is not a bcrypt hash (run: task secrets:set-admin-password)")
+        errors+=("jupyter.password_hash is set but not in sha1 format; clear it or run task secrets:set-jupyter-password")
     fi
 
     # chisel_clients: per-entry validity + duplicate-port check (unchanged).
@@ -149,8 +147,7 @@ load_config() {
     # Instance values from config.yaml.
     export VPS_HOST          ; VPS_HOST="$(_yq e '.vps.host' "$config_path")"
     export VPS_SSH_USER      ; VPS_SSH_USER="$(_yq e '.vps.ssh_user' "$config_path")"
-    export JUPYTER_PASSWORD_HASH ; JUPYTER_PASSWORD_HASH="$(_yq e '.jupyter.password_hash' "$config_path")"
-    export SITEAPP_ADMIN_PASSWORD_HASH ; SITEAPP_ADMIN_PASSWORD_HASH="$(_yq e '.siteapp.admin_password_hash' "$config_path")"
+    export JUPYTER_PASSWORD_HASH ; JUPYTER_PASSWORD_HASH="$(_yq e '.jupyter.password_hash // ""' "$config_path")"
 
     # Stack pins from pins.yaml.
     export VPS_SSH_PORT      ; VPS_SSH_PORT="$(_yq e '.ssh_port' "$pins_path")"
