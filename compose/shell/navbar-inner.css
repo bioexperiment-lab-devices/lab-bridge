@@ -295,6 +295,34 @@ aside[data-mode="bookmark"][data-state="expanded"] nav { padding-top: 4px; }
   color: var(--text-muted);
 }
 
+/* ─── Auth slot ──────────────────────────────────────────────────────── */
+.auth-slot {
+  margin-top: auto;
+  padding: 12px 8px;
+  display: flex;
+  justify-content: center;
+}
+.lds-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent, currentColor);
+  color: var(--accent-on, white);
+  font-weight: 600;
+  text-decoration: none;
+}
+.lds-login-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid currentColor;
+}
+
 /* ─── Backdrop ───────────────────────────────────────────────────────── */
 .backdrop {
   position: fixed;

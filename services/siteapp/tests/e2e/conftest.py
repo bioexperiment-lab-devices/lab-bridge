@@ -39,5 +39,9 @@ def siteapp_url() -> str:
 
 @pytest.fixture(scope="session")
 def http(siteapp_url: str) -> httpx.Client:
-    with httpx.Client(base_url=siteapp_url, timeout=5.0) as client:
+    with httpx.Client(
+        base_url=siteapp_url,
+        timeout=10.0,
+        headers={"Host": "siteapp.local"},
+    ) as client:
         yield client

@@ -1,0 +1,106 @@
+# Rendered at deploy time by scripts/lib/render.sh::render_authelia_config.
+# Tokens substituted: __VPS_HOST__, __GRAFANA_OIDC_SECRET_HASH__.
+# Secret material (JWT, session, storage encryption, OIDC HMAC, OIDC JWKS key)
+# is injected via *_FILE env vars from docker secrets — see
+# compose/docker-compose.yml.tmpl.
+
+theme: light
+default_redirection_url: https://__VPS_HOST__/
+
+server:
+  host: 0.0.0.0
+  port: 9091
+
+log:
+  level: info
+  format: text
+
+totp:
+  issuer: lab-bridge
+
+authentication_backend:
+  password_reset:
+    disable: true
+  refresh_interval: 30s
+  file:
+    path: /config/users_database.yml
+    password:
+      algorithm: argon2id
+
+access_control:
+  default_policy: deny
+  rules:
+    - domain: __VPS_HOST__
+      resources:
+        - '^/api/auth/whoami$'
+      policy: one_factor
+    - domain: __VPS_HOST__
+      resources:
+        - '^/flash.*'
+      policy: one_factor
+      subject: 'group:admins'
+    - domain: __VPS_HOST__
+      resources:
+        - '^/jupyter.*'
+      policy: one_factor
+      subject:
+        - 'group:admins'
+        - 'group:researchers'
+    - domain: __VPS_HOST__
+      resources:
+        - '^/grafana/.*'
+      policy: one_factor
+      subject:
+        - 'group:admins'
+        - 'group:researchers'
+
+session:
+  name: authelia_session
+  domain: __VPS_HOST__
+  same_site: lax
+  expiration: 1h
+  inactivity: 5m
+  remember_me_duration: 2160h    # 90 days
+
+regulation:
+  max_retries: 3
+  find_time: 2m
+  ban_time: 5m
+
+storage:
+  local:
+    path: /data/db.sqlite3
+
+notifier:
+  disable_startup_check: true
+  filesystem:
+    filename: /data/notification.txt
+
+identity_providers:
+  oidc:
+    cors:
+      endpoints:
+        - authorization
+        - token
+        - revocation
+        - introspection
+        - userinfo
+    clients:
+      - id: grafana
+        description: Grafana
+        secret: '__GRAFANA_OIDC_SECRET_HASH__'
+        public: false
+        authorization_policy: one_factor
+        redirect_uris:
+          - https://__VPS_HOST__/grafana/login/generic_oauth
+        scopes:
+          - openid
+          - profile
+          - email
+          - groups
+        grant_types:
+          - authorization_code
+          - refresh_token
+        response_types:
+          - code
+        userinfo_signing_algorithm: none

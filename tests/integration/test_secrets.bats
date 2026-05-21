@@ -98,28 +98,6 @@ teardown() { teardown_tmpdir; }
     [[ "$output" == *"empty"* ]]
 }
 
-@test "secrets:set-admin-password writes a bcrypt hash to config.yaml" {
-    setup_tmpdir
-    cp "$ROOT/tests/integration/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
-    export LDS_CONFIG="$TMPDIR/config.yaml"
-
-    # Bypass the docker call by stubbing it in PATH for this test.
-    mkdir -p "$TMPDIR/bin"
-    cat > "$TMPDIR/bin/docker" <<'EOS'
-#!/usr/bin/env bash
-# Read stdin (the password) but ignore it — emit a fake but valid bcrypt hash.
-cat > /dev/null
-echo '$2a$14$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345'
-EOS
-    chmod +x "$TMPDIR/bin/docker"
-    export ROOT
-    PATH="$TMPDIR/bin:$PATH" run bash -c '
-        printf "secretpass\nsecretpass\n" | bash "$ROOT/scripts/secrets.sh" set-admin-password
-    '
-    [ "$status" -eq 0 ]
-    yq -e ".siteapp.admin_password_hash" "$LDS_CONFIG" | grep -q '^\$2a\$14\$'
-}
-
 @test "secrets:rotate-agent-upload-token writes a 32+ char token to file" {
     setup_tmpdir
     export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
@@ -128,4 +106,39 @@ EOS
     [ -f "$LDS_AGENT_TOKEN_FILE" ]
     [ "$(stat -c '%a' "$LDS_AGENT_TOKEN_FILE" 2>/dev/null || stat -f '%Lp' "$LDS_AGENT_TOKEN_FILE")" = "600" ]
     [ "$(wc -c < "$LDS_AGENT_TOKEN_FILE")" -ge 40 ]
+}
+
+@test "secrets:bootstrap-authelia generates five secrets + grafana oidc secret and hash" {
+    cp "$ROOT/tests/integration/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
+    export LDS_CONFIG="$TMPDIR/config.yaml"
+    export LDS_AUTHELIA_SECRETS_DIR="$TMPDIR/authelia_secrets"
+    export LDS_GRAFANA_OIDC_SECRET_FILE="$TMPDIR/grafana_oidc_secret"
+    # Test hook: skip the docker-run PBKDF2 derivation and emit a fake hash.
+    # The real bootstrap path is exercised by the auth bats smoke matrix cell
+    # against the actual Authelia image (see test_auth_smoke.bats).
+    export LDS_PBKDF2_HASH_CMD='echo "\$pbkdf2-sha512\$fake\$$1"'
+
+    run bash "$ROOT/scripts/secrets.sh" bootstrap-authelia
+    [ "$status" -eq 0 ]
+    [ -s "$LDS_AUTHELIA_SECRETS_DIR/jwt_secret" ]
+    [ -s "$LDS_AUTHELIA_SECRETS_DIR/session_secret" ]
+    [ -s "$LDS_AUTHELIA_SECRETS_DIR/storage_encryption_key" ]
+    [ -s "$LDS_AUTHELIA_SECRETS_DIR/oidc_hmac_secret" ]
+    [ -s "$LDS_AUTHELIA_SECRETS_DIR/oidc_jwks_key.pem" ]
+    [ -s "$LDS_GRAFANA_OIDC_SECRET_FILE" ]
+    hash="$(yq e '.authelia.grafana_oidc_secret_hash' "$LDS_CONFIG")"
+    [[ "$hash" =~ ^\$pbkdf2-sha512\$ ]]
+}
+
+@test "secrets:bootstrap-authelia refuses to overwrite without --rotate" {
+    cp "$ROOT/tests/integration/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
+    export LDS_CONFIG="$TMPDIR/config.yaml"
+    export LDS_AUTHELIA_SECRETS_DIR="$TMPDIR/authelia_secrets"
+    export LDS_GRAFANA_OIDC_SECRET_FILE="$TMPDIR/grafana_oidc_secret"
+    export LDS_PBKDF2_HASH_CMD='echo "\$pbkdf2-sha512\$fake\$$1"'
+
+    bash "$ROOT/scripts/secrets.sh" bootstrap-authelia
+    run bash "$ROOT/scripts/secrets.sh" bootstrap-authelia
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"already exist"* ]] || [[ "$output" == *"--rotate"* ]]
 }

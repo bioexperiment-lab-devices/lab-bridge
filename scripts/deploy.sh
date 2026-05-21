@@ -32,9 +32,10 @@ main() {
     local stage="$_STAGE"
 
     log "rendering templates..."
-    mkdir -p "$stage/chisel" "$stage/loki" "$stage/grafana/provisioning" "$stage/siteapp" "$stage/shell" "$stage/prometheus"
+    mkdir -p "$stage/chisel" "$stage/loki" "$stage/grafana/provisioning" "$stage/siteapp" "$stage/shell" "$stage/prometheus" "$stage/authelia"
     render_compose     "$REPO_ROOT/compose/docker-compose.yml.tmpl" "$stage/docker-compose.yml"
     render_caddyfile   "$REPO_ROOT/compose/Caddyfile.tmpl"           "$stage/Caddyfile"
+    render_authelia_config "$REPO_ROOT/services/authelia/config/configuration.yml.tmpl" "$stage/authelia/configuration.yml"
     if [[ "${LDS_STACK_ONLY:-}" != "1" ]]; then
         render_chisel_users "$stage/chisel/users.json"
         render_siteapp_clients "$stage/siteapp/clients.json"
@@ -61,6 +62,36 @@ main() {
     local pwfile="${LDS_GRAFANA_PASSWORD_FILE:-$REPO_ROOT/compose/grafana/admin_password}"
     [[ -f "$pwfile" ]] || die "grafana admin password not found at $pwfile — run: task secrets:set-grafana-password"
     install -m 644 "$pwfile" "$stage/grafana/admin_password"
+
+    # Grafana OIDC client secret (raw value for the Grafana container; the
+    # PBKDF2 hash for Authelia's config was written to config.yaml by
+    # `task secrets:bootstrap-authelia` and substituted above).
+    local grafana_oidc_secret_file="${LDS_GRAFANA_OIDC_SECRET_FILE:-$REPO_ROOT/compose/grafana/oidc_secret}"
+    [[ -f "$grafana_oidc_secret_file" ]] || die "grafana OIDC secret not found at $grafana_oidc_secret_file — run: task secrets:bootstrap-authelia"
+    install -m 644 "$grafana_oidc_secret_file" "$stage/grafana/oidc_secret"
+
+    # Authelia JWT / session / storage / OIDC secrets (created by
+    # `task secrets:bootstrap-authelia`). Mode 0644 for bind-mount readability
+    # inside the container; the local copies stay 0600.
+    local authelia_secrets_dir="${LDS_AUTHELIA_SECRETS_DIR:-$REPO_ROOT/compose/authelia/secrets}"
+    for f in jwt_secret session_secret storage_encryption_key oidc_hmac_secret oidc_jwks_key.pem; do
+        [[ -f "$authelia_secrets_dir/$f" ]] || die "authelia secret $f not found in $authelia_secrets_dir — run: task secrets:bootstrap-authelia"
+    done
+    mkdir -p "$stage/authelia/secrets"
+    for f in jwt_secret session_secret storage_encryption_key oidc_hmac_secret oidc_jwks_key.pem; do
+        install -m 644 "$authelia_secrets_dir/$f" "$stage/authelia/secrets/$f"
+    done
+
+    # Authelia users database — populated by `task users:add`.
+    # An empty file is valid (no users → everyone is locked out, which is the
+    # desired initial state before the operator bootstraps the first user).
+    local users_db="${LDS_USERS_DB:-$REPO_ROOT/compose/authelia/users_database.yml}"
+    if [[ ! -f "$users_db" ]]; then
+        # First deploy before any users have been added — create an empty DB.
+        printf 'users: {}\n' > "$stage/authelia/users_database.yml"
+    else
+        install -m 644 "$users_db" "$stage/authelia/users_database.yml"
+    fi
 
     # Agent upload token — required at deploy time. Like the Grafana password,
     # this lands as a Docker secret on the VPS. Mode 0644 because the secret
@@ -170,16 +201,16 @@ main() {
                 && [[ "$grafana_status" == "200" ]] \
                 && [[ "$docs_status" == "200" ]] \
                 && [[ "$download_status" == "200" ]] \
-                && [[ "$flash_status" == "401" ]] \
+                && [[ "$flash_status" == "302" ]] \
                 && [[ "$static_status" == "200" ]] \
                 && [[ "$public_status" == "200" ]] \
                 && [[ "$server_info_status" == "200" ]]; then
-                log "deployed: home $home_status, jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, flash $flash_status, static $static_status, public $public_status, server_info $server_info_status"
+                log "deployed: home $home_status, jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, flash $flash_status (forward_auth 302), static $static_status, public $public_status, server_info $server_info_status"
                 return 0
             fi
             sleep 1
         done
-        warn "health check timed out (home:$home_status jupyter:$jupyter_status grafana:$grafana_status docs:$docs_status download:$download_status flash:$flash_status static:$static_status public:$public_status server_info:$server_info_status). Check: task logs"
+        warn "health check timed out (home:$home_status jupyter:$jupyter_status grafana:$grafana_status docs:$docs_status download:$download_status flash:${flash_status}[want 302] static:$static_status public:$public_status server_info:$server_info_status). Check: task logs"
         return 1
     fi
     log "deployed (healthcheck skipped)"

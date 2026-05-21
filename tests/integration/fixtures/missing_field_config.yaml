@@ -1,7 +1,6 @@
 vps:
   host: 192.0.2.10
-  ssh_user: khamit
-  # siteapp block intentionally missing (admin_password_hash required)
+  # ssh_user intentionally missing (required field)
 jupyter:
   password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"
 chisel_clients: []

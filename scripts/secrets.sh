@@ -61,22 +61,6 @@ cmd_set_grafana_password() {
     log "wrote Grafana admin password to $pwfile (deploy to apply)"
 }
 
-cmd_set_admin_password() {
-    ensure_config
-    require_cmd docker
-
-    local pw hash
-    pw="$(prompt_password "Operator password (used at /flash/*)")"
-    # Use the official Caddy image's hash-password subcommand to produce a
-    # bcrypt hash. We pipe via stdin to avoid the password ever appearing on
-    # the process command line. Caddy reads one newline-terminated line from
-    # stdin (the older --plaintext-stdin flag was removed in newer releases).
-    hash="$(printf '%s\n' "$pw" | docker run --rm -i caddy:2 caddy hash-password)"
-    [[ "$hash" =~ ^\$2[abxy]\$ ]] || die "hash-password produced unexpected output: $hash"
-    yq -i ".siteapp.admin_password_hash = \"$hash\"" "$CONFIG"
-    log "set admin panel password (deploy to apply)"
-}
-
 cmd_rotate_agent_upload_token() {
     require_cmd python3
     local tokfile="${LDS_AGENT_TOKEN_FILE:-$SCRIPT_DIR/../compose/siteapp/agent_upload_token}"
@@ -205,10 +189,74 @@ cmd_rm_client() {
     log "removed client $name"
 }
 
+cmd_bootstrap_authelia() {
+    require_cmd openssl
+    require_cmd yq
+
+    local rotate=0
+    [[ "${1:-}" == "--rotate" ]] && rotate=1
+
+    ensure_config
+
+    local secrets_dir="${LDS_AUTHELIA_SECRETS_DIR:-$SCRIPT_DIR/../compose/authelia/secrets}"
+    local grafana_oidc_secret_file="${LDS_GRAFANA_OIDC_SECRET_FILE:-$SCRIPT_DIR/../compose/grafana/oidc_secret}"
+    mkdir -p "$secrets_dir"
+    mkdir -p "$(dirname "$grafana_oidc_secret_file")"
+
+    local existing=0
+    for f in jwt_secret session_secret storage_encryption_key oidc_hmac_secret \
+             oidc_jwks_key.pem; do
+        [[ -f "$secrets_dir/$f" ]] && existing=1
+    done
+    [[ -f "$grafana_oidc_secret_file" ]] && existing=1
+
+    if (( existing && !rotate )); then
+        die "authelia secrets already exist in $secrets_dir; pass --rotate to overwrite"
+    fi
+
+    # Four 64-byte hex tokens.
+    for f in jwt_secret session_secret storage_encryption_key oidc_hmac_secret; do
+        openssl rand -hex 64 > "$secrets_dir/$f"
+        chmod 600 "$secrets_dir/$f"
+    done
+
+    # RSA 4096 for OIDC JWKS.
+    openssl genrsa -out "$secrets_dir/oidc_jwks_key.pem" 4096 2>/dev/null
+    chmod 600 "$secrets_dir/oidc_jwks_key.pem"
+
+    # Raw Grafana OIDC client secret + its PBKDF2 hash. The image pin comes
+    # from compose/pins.yaml via $AUTHELIA_IMAGE, which is exported by config.sh.
+    local raw hash
+    raw="$(openssl rand -base64 32 | tr -d '+/=' | head -c 48)"
+    printf '%s' "$raw" > "$grafana_oidc_secret_file"
+    chmod 600 "$grafana_oidc_secret_file"
+
+    # Compute PBKDF2 hash for the Grafana OIDC client.
+    if [[ -n "${LDS_PBKDF2_HASH_CMD:-}" ]]; then
+        # Test hook: a printf-format-style command that produces a fake hash.
+        hash="$(bash -c "$LDS_PBKDF2_HASH_CMD" _ "$raw")"
+    else
+        require_cmd docker
+        # `authelia crypto hash generate pbkdf2 --password <p>` prints the
+        # hash after a label prefix. Older builds used "Password hash: " while
+        # 4.38.x uses "Digest: "; match either to be forward-compatible.
+        hash="$(docker run --rm "$AUTHELIA_IMAGE" \
+            authelia crypto hash generate pbkdf2 --variant sha512 \
+            --password "$raw" 2>/dev/null \
+            | awk -F': ' '/Password hash:|Digest:/ {print $2; exit}')"
+    fi
+    [[ -n "$hash" ]] || die "failed to derive PBKDF2 hash for grafana OIDC secret"
+
+    yq -i ".authelia.grafana_oidc_secret_hash = \"$hash\"" "$CONFIG"
+    log "wrote authelia secrets to $secrets_dir"
+    log "wrote grafana OIDC secret to $grafana_oidc_secret_file"
+    log "wrote PBKDF2 hash to config.yaml under authelia.grafana_oidc_secret_hash"
+    log "(deploy to apply)"
+}
+
 main() {
     local sub="${1:-}"; shift || true
     case "$sub" in
-        set-admin-password)   cmd_set_admin_password "$@" ;;
         set-jupyter-password) cmd_set_jupyter_password "$@" ;;
         set-grafana-password) cmd_set_grafana_password "$@" ;;
         rotate-agent-upload-token)   cmd_rotate_agent_upload_token "$@" ;;
@@ -216,6 +264,7 @@ main() {
         add-client)           cmd_add_client "$@" ;;
         show-client)          cmd_show_client "$@" ;;
         rm-client)            cmd_rm_client "$@" ;;
+        bootstrap-authelia)   cmd_bootstrap_authelia "$@" ;;
         *) die "unknown subcommand: $sub" ;;
     esac
 }

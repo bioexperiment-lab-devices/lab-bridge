@@ -11,12 +11,10 @@ vps:
   ssh_user: khamit               # must already exist with passwordless sudo
 
 jupyter:
-  # Shared password (sha1:salt:digest). Set with `task secrets:set-jupyter-password`.
-  password_hash: "<run task secrets:set-jupyter-password>"
-
-siteapp:
-  # bcrypt hash for the operator-gated /flash/* UI — set via `task secrets:set-admin-password`.
-  admin_password_hash: "<run task secrets:set-admin-password>"
+  # Deprecated: Authelia gates Jupyter via Caddy forward_auth. The notebook
+  # itself runs token-less inside the labnet. This field is ignored at deploy
+  # time and will be removed in the release after this one.
+  password_hash: ""
 
 # Lab devices that connect inbound via chisel. Manage via `task secrets:add-client`.
 # Each `reverse_port` is reachable inside the docker network as `chisel:<port>`,

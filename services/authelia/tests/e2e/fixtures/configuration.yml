@@ -1,0 +1,104 @@
+# Test fixture: rendered from config/configuration.yml.tmpl
+# __VPS_HOST__ = test.local
+# __GRAFANA_OIDC_SECRET_HASH__ = PBKDF2-SHA512 of "grafana-test-secret"
+
+theme: light
+default_redirection_url: https://test.local/
+
+server:
+  host: 0.0.0.0
+  port: 9091
+
+log:
+  level: info
+  format: text
+
+totp:
+  issuer: lab-bridge
+
+authentication_backend:
+  password_reset:
+    disable: true
+  refresh_interval: 30s
+  file:
+    path: /config/users_database.yml
+    password:
+      algorithm: argon2id
+
+access_control:
+  default_policy: deny
+  rules:
+    - domain: test.local
+      resources:
+        - '^/api/auth/whoami$'
+      policy: one_factor
+    - domain: test.local
+      resources:
+        - '^/flash.*'
+      policy: one_factor
+      subject: 'group:admins'
+    - domain: test.local
+      resources:
+        - '^/jupyter.*'
+      policy: one_factor
+      subject:
+        - 'group:admins'
+        - 'group:researchers'
+    - domain: test.local
+      resources:
+        - '^/grafana/.*'
+      policy: one_factor
+      subject:
+        - 'group:admins'
+        - 'group:researchers'
+
+session:
+  name: authelia_session
+  domain: test.local
+  same_site: lax
+  expiration: 1h
+  inactivity: 5m
+  remember_me_duration: 2160h    # 90 days
+
+regulation:
+  max_retries: 3
+  find_time: 2m
+  ban_time: 5m
+
+storage:
+  local:
+    path: /data/db.sqlite3
+
+notifier:
+  disable_startup_check: true
+  filesystem:
+    filename: /data/notification.txt
+
+identity_providers:
+  oidc:
+    cors:
+      endpoints:
+        - authorization
+        - token
+        - revocation
+        - introspection
+        - userinfo
+    clients:
+      - id: grafana
+        description: Grafana
+        secret: '$pbkdf2-sha512$310000$6dRXBdgWEAAM7jMll77TNA$nYmyVgHgaNAudIuHdfXqgmUnx36Eqbx.af2365otaXJrIkimFl5icbCa6jnFIWNWS0VY0nu68rA16rr83lWqug'
+        public: false
+        authorization_policy: one_factor
+        redirect_uris:
+          - https://test.local/grafana/login/generic_oauth
+        scopes:
+          - openid
+          - profile
+          - email
+          - groups
+        grant_types:
+          - authorization_code
+          - refresh_token
+        response_types:
+          - code
+        userinfo_signing_algorithm: none

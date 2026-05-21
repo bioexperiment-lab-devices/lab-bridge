@@ -32,9 +32,6 @@ tasks:
   destroy:  { desc: "docker compose down -v (DANGEROUS)",            cmd: "bash scripts/ops.sh destroy" }
 
   # --- Secrets ---
-  "secrets:set-admin-password":
-    desc: Set or rotate the /flash/* basic-auth password (operator gate; prompts; deploy to apply)
-    cmd: bash scripts/secrets.sh set-admin-password
   "secrets:set-jupyter-password":
     desc: Set or rotate the shared JupyterLab password (prompts; deploy to apply)
     cmd: bash scripts/secrets.sh set-jupyter-password
@@ -56,6 +53,26 @@ tasks:
   "secrets:rm-client":
     desc: Remove a chisel client
     cmd: bash scripts/secrets.sh rm-client {{.CLI_ARGS}}
+  "secrets:bootstrap-authelia":
+    desc: Generate Authelia secrets (JWT, session, storage encryption, OIDC HMAC, RSA JWKS key) and the Grafana OIDC client secret + its PBKDF2 hash. Pass --rotate to overwrite.
+    cmd: bash scripts/secrets.sh bootstrap-authelia {{.CLI_ARGS}}
+
+  # --- Users (Authelia identities) ---
+  "users:add":
+    desc: "Add a user (prompts for password). Usage: task users:add -- USER GROUP[,GROUP]"
+    cmd: bash scripts/users.sh add {{.CLI_ARGS}}
+  "users:rm":
+    desc: "Remove a user. Usage: task users:rm -- USER"
+    cmd: bash scripts/users.sh rm {{.CLI_ARGS}}
+  "users:set-password":
+    desc: "Set a new password for a user (prompts). Usage: task users:set-password -- USER"
+    cmd: bash scripts/users.sh set-password {{.CLI_ARGS}}
+  "users:set-groups":
+    desc: "Set the group list for a user. Usage: task users:set-groups -- USER GROUP[,GROUP]"
+    cmd: bash scripts/users.sh set-groups {{.CLI_ARGS}}
+  "users:list":
+    desc: Print all users with their groups
+    cmd: bash scripts/users.sh list
 
   # --- Operations ---
   logs:     { desc: "Show recent logs (optionally for a single service)", cmd: "bash scripts/ops.sh logs {{.CLI_ARGS}}" }

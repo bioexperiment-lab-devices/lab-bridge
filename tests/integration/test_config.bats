@@ -13,7 +13,7 @@ teardown() { teardown_tmpdir; }
 @test "validate_config: rejects config missing required fields" {
     run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/integration/fixtures/missing_field_config.yaml"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"siteapp.admin_password_hash"* ]]
+    [[ "$output" == *"vps.ssh_user"* ]]
 }
 
 @test "validate_config: rejects duplicate chisel reverse_ports" {
@@ -132,6 +132,8 @@ grafana_image: grafana/grafana:11.3.0
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
 caddy_image_repo: ghcr.io/example/lab-bridge-caddy
+authelia_image_repo: ghcr.io/example/lab-bridge-authelia
+authelia_image: ghcr.io/example/lab-bridge-authelia:latest
 acme_email: ops@example.com
 remote_root: /srv/lab-bridge
 notebooks_path: /srv/jupyterlab/work
@@ -147,8 +149,6 @@ vps:
   ssh_user: deploy
 jupyter:
   password_hash: sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567
-siteapp:
-  admin_password_hash: $2a$14$DG5Aycl5h3ED0V1Qz50BfuZDxSle4cvw7sRFYCArNvB03eCpKSPxa
 chisel_clients: []
 CFG
 

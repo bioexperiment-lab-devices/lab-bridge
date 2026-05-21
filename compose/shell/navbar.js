@@ -203,6 +203,7 @@
              role="navigation" aria-label="Platform navigation">
         ${brand}
         <nav><ul>${items}</ul></nav>
+        <aside class="auth-slot"></aside>
         ${railBottom}
         ${mode === 'bookmark' ? '<div class="esc-hint">Esc to dismiss</div>' : ''}
       </aside>
@@ -235,6 +236,7 @@
       this._render();
       this._wire();
       this._applyNavWidth();
+      renderAuthSlot(this.shadowRoot);
       document.addEventListener('keydown', this._onKeydown);
       window.addEventListener('storage', this._onStorage);
     }
@@ -389,6 +391,32 @@
   }
 
   customElements.define('lds-navbar', LdsNavbar);
+
+  async function renderAuthSlot(root) {
+    const slot = root.querySelector('.auth-slot');
+    if (!slot) return;
+    let data = { user: null };
+    try {
+      const r = await fetch('/api/auth/whoami', { credentials: 'include' });
+      if (r.ok) data = await r.json();
+    } catch (_) {
+      // Network error — render as logged-out, no surprises.
+    }
+    if (data.user) {
+      const initial = data.user[0].toUpperCase();
+      const label = `Sign out (${data.user})`;
+      slot.innerHTML = `
+        <a class="lds-avatar" href="/logout" aria-label="${label}" title="${label}">
+          <span class="lds-avatar-initial">${initial}</span>
+        </a>`;
+    } else {
+      const rd = encodeURIComponent(location.pathname + location.search);
+      slot.innerHTML = `
+        <a class="lds-login-btn" href="/login?rd=${rd}" aria-label="Sign in">
+          Sign in
+        </a>`;
+    }
+  }
 
   function mount() {
     if (document.querySelector('lds-navbar')) return;

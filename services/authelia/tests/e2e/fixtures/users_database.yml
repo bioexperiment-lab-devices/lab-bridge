@@ -1,0 +1,13 @@
+users:
+  alice:
+    displayname: Alice
+    # Hash of "alice-password" (argon2id, default parameters).
+    password: '$argon2id$v=19$m=65536,t=3,p=4$iNzLZUasKgeeGpEP6ugJBA$59JMNV5RK+f4FPe/XZh+pljt5iEuzt8P4CcLBKp/izQ'
+    email: alice@example.test
+    groups: [admins]
+  bob:
+    displayname: Bob
+    # Hash of "bob-password" (argon2id).
+    password: '$argon2id$v=19$m=65536,t=3,p=4$o+NPvV9ujQ+Paojmj0FT4A$HMKi2YVjnoGGj4f35I22h3nhuh5sTjgjBQ2ajZmbPfk'
+    email: bob@example.test
+    groups: [researchers]
