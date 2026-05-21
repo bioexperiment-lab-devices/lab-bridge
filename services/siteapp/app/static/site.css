@@ -188,6 +188,19 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   letter-spacing: -0.012em;
   color: var(--text);
 }
+.lb-home-header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 4px;
+}
+.lb-home-header__brand:hover { text-decoration: none; color: var(--text); }
+.lb-home-header__brand:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
 .lb-home-header__dot {
   width: 8px; height: 8px;
   border-radius: 50%;
@@ -1936,9 +1949,9 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   height: 38px;
   padding: 0 16px;
   border-radius: 5px;
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #fff;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
   font-weight: 600;
   font-size: 13px;
   letter-spacing: -0.005em;
@@ -1948,8 +1961,7 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   cursor: pointer;
   text-decoration: none;
 }
-.lb-forbidden__primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-[data-theme="dark"] .lb-forbidden__primary { color: var(--text-inverse); }
+.lb-forbidden__primary:hover { background: var(--accent-border); border-color: var(--accent); }
 
 /* ============================================================
    Sign-in page (/sign-in) — minimal credentials form
@@ -1960,6 +1972,7 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   justify-content: center;
   padding: 40px 32px;
   /* the rail stays to the left; this fills the rest */
+  min-height: 100dvh;
 }
 .lb-login {
   width: 100%;
@@ -2124,11 +2137,10 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
 }
 .lb-check:hover .lb-check__box { border-color: var(--border-strong); }
 .lb-check__input:checked + .lb-check__box {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
 }
-[data-theme="dark"] .lb-check__input:checked + .lb-check__box { color: var(--text-inverse); }
 .lb-check__input:focus-visible + .lb-check__box {
   outline: 0;
   box-shadow: 0 0 0 3px var(--accent-soft);
@@ -2158,9 +2170,9 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   margin-top: 8px;
   height: 40px;
   border-radius: 5px;
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #fff;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
   font-weight: 600;
   font-size: 14px;
   letter-spacing: -0.005em;
@@ -2172,8 +2184,8 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   transition: background 100ms, opacity 100ms;
 }
 .lb-login__submit:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--accent-border);
+  border-color: var(--accent);
 }
 .lb-login__submit:disabled {
   background: var(--surface-sunken);
@@ -2181,7 +2193,6 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   color: var(--text-muted);
   cursor: not-allowed;
 }
-[data-theme="dark"] .lb-login__submit { color: var(--text-inverse); }
 .lb-login__submit svg { width: 14px; height: 14px; }
 .lb-login__spinner {
   width: 14px; height: 14px;
