@@ -107,7 +107,7 @@ def make_router(settings: Settings) -> APIRouter:
             }
         )
 
-    @router.get("/logout")
+    @router.api_route("/logout", methods=["GET", "POST"])
     async def logout(request: Request) -> Response:
         cookie = request.headers.get("cookie", "")
         # Authelia 4.38 /api/logout is POST-only; it invalidates the session
