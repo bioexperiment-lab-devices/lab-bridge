@@ -244,7 +244,7 @@
       this._render();
       this._wire();
       this._applyNavWidth();
-      renderAuthSlot(this.shadowRoot, this);
+      // _wire() already calls renderAuthSlot — no need to call it again here.
       document.addEventListener('keydown', this._onKeydown);
       window.addEventListener('storage', this._onStorage);
     }
