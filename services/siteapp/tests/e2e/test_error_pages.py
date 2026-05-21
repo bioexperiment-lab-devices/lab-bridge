@@ -58,3 +58,9 @@ def test_error_404_renders_attempted_path_from_query(http: httpx.Client) -> None
     r = http.get("/_errors/404?path=/lab/benchz-42")
     assert r.status_code == 200
     assert "<code>/lab/benchz-42</code>" in r.text
+
+
+def test_error_404_falls_back_to_request_path_when_query_missing(http: httpx.Client) -> None:
+    r = http.get("/_errors/404")
+    assert r.status_code == 200
+    assert "<code>/_errors/404</code>" in r.text
