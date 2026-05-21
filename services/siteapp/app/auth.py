@@ -118,13 +118,33 @@ def make_router(settings: Settings) -> APIRouter:
         except httpx.RequestError:
             pass
         resp = RedirectResponse("/", status_code=302)
-        # Expire the authelia_session cookie on the client.
         host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
         domain = host.split(":")[0]  # strip port if present
-        expire_cookie = (
-            f"authelia_session=; Max-Age=0; domain={domain}; path=/; HttpOnly; SameSite=Lax"
+        # Expire the authelia_session cookie. Domain-scoped to match the one
+        # Authelia set; the browser only deletes a cookie when (name, domain,
+        # path) all match.
+        resp.raw_headers.append(
+            (
+                b"set-cookie",
+                f"authelia_session=; Max-Age=0; domain={domain}; path=/; HttpOnly; SameSite=Lax".encode(
+                    "latin-1"
+                ),
+            )
         )
-        resp.raw_headers.append((b"set-cookie", expire_cookie.encode("latin-1")))
+        # Grafana's session cookie is independent of Authelia — without
+        # explicit expiry here, the user stays logged in (with whatever role
+        # OIDC mapped them to) for up to 7 days on grafana_session alone.
+        # Grafana sets it host-only (no Domain attribute) with Path=/grafana/
+        # when serve_from_sub_path=true.
+        for cookie_name in ("grafana_session", "grafana_session_expiry"):
+            resp.raw_headers.append(
+                (
+                    b"set-cookie",
+                    f"{cookie_name}=; Max-Age=0; path=/grafana/; HttpOnly; SameSite=Lax".encode(
+                        "latin-1"
+                    ),
+                )
+            )
         return resp
 
     @router.get("/_errors/403", response_class=HTMLResponse, include_in_schema=False)

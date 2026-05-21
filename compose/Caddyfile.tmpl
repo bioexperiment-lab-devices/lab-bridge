@@ -35,7 +35,14 @@ https://__VPS_HOST__ {
     }
 
     # ─── Authelia (public — OIDC discovery + redirects) ──────────────────
+    # `uri strip_prefix /auth` is load-bearing: Authelia 4.38 mounts every
+    # route (OIDC endpoints, /api/firstfactor, /.well-known/*) at the root.
+    # Without the strip, /auth/api/oidc/authorization falls through to the
+    # Authelia React SPA catch-all, which returns 200 with a portal HTML
+    # page whose <base href> doesn't match the /auth/ sub-path — Grafana
+    # never receives the OIDC redirect and the handshake silently breaks.
     handle /auth/* {
+        uri strip_prefix /auth
         reverse_proxy authelia:9091 {
             header_up -Accept-Encoding
         }
@@ -98,8 +105,13 @@ https://__VPS_HOST__ {
         }
     }
 
-    # ─── Grafana (OIDC handled inside Grafana; Caddy stays as proxy) ─────
+    # ─── Grafana (forward_auth gate in front of Grafana's OIDC) ──────────
+    # forward_auth gives anonymous users our custom /login form instead of
+    # Authelia's broken-under-sub-path React portal. Once they have an
+    # authelia_session, Grafana's OIDC flow completes silently behind the
+    # scenes and Grafana maps Authelia groups → Grafana roles.
     handle /grafana/* {
+        import authelia_required
         header Content-Security-Policy "(script-src[^;]*)" "${1} 'self'"
         header Content-Security-Policy "(style-src[^;]*)" "${1} 'self'"
         reverse_proxy grafana:3000 {

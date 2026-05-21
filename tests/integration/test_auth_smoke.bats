@@ -42,12 +42,32 @@ setup() {
     [[ "$output" =~ [Ll]ocation:.*/login ]]
 }
 
-@test "anonymous GET /grafana/ is redirected towards auth (Grafana OIDC flow)" {
-    # Grafana handles OIDC internally; it redirects to the Authelia OIDC
-    # authorization endpoint (/auth/api/oidc/…).  We just verify the first
-    # hop is a redirect rather than a 200 plain-text page.
+@test "anonymous GET /grafana/ redirects to /login (forward_auth gate)" {
+    # Grafana is gated by Authelia's forward_auth in front of its own OIDC.
+    # That way anonymous users see siteapp's custom /login form, not the
+    # half-broken Authelia React portal (which has no working assets under
+    # the /auth/ sub-path).
     run curl -ksSI "https://$FAKE_VPS_HOST/grafana/"
+    [[ "$output" =~ HTTP/.*\ 302 ]]
+    [[ "$output" =~ [Ll]ocation:.*/login ]]
+}
+
+@test "OIDC authorization endpoint via /auth/ returns 30x (not portal HTML)" {
+    # Regression guard: Caddy must strip /auth/ before proxying to Authelia,
+    # otherwise Authelia falls through to its SPA catch-all and returns the
+    # React portal as 200 HTML, breaking Grafana's OIDC handshake entirely.
+    # Use GET (-D - dumps headers only) — Authelia's OIDC handler doesn't
+    # respond to HEAD.
+    run curl -ksS -o /dev/null -D - \
+        "https://$FAKE_VPS_HOST/auth/api/oidc/authorization?client_id=grafana&response_type=code&redirect_uri=https://$FAKE_VPS_HOST/grafana/login/generic_oauth&scope=openid&state=abcdefghij1234567890&nonce=xyz123"
     [[ "$output" =~ HTTP/.*\ 30[0-9] ]]
+}
+
+@test "OIDC discovery is reachable at /auth/.well-known/openid-configuration" {
+    run curl -ksS \
+        "https://$FAKE_VPS_HOST/auth/.well-known/openid-configuration"
+    [[ "$output" =~ \"issuer\" ]]
+    [[ "$output" =~ authorization_endpoint ]]
 }
 
 @test "admin login round-trip grants /flash" {
@@ -85,6 +105,23 @@ setup() {
     curl -ksS -b "$jar" -c "$jar" "https://$FAKE_VPS_HOST/logout" >/dev/null
     run curl -ksSI -b "$jar" "https://$FAKE_VPS_HOST/flash"
     [[ "$output" =~ HTTP/.*\ 302 ]]
+}
+
+@test "logout also bounces /grafana/ back to /login" {
+    # Grafana keeps its own session cookie independent of authelia_session,
+    # so /logout must both invalidate the Authelia session AND expire the
+    # grafana_session cookie. The forward_auth gate is the belt-and-braces
+    # check: even if a stale grafana_session leaked through, the gate would
+    # still 302 to /login.
+    local jar="$BATS_TEST_TMPDIR/cookies.jar"
+    curl -ksS -c "$jar" \
+        -X POST -H "Content-Type: application/json" \
+        -d '{"username":"admin","password":"secret","targetURL":"/","keepMeLoggedIn":true}' \
+        "https://$FAKE_VPS_HOST/api/auth/firstfactor" >/dev/null
+    curl -ksS -b "$jar" -c "$jar" "https://$FAKE_VPS_HOST/logout" >/dev/null
+    run curl -ksSI -b "$jar" "https://$FAKE_VPS_HOST/grafana/"
+    [[ "$output" =~ HTTP/.*\ 302 ]]
+    [[ "$output" =~ [Ll]ocation:.*/login ]]
 }
 
 @test "whoami reflects session state on every handle" {
