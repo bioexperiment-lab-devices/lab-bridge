@@ -12,6 +12,7 @@ the access-control resource match, so we forward them faithfully.
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 from fastapi import APIRouter, Cookie, Request
@@ -19,6 +20,21 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 
 from app.config import Settings
 from app.templates import templates
+
+
+def _target_path(target: str) -> str:
+    # Authelia's /api/verify writes the *full* original URL into ?rd= on its
+    # 303 to /login, so the login form's targetURL arrives here as
+    # 'https://host/path'. Authelia in turn builds the requested URL as
+    # X-Forwarded-Proto + X-Forwarded-Host + X-Forwarded-Uri, so a full-URL
+    # X-Forwarded-Uri concatenates into 'https://hosthttps://host/path' and
+    # fails session-cookie-domain matching — the 1FA attempt is rejected
+    # with 'Authentication failed' before the password is ever checked.
+    if target.startswith(("http://", "https://")):
+        parts = urlsplit(target)
+        path = parts.path or "/"
+        return f"{path}?{parts.query}" if parts.query else path
+    return target or "/"
 
 
 def _forwarded_headers(request: Request, target_uri: str) -> dict[str, str]:
@@ -44,7 +60,7 @@ def make_router(settings: Settings) -> APIRouter:
     @router.post("/api/auth/firstfactor")
     async def firstfactor(request: Request) -> Response:
         payload: dict[str, Any] = await request.json()
-        target = payload.get("targetURL") or "/"
+        target = _target_path(payload.get("targetURL") or "/")
         body = {
             "username": payload.get("username", ""),
             "password": payload.get("password", ""),
