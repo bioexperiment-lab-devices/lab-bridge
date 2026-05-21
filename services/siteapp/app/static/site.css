@@ -991,6 +991,7 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   color: var(--text-secondary);
   font-size: 18px;
 }
+.lb-dl-card__icon-tile svg { width: 24px; height: 24px; display: block; }
 .lb-dl-card--coming .lb-dl-card__icon-tile {
   background: var(--surface-sunken);
   opacity: 0.7;
@@ -1816,8 +1817,9 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   padding: 56px 32px;
   /* Without this, the card collapses to its natural height and the flex
      vertical centering has nothing to center against — the page sits at
-     the top of the viewport instead of being centred. */
-  min-height: 100vh;
+     the top of the viewport instead of being centred. dvh handles the
+     mobile address-bar resize case. */
+  min-height: 100dvh;
 }
 .lb-forbidden {
   position: relative;
