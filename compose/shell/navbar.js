@@ -70,6 +70,13 @@
     chevronLeft:  ICON(`<path d="m11 4-5 5 5 5"/>`),
     sun: ICON(`<circle cx="9" cy="9" r="3"/><path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.5 3.5l1.4 1.4M13.1 13.1l1.4 1.4M3.5 14.5l1.4-1.4M13.1 4.9l1.4-1.4"/>`),
     moon: ICON(`<path d="M14 11a5 5 0 1 1-7-7 5 5 0 0 0 7 7z"/>`),
+    signin: `<svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor"
+                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+                aria-hidden="true">
+                <circle cx="4.5" cy="7" r="2.25"/>
+                <path d="M6.75 7h5.25"/>
+                <path d="M10 7v1.75M12 7v2"/>
+              </svg>`,
   };
 
   const BRAND_MARK_SVG =
@@ -187,6 +194,7 @@
 
     const railBottom = mode === 'persistent' ? `
       <div class="rail-bottom">
+        <div class="auth-slot"></div>
         ${themeBtn}
         <button class="toggle" type="button" aria-label="${chevronLabel}">
           ${ICONS.chevronLeft}
@@ -194,6 +202,7 @@
         </button>
       </div>` : `
       <div class="rail-bottom">
+        <div class="auth-slot"></div>
         ${themeBtn}
       </div>`;
 
@@ -203,7 +212,6 @@
              role="navigation" aria-label="Platform navigation">
         ${brand}
         <nav><ul>${items}</ul></nav>
-        <aside class="auth-slot"></aside>
         ${railBottom}
         ${mode === 'bookmark' ? '<div class="esc-hint">Esc to dismiss</div>' : ''}
       </aside>
@@ -236,7 +244,7 @@
       this._render();
       this._wire();
       this._applyNavWidth();
-      renderAuthSlot(this.shadowRoot);
+      renderAuthSlot(this.shadowRoot, this);
       document.addEventListener('keydown', this._onKeydown);
       window.addEventListener('storage', this._onStorage);
     }
@@ -371,6 +379,11 @@
       });
     }
 
+    _openSignOutModal(_user) {
+      // Implemented in Task 8 — sign-out modal.
+      console.warn('[lds-navbar] sign-out modal not yet wired');
+    }
+
     _handleEscape(e) {
       if (e.key !== 'Escape' || this._state !== 'expanded') return;
       if (this._mode === 'persistent') {
@@ -392,7 +405,14 @@
 
   customElements.define('lds-navbar', LdsNavbar);
 
-  async function renderAuthSlot(root) {
+  function deriveInitials(source) {
+    if (!source) return '?';
+    const parts = String(source).trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    return parts.slice(0, 2).map((s) => s[0]).join('').toUpperCase();
+  }
+
+  async function renderAuthSlot(root, host) {
     const slot = root.querySelector('.auth-slot');
     if (!slot) return;
     let data = { user: null };
@@ -403,19 +423,34 @@
       // Network error — render as logged-out, no surprises.
     }
     if (data.user) {
-      const initial = data.user[0].toUpperCase();
-      const label = `Sign out (${data.user})`;
+      const name = data.display_name || data.user || 'Account';
+      const initials = deriveInitials(data.display_name || data.user);
       slot.innerHTML = `
-        <a class="lds-avatar" href="/logout" aria-label="${label}" title="${label}">
-          <span class="lds-avatar-initial">${initial}</span>
-        </a>`;
+        <button class="user" type="button" aria-label="Account menu: ${escapeAttr(name)}">
+          <span class="user__avatar" aria-hidden="true">${escapeHtml(initials)}</span>
+          <span class="user__text">
+            <span class="user__name">${escapeHtml(name)}</span>
+          </span>
+        </button>`;
+      const btn = slot.querySelector('.user');
+      btn.addEventListener('click', () => host._openSignOutModal({ name, initials }));
     } else {
       const rd = encodeURIComponent(location.pathname + location.search);
       slot.innerHTML = `
-        <a class="lds-login-btn" href="/login?rd=${rd}" aria-label="Sign in">
-          Sign in
+        <a class="signin-cta" href="/login?rd=${rd}" aria-label="Sign in">
+          ${ICONS.signin}
+          <span class="signin-cta__label">Sign in</span>
         </a>`;
     }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+  }
+  function escapeAttr(s) {
+    return escapeHtml(s);
   }
 
   function mount() {
