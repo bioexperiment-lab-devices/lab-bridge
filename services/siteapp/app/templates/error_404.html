@@ -1,9 +1,38 @@
 {% extends "base.html" %}
 {% block title %}Not found — lab-bridge{% endblock %}
 {% block main %}
-  <section class="lb-error">
-    <h1>404 — Not found</h1>
-    <p>The page you're looking for doesn't exist on this server.</p>
-    <p><a href="/">Go home</a></p>
+  <section class="lb-forbidden-page">
+    <div class="lb-forbidden">
+      <span class="lb-forbidden__code">Error 404 · Not found</span>
+
+      <div class="lb-forbidden__card">
+        <div class="lb-forbidden__head">
+          <div class="lb-forbidden__lock lb-forbidden__lock--404" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="10.5" cy="10.5" r="5.5"/>
+              <path d="M14.6 14.6L19 19"/>
+              <path d="M8.5 10.5h4"/>
+            </svg>
+          </div>
+          <h1 class="lb-forbidden__title">Page not found</h1>
+        </div>
+        <p class="lb-forbidden__body">We couldn't find that page. The link may be broken or the resource may have been renamed.</p>
+
+        <dl class="lb-forbidden__meta">
+          <div>
+            <dt>Attempted path</dt>
+            <dd><code>{{ attempted_path }}</code></dd>
+          </div>
+        </dl>
+
+        <div class="lb-forbidden__actions">
+          <button type="button" class="lb-forbidden__primary" onclick="history.back()">
+            <span aria-hidden="true">←</span>
+            <span>Back</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </section>
 {% endblock %}

@@ -46,5 +46,15 @@ def test_error_404_renders_with_base_template(http: httpx.Client) -> None:
     r = http.get("/_errors/404")
     assert r.status_code == 200
     body = r.text
-    assert "404" in body
     assert "/_static/site.css" in body or "/_static/tokens.css" in body
+    assert "Error 404 · Not found" in body
+    assert "lb-forbidden__card" in body
+    assert "lb-forbidden__lock--404" in body         # neutral magnifier modifier
+    assert "lb-forbidden__meta" in body
+    assert "Page not found" in body                  # title copy
+
+
+def test_error_404_renders_attempted_path_from_query(http: httpx.Client) -> None:
+    r = http.get("/_errors/404?path=/lab/benchz-42")
+    assert r.status_code == 200
+    assert "<code>/lab/benchz-42</code>" in r.text

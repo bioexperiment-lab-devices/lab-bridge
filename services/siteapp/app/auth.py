@@ -127,19 +127,23 @@ def make_router(settings: Settings) -> APIRouter:
         resp.raw_headers.append((b"set-cookie", expire_cookie.encode("latin-1")))
         return resp
 
-    @router.get("/_errors/403", response_class=HTMLResponse, include_in_schema=False)
-    async def error_403(request: Request) -> HTMLResponse:
-        # Caddy's handle_errors rewrites to /_errors/403?path={http.request.orig_uri.path}.
+    def _attempted_path(request: Request) -> str:
+        # Caddy's handle_errors rewrites to /_errors/{code}?path={http.request.orig_uri.path}.
         # (orig_uri.path, not orig_uri — the query string is intentionally stripped
         # to avoid splicing raw query params after ?path=.)
         # Direct hits (e2e, debugging) have no ?path= and fall back to the URI.
-        attempted_path = request.query_params.get("path") or request.url.path
+        return request.query_params.get("path") or request.url.path
+
+    @router.get("/_errors/403", response_class=HTMLResponse, include_in_schema=False)
+    async def error_403(request: Request) -> HTMLResponse:
         return templates.TemplateResponse(
-            request, "error_403.html", {"attempted_path": attempted_path}
+            request, "error_403.html", {"attempted_path": _attempted_path(request)}
         )
 
     @router.get("/_errors/404", response_class=HTMLResponse, include_in_schema=False)
     async def error_404(request: Request) -> HTMLResponse:
-        return templates.TemplateResponse(request, "error_404.html", {})
+        return templates.TemplateResponse(
+            request, "error_404.html", {"attempted_path": _attempted_path(request)}
+        )
 
     return router
