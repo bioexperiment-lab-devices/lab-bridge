@@ -218,8 +218,18 @@ bootstrap_authelia_for_tests() {
     AUTHELIA_GRAFANA_OIDC_SECRET_HASH="$(yq e '.authelia.grafana_oidc_secret_hash' "$LDS_CONFIG")"
     # Stage the users database file alongside secrets so the deploy rsyncs
     # an empty-but-present file rather than fabricating one inline.
+    # Authelia 4.38 rejects an empty users map (users: {}), so we include a
+    # disabled stub account that satisfies the schema without granting access.
     export LDS_USERS_DB="$TMPDIR/authelia_users_database.yml"
-    printf 'users: {}\n' > "$LDS_USERS_DB"
+    cat > "$LDS_USERS_DB" <<'USERSEOF'
+users:
+  _stub:
+    displayname: Stub
+    password: '$argon2id$v=19$m=65536,t=3,p=4$iNzLZUasKgeeGpEP6ugJBA$59JMNV5RK+f4FPe/XZh+pljt5iEuzt8P4CcLBKp/izQ'
+    email: stub@example.invalid
+    disabled: true
+    groups: []
+USERSEOF
 }
 
 # Lightweight stub: create placeholder Authelia secret files and write a fake
@@ -237,7 +247,15 @@ stub_authelia_for_tests() {
     export AUTHELIA_GRAFANA_OIDC_SECRET_HASH='$pbkdf2-sha512$310000$c3R1Yg$c3R1Yg'
     yq -i ".authelia.grafana_oidc_secret_hash = \"\$pbkdf2-sha512\$310000\$c3R1Yg\$c3R1Yg\"" "$LDS_CONFIG"
     export LDS_USERS_DB="$TMPDIR/authelia_users_database.yml"
-    printf 'users: {}\n' > "$LDS_USERS_DB"
+    cat > "$LDS_USERS_DB" <<'USERSEOF'
+users:
+  _stub:
+    displayname: Stub
+    password: '$argon2id$v=19$m=65536,t=3,p=4$iNzLZUasKgeeGpEP6ugJBA$59JMNV5RK+f4FPe/XZh+pljt5iEuzt8P4CcLBKp/izQ'
+    email: stub@example.invalid
+    disabled: true
+    groups: []
+USERSEOF
 }
 
 # Bring up the fake-VPS with a full Authelia-enabled stack and seed user

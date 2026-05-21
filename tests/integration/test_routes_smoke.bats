@@ -41,6 +41,7 @@ setup_file() {
     bash "$ROOT/scripts/deploy.sh"
     patch_caddyfile_tls_internal
     wait_siteapp_ready
+    wait_authelia_ready
 }
 
 teardown_file() {
