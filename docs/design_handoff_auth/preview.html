@@ -1,0 +1,2206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Auth UI surfaces — preview</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style id="auth-css">
+/* ============================================================
+   Auth / Navbar / Errors / Dialogs CSS
+   Extracted from Lab Bridge.html (SerialHop UI design canvas).
+   ============================================================ */
+
+
+/* ============================================================
+   Lab Bridge — design tokens & primitives
+   Builds on SerialHop / Flasher's token set; adds .lb-* prefix
+   for lab-bridge-specific surfaces (navbar rail, home cards, etc.)
+   ============================================================ */
+:root {
+  --bg-page: #ECE9E0;
+  --bg-window-outer: #2A2823;
+
+  --surface: #FFFFFF;
+  --surface-sunken: #F8F6F0;
+  --surface-strip: #FAF8F3;
+  --surface-rail: #F3F0E6;
+
+  --border: #E2DED2;
+  --border-strong: #C8C3B5;
+  --border-input: #C3BFB2;
+
+  --text: #1A1916;
+  --text-secondary: #514E47;
+  --text-muted: #8A8678;
+  --text-inverse: #FAF8F3;
+
+  --accent: #1F3A8A;
+  --accent-hover: #182E6F;
+  --accent-soft: #E7ECF6;
+  --accent-border: #B8C2DC;
+
+  --success: #2F7D3F;
+  --success-soft: #E5F1E6;
+  --success-border: #BCD7BE;
+
+  --danger: #B23A2A;
+  --danger-soft: #F8E5E0;
+  --danger-border: #ECC5BC;
+
+  --warning: #A37200;
+  --warning-soft: #F5EAC8;
+  --warning-border: #E2D096;
+
+  --neutral-dot: #9F9B8E;
+  --shadow-card: 0 1px 0 rgba(26,25,22,0.04), 0 1px 2px rgba(26,25,22,0.06);
+  --shadow-popover: 0 10px 24px -8px rgba(26,25,22,0.25), 0 2px 6px rgba(26,25,22,0.08);
+  --shadow-overlay: 0 24px 50px -20px rgba(26,25,22,0.45), 0 8px 18px -6px rgba(26,25,22,0.18);
+}
+
+[data-theme="dark"] {
+  --bg-page: #1B1A17;
+  --bg-window-outer: #0E0D0B;
+  --surface: #232220;
+  --surface-sunken: #1D1C19;
+  --surface-strip: #1F1E1B;
+  --surface-rail: #1E1D1A;
+  --border: #34322D;
+  --border-strong: #4A4740;
+  --border-input: #4A4740;
+  --text: #F0EDE3;
+  --text-secondary: #B8B3A4;
+  --text-muted: #7E7A6E;
+  --text-inverse: #1A1916;
+  /* Accent brightened for AA contrast on accent-soft + surface bgs in dark */
+  --accent: #BCCBF2;
+  --accent-hover: #DBE3F8;
+  --accent-soft: #2A3257;
+  --accent-border: #4A5587;
+  --success: #7CC18A;
+  --success-soft: #1F2C22;
+  --success-border: #335A3E;
+  --danger: #E58879;
+  --danger-soft: #34211D;
+  --danger-border: #6A3D34;
+  --warning: #E3C067;
+  --warning-soft: #2F2715;
+  --warning-border: #5E4C20;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg-page);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ============================================================
+   Browser window chrome — matches Flasher's FlBrowser idiom
+   ============================================================ */
+.lb-window {
+  width: 1280px;
+  height: 820px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+  position: relative;
+  box-shadow: 0 1px 0 rgba(26,25,22,0.04), 0 4px 12px -2px rgba(26,25,22,0.08);
+}
+.lb-chrome {
+  height: 38px;
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 12px;
+  flex: 0 0 auto;
+  user-select: none;
+}
+.lb-traffic { display: flex; gap: 6px; }
+.lb-traffic i {
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  display: block;
+}
+.lb-traffic i:nth-child(1) { background: #E5594D; }
+.lb-traffic i:nth-child(2) { background: #DFA64F; }
+.lb-traffic i:nth-child(3) { background: #54BD4A; }
+
+.lb-addr {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  height: 24px;
+  padding: 0 10px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.lb-addr__lock { color: var(--text-muted); font-size: 10px; }
+.lb-addr__path { color: var(--text); }
+.lb-muted { color: var(--text-muted); }
+
+.lb-body {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-page);
+}
+
+/* ============================================================
+   Platform navbar — side rail (persistent mode)
+   ============================================================ */
+.lb-rail {
+  flex: 0 0 auto;
+  background: var(--surface-rail);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  width: var(--rail-w, 56px);
+  transition: width 200ms cubic-bezier(.2,.7,.3,1);
+  position: relative;
+  z-index: 4;
+}
+.lb-rail[data-mode="expanded"] { --rail-w: 220px; }
+.lb-rail[data-mode="collapsed"] { --rail-w: 56px; }
+
+.lb-rail__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 56px;
+  padding: 0 14px 0 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  font-size: 13.5px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.lb-rail__mark {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+  position: relative;
+}
+.lb-rail__mark::before,
+.lb-rail__mark::after {
+  content: "";
+  position: absolute;
+  width: 6px; height: 1.5px;
+  background: rgba(255,255,255,0.55);
+  top: 50%; transform: translateY(-50%);
+}
+.lb-rail__mark::before { left: 4px; }
+.lb-rail__mark::after  { right: 4px; }
+.lb-rail__mark span {
+  position: relative;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+  display: block;
+}
+.lb-rail__wordmark {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.lb-rail__wordmark b {
+  font-weight: 600;
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.lb-rail__wordmark small {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.lb-rail__nav {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 10px 8px;
+  overflow: hidden;
+}
+
+.lb-nav-group {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  padding: 12px 10px 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.lb-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 9px;
+  border-radius: 5px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.003em;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  position: relative;
+  border: 1px solid transparent;
+  height: 32px;
+}
+.lb-nav-item:hover {
+  background: rgba(0,0,0,0.035);
+  color: var(--text);
+}
+[data-theme="dark"] .lb-nav-item:hover { background: rgba(255,255,255,0.04); }
+
+.lb-nav-item[data-active="true"] {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  border-color: var(--border);
+  box-shadow: var(--shadow-card);
+}
+.lb-nav-item[data-active="true"] .lb-nav-item__ico {
+  color: var(--accent);
+}
+.lb-nav-item[data-active="true"]::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+}
+
+.lb-nav-item__ico {
+  flex: 0 0 22px;
+  width: 22px; height: 22px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+.lb-nav-item__ico svg { width: 18px; height: 18px; display: block; }
+.lb-nav-item__label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lb-nav-item__ext {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
+.lb-rail[data-mode="collapsed"] .lb-nav-item__label,
+.lb-rail[data-mode="collapsed"] .lb-nav-item__ext,
+.lb-rail[data-mode="collapsed"] .lb-rail__wordmark,
+.lb-rail[data-mode="collapsed"] .lb-nav-group { display: none; }
+.lb-rail[data-mode="collapsed"] .lb-rail__brand { justify-content: center; padding: 0; }
+.lb-rail[data-mode="collapsed"] .lb-nav-item {
+  justify-content: center;
+  padding: 7px 8px;
+}
+
+.lb-rail__bottom {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px solid var(--border);
+}
+.lb-rail[data-mode="collapsed"] .lb-rail__bottom { padding: 8px; }
+
+/* ------------------------------------------------------------
+   Rail bottom — shared utility button shape.
+   Sign-in, theme toggle, and collapse all use the same chrome:
+   same border, height, font, icon color, hover.
+   ------------------------------------------------------------ */
+.lb-rail__btn {
+  appearance: none;
+  font: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 5px;
+  height: 32px;
+  width: 100%;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.003em;
+  transition: background 100ms, color 100ms, border-color 100ms;
+  text-decoration: none;
+}
+.lb-rail__btn:hover {
+  background: var(--surface-strip);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.lb-rail__btn svg {
+  width: 14px; height: 14px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: color 100ms, transform 200ms;
+}
+.lb-rail__btn:hover svg { color: var(--text-secondary); }
+
+.lb-rail__chevron { /* keep selector for chevron-specific rotate behavior */ }
+.lb-rail[data-mode="collapsed"] .lb-rail__chevron span { display: none; }
+.lb-rail[data-mode="collapsed"] .lb-rail__chevron svg { transform: rotate(180deg); }
+
+/* ------------------------------------------------------------
+   Rail — auth / user identity block (sits at top of __bottom)
+   ------------------------------------------------------------ */
+.lb-rail__user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 5px;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 100ms, background 100ms;
+  min-height: 40px;
+  font: inherit;
+  text-align: left;
+  appearance: none;
+}
+.lb-rail__user:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-strip);
+}
+.lb-rail__avatar {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  position: relative;
+  text-transform: uppercase;
+}
+[data-theme="dark"] .lb-rail__avatar { color: var(--text-inverse); }
+.lb-rail__avatar::after {
+  /* live-session indicator dot */
+  content: "";
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--success);
+  border: 2px solid var(--surface-rail);
+  box-sizing: border-box;
+}
+.lb-rail__user-text {
+  flex: 1; min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.18;
+  overflow: hidden;
+}
+.lb-rail__user-name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sign-in CTA — light accent treatment: tinted bg + accent border/text */
+.lb-rail__signin {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+.lb-rail__signin svg { color: var(--accent); }
+.lb-rail__signin:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  filter: brightness(0.97);
+}
+[data-theme="dark"] .lb-rail__signin:hover { filter: brightness(1.08); }
+.lb-rail__signin:hover svg { color: var(--accent); }
+.lb-rail__signin-label { text-align: center; }
+
+/* Collapse button — darker, more recessive utility chrome */
+.lb-rail__chevron {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+  height: 26px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+.lb-rail__chevron svg { color: var(--text-muted); }
+.lb-rail__chevron:hover {
+  background: rgba(0,0,0,0.04);
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+[data-theme="dark"] .lb-rail__chevron:hover { background: rgba(255,255,255,0.04); }
+
+/* Collapsed rail — keep only avatar / key glyph, hide labels */
+.lb-rail[data-mode="collapsed"] .lb-rail__user {
+  padding: 5px;
+  justify-content: center;
+  min-height: 36px;
+}
+.lb-rail[data-mode="collapsed"] .lb-rail__user-text,
+.lb-rail[data-mode="collapsed"] .lb-rail__signin-label,
+.lb-rail[data-mode="collapsed"] .lb-rail__theme-label { display: none; }
+.lb-rail[data-mode="collapsed"] .lb-rail__btn {
+  padding: 0;
+}
+
+/* Backdrop dim when expanded over a page */
+.lb-rail__backdrop {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: var(--rail-w, 56px);
+  right: 0;
+  background: rgba(26,25,22,0.18);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms;
+  z-index: 3;
+}
+.lb-rail[data-mode="expanded"] + .lb-rail__backdrop { opacity: 1; }
+
+/* ============================================================
+   Bookmark mode — small tab pinned over Jupyter/Grafana
+   ============================================================ */
+.lb-bookmark {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  width: 132px;
+  height: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 0 8px 0 7px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--shadow-popover);
+  z-index: 50;
+  cursor: pointer;
+  user-select: none;
+}
+.lb-bookmark__mark {
+  width: 20px; height: 20px;
+  border-radius: 4px;
+  background: var(--accent);
+  display: grid; place-items: center;
+  color: #fff;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+.lb-bookmark__text {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--text);
+}
+.lb-bookmark__hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.lb-bookmark-overlay {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-overlay);
+  z-index: 51;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.lb-bookmark-overlay__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-strip);
+}
+.lb-bookmark-overlay__head .lb-rail__mark { width: 24px; height: 24px; border-radius: 5px; font-size: 11px; }
+.lb-bookmark-overlay__nav {
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.lb-bookmark-overlay__foot {
+  border-top: 1px solid var(--border);
+  padding: 6px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: var(--surface-strip);
+}
+.lb-bookmark-overlay__foot .lb-icon-btn {
+  width: 28px; height: 28px;
+}
+
+/* Bookmark overlay — user row (above the foot) */
+.lb-bookmark-overlay__user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  text-decoration: none;
+  color: var(--text);
+  cursor: pointer;
+  appearance: none;
+  font: inherit;
+  text-align: left;
+  border-left: 0; border-right: 0; border-bottom: 0;
+  width: 100%;
+}
+.lb-bookmark-overlay__user:hover { background: var(--surface-strip); }
+.lb-bookmark-overlay__user .lb-rail__avatar { width: 24px; height: 24px; font-size: 10px; }
+.lb-bookmark-overlay__user .lb-rail__user-text { gap: 0; }
+.lb-bookmark-overlay__user .lb-rail__user-name { font-size: 12.5px; }
+
+.lb-bookmark-overlay__signin {
+  margin: 0;
+  border-radius: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  height: 38px;
+}
+
+/* Theme toggle button (icon-only square that fits the rail) */
+.lb-icon-btn {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+.lb-icon-btn:hover { color: var(--text); border-color: var(--border-strong); }
+.lb-icon-btn svg { width: 14px; height: 14px; }
+
+/* ============================================================
+   Sign-in page (/sign-in) — minimal credentials form
+   ============================================================ */
+.lb-login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 32px;
+  /* the rail stays to the left; this fills the rest */
+}
+.lb-login {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lb-login__card {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+  padding: 28px 30px 22px;
+  display: flex;
+  flex-direction: column;
+}
+.lb-login__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.lb-login__brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.lb-login__brand-text b {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.lb-login__brand-text small {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.lb-login__title {
+  margin: 0 0 22px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  color: var(--text);
+}
+
+.lb-login__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  margin: 0 0 16px;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
+  border-left: 3px solid var(--danger);
+  border-radius: 4px;
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.lb-login__error-mark {
+  width: 18px; height: 18px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Form fields ----------------------------------------------- */
+.lb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+.lb-field__label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+.lb-field__wrap {
+  position: relative;
+  display: flex;
+}
+.lb-field__input {
+  font: inherit;
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border-input);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  letter-spacing: -0.003em;
+  transition: border-color 100ms, box-shadow 100ms;
+}
+.lb-field__wrap .lb-field__input { padding-right: 40px; }
+.lb-field__input::placeholder {
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+}
+.lb-field__input:hover { border-color: var(--border-strong); }
+.lb-field__input:focus {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.lb-field__reveal {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 30px;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.lb-field__reveal:hover { color: var(--text); background: var(--surface-strip); }
+.lb-field__reveal[aria-pressed="true"] { color: var(--accent); }
+.lb-field__reveal svg { width: 16px; height: 16px; }
+
+/* Checkbox -------------------------------------------------- */
+.lb-check {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 10px;
+  align-items: start;
+  margin: -4px 0 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.lb-check__input {
+  /* Visually hidden but still focusable so keyboard nav and a11y work. */
+  position: absolute;
+  opacity: 0;
+  width: 16px; height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+.lb-check__box {
+  width: 16px; height: 16px;
+  border: 1px solid var(--border-input);
+  border-radius: 3px;
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  color: transparent;
+  transition: background 80ms, border-color 80ms, color 80ms;
+  margin-top: 2px;
+}
+.lb-check__box svg {
+  width: 12px; height: 12px;
+  display: block;
+}
+.lb-check:hover .lb-check__box { border-color: var(--border-strong); }
+.lb-check__input:checked + .lb-check__box {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+[data-theme="dark"] .lb-check__input:checked + .lb-check__box { color: var(--text-inverse); }
+.lb-check__input:focus-visible + .lb-check__box {
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.lb-check__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.35;
+  min-width: 0;
+}
+.lb-check__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: -0.003em;
+}
+.lb-check__hint {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* Submit ---------------------------------------------------- */
+.lb-login__submit {
+  appearance: none;
+  font: inherit;
+  margin-top: 8px;
+  height: 40px;
+  border-radius: 5px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.005em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 100ms, opacity 100ms;
+}
+.lb-login__submit:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.lb-login__submit:disabled {
+  background: var(--surface-sunken);
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+[data-theme="dark"] .lb-login__submit { color: var(--text-inverse); }
+.lb-login__submit svg { width: 14px; height: 14px; }
+.lb-login__spinner {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: lb-spin 700ms linear infinite;
+}
+@keyframes lb-spin { to { transform: rotate(360deg); } }
+
+.lb-login__foot {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.lb-login__foot-lock {
+  width: 18px; height: 18px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+}
+.lb-login__foot-lock svg { width: 14px; height: 14px; }
+
+.lb-login__legal {
+  margin: 0;
+  text-align: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+
+/* ============================================================
+   Access denied (403) page
+   Authenticated user, wrong role. Rail stays — NOT a logout.
+   ============================================================ */
+.lb-forbidden-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 32px;
+}
+.lb-forbidden {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.lb-forbidden__code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.lb-forbidden__card {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+  padding: 28px 30px 22px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.lb-forbidden__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.lb-forbidden__lock {
+  width: 44px; height: 44px;
+  border-radius: 8px;
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-border);
+  display: grid;
+  place-items: center;
+  color: var(--warning);
+  flex-shrink: 0;
+}
+.lb-forbidden__lock svg { width: 22px; height: 22px; }
+.lb-forbidden__lock--404 {
+  background: var(--surface-sunken);
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.lb-forbidden__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.014em;
+  color: var(--text);
+  line-height: 1.25;
+  text-wrap: pretty;
+  flex: 1;
+  min-width: 0;
+}
+.lb-forbidden__body {
+  margin: 0 0 22px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.lb-forbidden__meta {
+  margin: 0 0 22px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.lb-forbidden__meta > div {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 14px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  align-items: baseline;
+}
+.lb-forbidden__meta > div:last-child { border-bottom: 0; }
+.lb-forbidden__meta dt {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+.lb-forbidden__meta dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lb-forbidden__meta code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12.5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 6px;
+  color: var(--text);
+  user-select: all;
+}
+.lb-forbidden__role-required {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+}
+.lb-forbidden__role-sep {
+  color: var(--text-muted);
+}
+.lb-forbidden__role-yours {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.lb-forbidden__role-yours b {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text);
+}
+
+.lb-forbidden__actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.lb-forbidden__primary {
+  appearance: none;
+  font: inherit;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 5px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: -0.005em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.lb-forbidden__primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+[data-theme="dark"] .lb-forbidden__primary { color: var(--text-inverse); }
+.lb-forbidden__secondary {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--border-strong);
+  padding-bottom: 1px;
+}
+.lb-forbidden__secondary:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+.lb-forbidden__foot {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.lb-forbidden__foot-avatar {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  display: grid;
+  place-items: center;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+[data-theme="dark"] .lb-forbidden__foot-avatar { color: var(--text-inverse); }
+.lb-forbidden__foot-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lb-forbidden__foot-text b {
+  color: var(--text);
+  font-weight: 600;
+}
+.lb-forbidden__foot-sep { color: var(--text-muted); }
+.lb-forbidden__foot-action {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dotted var(--border-strong);
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 0 0 1px;
+  cursor: pointer;
+}
+.lb-forbidden__foot-action:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+
+/* ============================================================
+   Modal — generic centered dialog with dim backdrop
+   ============================================================ */
+.lb-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.lb-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(26, 25, 22, 0.45);
+  backdrop-filter: blur(2px);
+}
+[data-theme="dark"] .lb-modal__backdrop { background: rgba(0, 0, 0, 0.55); }
+.lb-modal__card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-overlay);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: lb-modal-in 160ms cubic-bezier(.2,.7,.3,1) both;
+}
+@keyframes lb-modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+.lb-modal__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 16px 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-strip);
+}
+.lb-modal__ico {
+  width: 36px; height: 36px;
+  border-radius: 6px;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
+  display: grid;
+  place-items: center;
+  color: var(--danger);
+  flex-shrink: 0;
+}
+.lb-modal__ico svg { width: 18px; height: 18px; }
+.lb-modal__title {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.lb-modal__close {
+  appearance: none;
+  font: inherit;
+  background: transparent;
+  border: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+}
+.lb-modal__close:hover { background: rgba(0,0,0,0.05); color: var(--text); }
+[data-theme="dark"] .lb-modal__close:hover { background: rgba(255,255,255,0.06); }
+.lb-modal__close svg { width: 12px; height: 12px; }
+
+.lb-modal__body {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lb-modal__lede {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.lb-modal__user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+.lb-modal__user-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.2;
+  min-width: 0;
+}
+.lb-modal__user-text b {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+.lb-modal__user-text small {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.lb-modal__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface-strip);
+  border-top: 1px solid var(--border);
+}
+.lb-modal__btn {
+  appearance: none;
+  font: inherit;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 5px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.003em;
+  cursor: pointer;
+  transition: background 100ms, border-color 100ms, color 100ms;
+}
+.lb-modal__btn:hover { background: var(--surface-strip); border-color: var(--text-muted); }
+.lb-modal__btn--danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+  font-weight: 600;
+}
+.lb-modal__btn--danger:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  filter: brightness(0.93);
+}
+[data-theme="dark"] .lb-modal__btn--danger { color: var(--text-inverse); }
+</style>
+  <style>
+    body { padding: 28px; background: var(--bg-page); }
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(540px, 1fr));
+      gap: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .preview-grid > h2 {
+      grid-column: 1 / -1;
+      margin: 16px 0 -4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    .preview-card {
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+    }
+    .preview-card__label {
+      padding: 8px 14px;
+      background: var(--surface-strip);
+      border-bottom: 1px solid var(--border);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--text-secondary);
+      letter-spacing: 0.04em;
+    }
+    .preview-card__body {
+      height: 540px;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+    .theme-toggle {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 100;
+      appearance: none;
+      font: inherit;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: 5px;
+      padding: 6px 12px;
+      cursor: pointer;
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .header {
+      max-width: 1400px;
+      margin: 0 auto 18px;
+    }
+    .header h1 {
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: -0.014em;
+      margin: 0 0 4px;
+    }
+    .header p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--text-secondary);
+      max-width: 720px;
+    }
+  </style>
+</head>
+<body>
+  <button class="theme-toggle" onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'">Toggle theme</button>
+  <div class="header">
+    <h1>SerialHop / lab-bridge — Auth UI surfaces</h1>
+    <p>Design references for navbar (login state), sign-in page, error states (403 / 404), and sign-out confirmation dialog. See <code>README.md</code> for tokens, anatomy, and integration notes.</p>
+  </div>
+  <div class="preview-grid" id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" data-presets="react">
+/* === navbar.jsx === */
+
+// Lab Bridge — navbar (side rail + bookmark) + browser shell
+/* global React */
+
+const { useState } = React;
+
+// ============================================================
+// Icons — fresh minimal set, 18px viewBox
+// ============================================================
+const Icons = {
+  home: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.5 8L9 3l6.5 5" />
+      <path d="M4 8v6.5h4v-4h2v4h4V8" />
+    </svg>
+  ),
+  docs: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.5 3h7.5l3 3v8.5a.5.5 0 01-.5.5h-10a.5.5 0 01-.5-.5v-11A.5.5 0 013.5 3z" />
+      <path d="M11 3v3.5h3" />
+      <path d="M6 9h6M6 11.5h6M6 13.5h4" />
+    </svg>
+  ),
+  download: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 2.5v8.5" />
+      <path d="M5.5 8L9 11.5 12.5 8" />
+      <path d="M3 12.5v2A.5.5 0 003.5 15h11a.5.5 0 00.5-.5v-2" />
+    </svg>
+  ),
+  jupyter: (
+    // abstract atom-like — three orbits around a node. Generic, not branded.
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+      <ellipse cx="9" cy="9" rx="6.5" ry="2.6" />
+      <ellipse cx="9" cy="9" rx="6.5" ry="2.6" transform="rotate(60 9 9)" />
+      <ellipse cx="9" cy="9" rx="6.5" ry="2.6" transform="rotate(120 9 9)" />
+      <circle cx="9" cy="9" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  grafana: (
+    // abstract bar+line chart — generic, not the Grafana mark
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.5 14.5h13" />
+      <rect x="3.5"  y="9"  width="2" height="4.5" rx="0.4" />
+      <rect x="7"    y="6"  width="2" height="7.5" rx="0.4" />
+      <rect x="10.5" y="10.5" width="2" height="3" rx="0.4" />
+      <rect x="14"   y="7.5" width="1.5" height="6" rx="0.4" />
+      <path d="M4 5.5l3.5-2 3.5 3 4-2.5" strokeDasharray="0 0" />
+    </svg>
+  ),
+  flasher: (
+    // lightning + chip combo — represents firmware flashing
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9.5 2L4 10h4l-1 6 5.5-8H8.5l1-6z" />
+    </svg>
+  ),
+  chevronLeft: (
+    <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 3.5L4.5 7 9 10.5" />
+    </svg>
+  ),
+  sun: (
+    <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="7" cy="7" r="2.5" />
+      <path d="M7 1.5v1.5M7 11v1.5M1.5 7h1.5M11 7h1.5M3 3l1 1M10 10l1 1M3 11l1-1M10 4l1-1" />
+    </svg>
+  ),
+  moon: (
+    <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11.5 8.5A5 5 0 015.5 2.5a5 5 0 106 6z" />
+    </svg>
+  ),
+  copy: (
+    <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3.5" y="2.5" width="6" height="6" rx="1" />
+      <path d="M5.5 8.5v2a.5.5 0 00.5.5h5a.5.5 0 00.5-.5v-5a.5.5 0 00-.5-.5h-2" />
+    </svg>
+  ),
+  arrowRight: (
+    <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.5 7h7M7 3.5L10.5 7 7 10.5" />
+    </svg>
+  ),
+  signin: (
+    // key — credentials issued by admin
+    <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="4.5" cy="7" r="2.25" />
+      <path d="M6.75 7h5.25" />
+      <path d="M10 7v1.75M12 7v2" />
+    </svg>
+  ),
+  userMenu: (
+    // small up/down chevron — opens user popover
+    <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.5 6L7 3.5 9.5 6" />
+      <path d="M4.5 8L7 10.5 9.5 8" />
+    </svg>
+  ),
+};
+
+// ============================================================
+// Nav items — fixed order per brief
+// ============================================================
+const NAV_ITEMS = [
+  { id: "home",     label: "Home",           path: "/",                    icon: Icons.home,     ext: false },
+  { id: "docs",     label: "Docs",           path: "/docs/",               icon: Icons.docs,     ext: false },
+  { id: "download", label: "Download Agent", path: "/download/agent",      icon: Icons.download, ext: false },
+  { id: "jupyter",  label: "JupyterLab",     path: "/jupyter/",            icon: Icons.jupyter,  ext: true  },
+  { id: "grafana",  label: "Grafana",        path: "/grafana/dashboards",  icon: Icons.grafana,  ext: true  },
+  { id: "flasher",  label: "Flasher",        path: "/flash/",              icon: Icons.flasher,  ext: true  },
+];
+
+// ============================================================
+// Browser shell (matches Flasher's FlBrowser)
+// ============================================================
+function LBBrowser({ host = "lab-bridge.internal", path = "/", children }) {
+  return (
+    <div className="lb-window">
+      <div className="lb-chrome">
+        <div className="lb-traffic"><i /><i /><i /></div>
+        <div className="lb-addr">
+          <span className="lb-addr__lock">⌬</span>
+          <span><span className="lb-muted">https://</span>{host}<span className="lb-addr__path">{path}</span></span>
+        </div>
+        <div style={{ width: 60, opacity: 0 }}>spacer</div>
+      </div>
+      <div className="lb-body">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Side rail (Mode 1) — expanded or collapsed
+// ============================================================
+function LBBrandMark({ size = 28 }) {
+  // Compact wordmark: two terminal-bracket bars around a tunnel node
+  return (
+    <span className="lb-rail__mark" style={{ width: size, height: size, borderRadius: size > 24 ? 6 : 5, fontSize: size > 24 ? 13 : 11 }}>
+      <span />
+    </span>
+  );
+}
+
+function LBRailNavItem({ item, active, theme = "light" }) {
+  return (
+    <a className="lb-nav-item" data-active={active || undefined} aria-current={active ? "page" : undefined}
+       href={item.path}>
+      <span className="lb-nav-item__ico" aria-hidden="true">{item.icon}</span>
+      <span className="lb-nav-item__label">{item.label}</span>
+      {item.ext && <span className="lb-nav-item__ext" aria-label="opens external app">↗</span>}
+    </a>
+  );
+}
+
+// ============================================================
+// Auth context — App sets the active user (or null = signed-out)
+// ============================================================
+const LBAuthContext = React.createContext(null);
+
+// ============================================================
+// Auth block — signed-in identity OR sign-in CTA
+// `user` shape: { name, role, initials } | null (null = signed out)
+// ============================================================
+function LBRailUser({ user, mode = "expanded" }) {
+  if (user) {
+    return (
+      <button className="lb-rail__user" type="button"
+              aria-label={`Account menu: ${user.name}, ${user.role}`}
+              title={mode === "collapsed" ? `${user.name} · ${user.role}` : undefined}>
+        <span className="lb-rail__avatar" aria-hidden="true">{user.initials}</span>
+        <span className="lb-rail__user-text">
+          <span className="lb-rail__user-name">{user.name}</span>
+        </span>
+      </button>
+    );
+  }
+  return (
+    <button className="lb-rail__btn lb-rail__signin" type="button"
+            title={mode === "collapsed" ? "Sign in" : undefined}>
+      {Icons.signin}
+      <span className="lb-rail__signin-label">Sign in</span>
+    </button>
+  );
+}
+
+function LBRail({ mode = "expanded", active = "home", theme = "light", user }) {
+  const ctxUser = React.useContext(LBAuthContext);
+  const effectiveUser = user === undefined ? ctxUser : user;
+  return (
+    <nav className="lb-rail" data-mode={mode} aria-label="Platform navigation">
+      <div className="lb-rail__brand">
+        <LBBrandMark />
+        <div className="lb-rail__wordmark">
+          <b>lab-bridge</b>
+          <small>v3.4</small>
+        </div>
+      </div>
+      <div className="lb-rail__nav">
+        {NAV_ITEMS.map((it) => (
+          <LBRailNavItem key={it.id} item={it} active={it.id === active} />
+        ))}
+      </div>
+      <div className="lb-rail__bottom">
+        <LBRailUser user={effectiveUser} mode={mode} />
+        <button className="lb-rail__btn" type="button"
+                aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}>
+          {theme === "dark" ? Icons.sun : Icons.moon}
+          {mode === "expanded" && (
+            <span className="lb-rail__theme-label">
+              {theme === "dark" ? "Light theme" : "Dark theme"}
+            </span>
+          )}
+        </button>
+        <button className="lb-rail__btn lb-rail__chevron" type="button"
+                aria-label={mode === "expanded" ? "Collapse sidebar" : "Expand sidebar"}>
+          {Icons.chevronLeft}
+          <span>Collapse</span>
+        </button>
+      </div>
+    </nav>
+  );
+}
+
+// ============================================================
+// Bookmark mode (over JupyterLab / Grafana) — collapsed tab + hover overlay
+// ============================================================
+function LBBookmarkTab() {
+  return (
+    <div className="lb-bookmark" role="button" aria-label="Open lab-bridge navigation">
+      <span className="lb-bookmark__mark">L</span>
+      <span className="lb-bookmark__text">lab-bridge</span>
+      <span className="lb-bookmark__hint">›</span>
+    </div>
+  );
+}
+
+function LBBookmarkOverlay({ active = "jupyter", theme = "light", user }) {
+  const ctxUser = React.useContext(LBAuthContext);
+  const effectiveUser = user === undefined ? ctxUser : user;
+  return (
+    <div className="lb-bookmark-overlay">
+      <div className="lb-bookmark-overlay__head">
+        <LBBrandMark size={24} />
+        <div className="lb-rail__wordmark">
+          <b>lab-bridge</b>
+          <small>v3.4</small>
+        </div>
+      </div>
+      {effectiveUser ? (
+        <button className="lb-bookmark-overlay__user" type="button"
+                aria-label={`Account menu: ${effectiveUser.name}, ${effectiveUser.role}`}>
+          <span className="lb-rail__avatar" aria-hidden="true">{effectiveUser.initials}</span>
+          <span className="lb-rail__user-text">
+            <span className="lb-rail__user-name">{effectiveUser.name}</span>
+          </span>
+        </button>
+      ) : (
+        <button className="lb-rail__btn lb-rail__signin lb-bookmark-overlay__signin" type="button">
+          {Icons.signin}
+          <span className="lb-rail__signin-label">Sign in to lab-bridge</span>
+        </button>
+      )}
+      <div className="lb-bookmark-overlay__nav">
+        {NAV_ITEMS.map((it) => (
+          <LBRailNavItem key={it.id} item={it} active={it.id === active} />
+        ))}
+      </div>
+      <div className="lb-bookmark-overlay__foot">
+        <button className="lb-icon-btn" aria-label="Switch theme">
+          {theme === "dark" ? Icons.sun : Icons.moon}
+        </button>
+        <span style={{ flex: 1, fontSize: 11, color: "var(--text-muted)", fontFamily: "'IBM Plex Mono', monospace" }}>
+          Esc to dismiss
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Faux Jupyter / Grafana app body — placeholder for bookmark artboard
+// (intentionally abstract; we do not recreate their UIs)
+// ============================================================
+function LBFauxApp({ label = "JupyterLab" }) {
+  return (
+    <div className="lb-faux">
+      <div className="lb-faux__bar">
+        <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>{label}</span>
+        <div className="lb-faux__menu">
+          <span>File</span><span>Edit</span><span>View</span><span>Run</span><span>Help</span>
+        </div>
+      </div>
+      <div className="lb-faux__body">
+        <div className="lb-faux__sidebar">
+          <i /><i /><i /><i />
+        </div>
+        <div className="lb-faux__main">
+          <div className="lb-faux__placeholder">
+            <div style={{ textAlign: "center" }}>
+              <b>{label === "JupyterLab" ? "notebook surface" : "monitoring dashboards"}</b>
+              <div style={{ marginTop: 8, fontSize: 10, opacity: 0.7 }}>third-party app — out of scope</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, {
+  LBBrowser, LBRail, LBBookmarkTab, LBBookmarkOverlay, LBFauxApp, LBBrandMark,
+  LBAuthContext, LBRailUser,
+  LB_NAV_ITEMS: NAV_ITEMS, LB_ICONS: Icons,
+});
+
+/* === login.jsx === */
+
+// Lab Bridge — Sign-in page (/sign-in)
+// Minimal credentials form: username + password.
+// Sign-up is intentionally absent — credentials are issued by admin.
+/* global React, LB_ICONS, LBBrandMark */
+
+function LBLogin({ lang = "en", error = null, loading = false }) {
+  const t = lang === "ru" ? LOGIN_STRINGS.ru : LOGIN_STRINGS.en;
+  const [u, setU] = React.useState("");
+  const [p, setP] = React.useState("");
+  const [show, setShow] = React.useState(false);
+  const [remember, setRemember] = React.useState(false);
+
+  return (
+    <div className="lb-page lb-login-page">
+      <main className="lb-login">
+        <form className="lb-login__card" onSubmit={(e) => e.preventDefault()}>
+          <h1 className="lb-login__title">{t.title}</h1>
+
+          {error && (
+            <div className="lb-login__error" role="alert">
+              <span className="lb-login__error-mark" aria-hidden="true">!</span>
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="lb-field">
+            <label className="lb-field__label" htmlFor="lb-username">{t.username}</label>
+            <input id="lb-username"
+                   className="lb-field__input"
+                   type="text"
+                   autoComplete="username"
+                   spellCheck="false"
+                   autoCapitalize="off"
+                   value={u}
+                   onChange={(e) => setU(e.target.value)}
+                   placeholder={t.usernamePh} />
+          </div>
+
+          <div className="lb-field">
+            <label className="lb-field__label" htmlFor="lb-password">{t.password}</label>
+            <div className="lb-field__wrap">
+              <input id="lb-password"
+                     className="lb-field__input"
+                     type={show ? "text" : "password"}
+                     autoComplete="current-password"
+                     value={p}
+                     onChange={(e) => setP(e.target.value)}
+                     placeholder={t.passwordPh} />
+              <button type="button"
+                      className="lb-field__reveal"
+                      aria-label={show ? t.hide : t.show}
+                      aria-pressed={show}
+                      onClick={() => setShow(s => !s)}>
+                {show ? LoginIcons.eyeOff : LoginIcons.eye}
+              </button>
+            </div>
+          </div>
+
+          <label className="lb-check">
+            <input type="checkbox"
+                   className="lb-check__input"
+                   checked={remember}
+                   onChange={(e) => setRemember(e.target.checked)} />
+            <span className="lb-check__box" aria-hidden="true">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 7l3 3 5-6" />
+              </svg>
+            </span>
+            <span className="lb-check__text">
+              <span className="lb-check__label">{t.remember}</span>
+              <span className="lb-check__hint">{t.rememberHint}</span>
+            </span>
+          </label>
+
+          <button type="submit"
+                  className="lb-login__submit"
+                  disabled={loading || !u || !p}>
+            {loading ? <span className="lb-login__spinner" aria-hidden="true" /> : LoginIcons.arrow}
+            <span>{loading ? t.signingIn : t.submit}</span>
+          </button>
+
+          <footer className="lb-login__foot">
+            <span className="lb-login__foot-lock" aria-hidden="true">{LB_ICONS.signin}</span>
+            <span>{t.adminNote}</span>
+          </footer>
+        </form>
+      </main>
+    </div>
+  );
+}
+
+// Minimal inline icons (eye / eye-off / arrow / spinner via CSS)
+const LoginIcons = {
+  eye: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8s-2.4 4.5-6.5 4.5S1.5 8 1.5 8z" />
+      <circle cx="8" cy="8" r="2" />
+    </svg>
+  ),
+  eyeOff: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.5 4.5L13.5 13.5" />
+      <path d="M5.5 5.2C3.4 6.2 1.5 8 1.5 8s2.4 4.5 6.5 4.5c1.2 0 2.2-.3 3.1-.8" />
+      <path d="M10.7 10.7A2 2 0 016 8M9.3 5.2A2 2 0 0110 8" />
+      <path d="M14.5 8s-1.4-2.6-3.6-3.8" />
+    </svg>
+  ),
+  arrow: (
+    <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5" />
+    </svg>
+  ),
+};
+
+const LOGIN_STRINGS = {
+  en: {
+    title:      "Sign in to lab-bridge",
+    lede:       "Use the credentials issued by your server administrator.",
+    username:   "Username",
+    usernamePh: "e.g. a.volkova",
+    password:   "Password",
+    passwordPh: "••••••••",
+    show:       "Show password",
+    hide:       "Hide password",
+    remember:    "Keep me signed in",
+    rememberHint:"Stay signed in for 90 days on this device.",
+    submit:     "Sign in",
+    signingIn:  "Signing in…",
+    adminNote:  "No account? Ask your server administrator — sign-up is not public.",
+    legal:      "lab-bridge — an internal lab platform. Access is logged.",
+  },
+  ru: {
+    title:      "Вход в lab-bridge",
+    lede:       "Используйте учётные данные, выданные администратором сервера.",
+    username:   "Имя пользователя",
+    usernamePh: "напр. a.volkova",
+    password:   "Пароль",
+    passwordPh: "••••••••",
+    show:       "Показать пароль",
+    hide:       "Скрыть пароль",
+    remember:    "Оставаться в системе",
+    rememberHint:"Не выходить 90 дней на этом устройстве.",
+    submit:     "Войти",
+    signingIn:  "Вход…",
+    adminNote:  "Нет учётной записи? Обратитесь к администратору сервера — публичной регистрации нет.",
+    legal:      "lab-bridge — внутренняя платформа лаборатории. Все входы логируются.",
+  },
+};
+
+Object.assign(window, { LBLogin });
+
+/* === forbidden.jsx === */
+
+// Lab Bridge — Access denied (403) page
+// Shown when an authenticated user tries to open a resource their
+// role doesn't grant access to. The rail stays — this is NOT a logout.
+/* global React, LB_ICONS, LBAuthContext */
+
+function LBForbidden({ lang = "en", attemptedPath = "/admin/users", requiredRole = "admin" }) {
+  const t = lang === "ru" ? FORBIDDEN_STRINGS.ru : FORBIDDEN_STRINGS.en;
+  const user = React.useContext(LBAuthContext);
+  return (
+    <div className="lb-page lb-forbidden-page">
+      <main className="lb-forbidden">
+        <span className="lb-forbidden__code">Error 403 · Forbidden</span>
+
+        <div className="lb-forbidden__card">
+          <div className="lb-forbidden__head">
+            <div className="lb-forbidden__lock" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="5" y="11" width="14" height="9" rx="1.5" />
+                <path d="M8 11V8a4 4 0 018 0v3" />
+                <circle cx="12" cy="15.5" r="1.25" fill="currentColor" stroke="none" />
+              </svg>
+            </div>
+            <h1 className="lb-forbidden__title">{t.title}</h1>
+          </div>
+          <p className="lb-forbidden__body">{t.body}</p>
+
+          <dl className="lb-forbidden__meta">
+            <div>
+              <dt>{t.metaPath}</dt>
+              <dd><code>{attemptedPath}</code></dd>
+            </div>
+          </dl>
+
+          <div className="lb-forbidden__actions">
+            <button type="button" className="lb-forbidden__primary" onClick={() => window.history.back()}>
+              <span aria-hidden="true">←</span>
+              <span>{t.back}</span>
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+const FORBIDDEN_STRINGS = {
+  en: {
+    title:        "You don't have access to this page",
+    body:         "This area is restricted to a different role. If you need access for your work, ask the server administrator to update your permissions.",
+    metaPath:     "Attempted path",
+    back:         "Back",
+  },
+  ru: {
+    title:        "У вас нет доступа к этой странице",
+    body:         "Раздел доступен только для другой роли. Если доступ нужен для работы, обратитесь к администратору сервера для изменения прав.",
+    metaPath:     "Запрошенный путь",
+    back:         "Назад",
+  },
+};
+
+Object.assign(window, { LBForbidden });
+
+/* === not-found.jsx === */
+
+// Lab Bridge — Page not found (404)
+// Generic 404 — for any path the router can't resolve. Rail stays.
+/* global React */
+
+function LBNotFound({ lang = "en", attemptedPath = "/lab/benchz-42" }) {
+  const t = lang === "ru" ? NOT_FOUND_STRINGS.ru : NOT_FOUND_STRINGS.en;
+  return (
+    <div className="lb-page lb-forbidden-page">
+      <main className="lb-forbidden">
+        <span className="lb-forbidden__code">Error 404 · Not found</span>
+
+        <div className="lb-forbidden__card">
+          <div className="lb-forbidden__head">
+            <div className="lb-forbidden__lock lb-forbidden__lock--404" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="10.5" cy="10.5" r="5.5" />
+                <path d="M14.6 14.6L19 19" />
+                <path d="M8.5 10.5h4" />
+              </svg>
+            </div>
+            <h1 className="lb-forbidden__title">{t.title}</h1>
+          </div>
+          <p className="lb-forbidden__body">{t.body}</p>
+
+          <dl className="lb-forbidden__meta">
+            <div>
+              <dt>{t.metaPath}</dt>
+              <dd><code>{attemptedPath}</code></dd>
+            </div>
+          </dl>
+
+          <div className="lb-forbidden__actions">
+            <button type="button" className="lb-forbidden__primary" onClick={() => window.history.back()}>
+              <span aria-hidden="true">←</span>
+              <span>{t.back}</span>
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+const NOT_FOUND_STRINGS = {
+  en: {
+    title:    "Page not found",
+    body:     "We couldn't find that page. The link may be broken or the resource may have been renamed.",
+    metaPath: "Attempted path",
+    back:     "Back",
+  },
+  ru: {
+    title:    "Страница не найдена",
+    body:     "Не удалось найти эту страницу. Возможно, ссылка устарела или ресурс был переименован.",
+    metaPath: "Запрошенный путь",
+    back:     "Назад",
+  },
+};
+
+Object.assign(window, { LBNotFound });
+
+/* === signout-dialog.jsx === */
+
+// Lab Bridge — Sign-out confirmation dialog
+// Modal: backdrop + centered card. Used when the user picks
+// "Sign out" from the rail user menu.
+/* global React */
+
+function LBSignOutDialog({ lang = "en", user = null, onCancel = () => {}, onConfirm = () => {} }) {
+  const t = lang === "ru" ? SIGNOUT_STRINGS.ru : SIGNOUT_STRINGS.en;
+  return (
+    <div className="lb-modal" role="dialog" aria-modal="true" aria-labelledby="lb-signout-title">
+      <div className="lb-modal__backdrop" onClick={onCancel} />
+      <div className="lb-modal__card">
+        <header className="lb-modal__head">
+          <div className="lb-modal__ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 8V6.5A1.5 1.5 0 0 0 12.5 5h-6A1.5 1.5 0 0 0 5 6.5v11A1.5 1.5 0 0 0 6.5 19h6a1.5 1.5 0 0 0 1.5-1.5V16" />
+              <path d="M19 12H10" />
+              <path d="M16 9l3 3-3 3" />
+            </svg>
+          </div>
+          <h2 id="lb-signout-title" className="lb-modal__title">{t.title}</h2>
+          <button type="button" className="lb-modal__close" aria-label={t.cancel} onClick={onCancel}>
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <path d="M3 3l8 8M11 3l-8 8" />
+            </svg>
+          </button>
+        </header>
+
+        <div className="lb-modal__body">
+          <p className="lb-modal__lede">{t.body}</p>
+          {user && (
+            <div className="lb-modal__user">
+              <span className="lb-rail__avatar" aria-hidden="true" style={{ width: 28, height: 28, fontSize: 11 }}>
+                {user.initials}
+              </span>
+              <div className="lb-modal__user-text">
+                <b>{user.name}</b>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <footer className="lb-modal__foot">
+          <button type="button" className="lb-modal__btn" onClick={onCancel}>{t.cancel}</button>
+          <button type="button" className="lb-modal__btn lb-modal__btn--danger" onClick={onConfirm}>
+            {t.confirm}
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+const SIGNOUT_STRINGS = {
+  en: {
+    title:   "Sign out?",
+    body:    "You'll be signed out of lab-bridge. Open sessions to JupyterLab, Grafana, and Flasher will end.",
+    cancel:  "Cancel",
+    confirm: "Sign out",
+  },
+  ru: {
+    title:   "Выйти?",
+    body:    "Вы выйдете из lab-bridge. Активные сессии JupyterLab, Grafana и Flasher будут закрыты.",
+    cancel:  "Отмена",
+    confirm: "Выйти",
+  },
+};
+
+Object.assign(window, { LBSignOutDialog });
+  </script>
+
+  <script type="text/babel" data-presets="react">
+    const OPERATOR = { name: "Anna Volkova", role: "operator · lab-12", initials: "AV" };
+
+    function Card({ label, children }) {
+      return (
+        <div className="preview-card">
+          <div className="preview-card__label">{label}</div>
+          <div className="preview-card__body">{children}</div>
+        </div>
+      );
+    }
+
+    function Frame({ children, user }) {
+      return (
+        <LBAuthContext.Provider value={user}>
+          <div style={{ display: 'flex', width: '100%', height: '100%', background: 'var(--bg-page)' }}>
+            {children}
+          </div>
+        </LBAuthContext.Provider>
+      );
+    }
+
+    function App() {
+      return (
+        <>
+          <h2>Navbar — login state</h2>
+          <Card label="Expanded · signed in">
+            <Frame user={OPERATOR}>
+              <LBRail mode="expanded" active="home" />
+              <div style={{ flex: 1 }} />
+            </Frame>
+          </Card>
+          <Card label="Expanded · signed out">
+            <Frame user={null}>
+              <LBRail mode="expanded" active="home" />
+              <div style={{ flex: 1 }} />
+            </Frame>
+          </Card>
+          <Card label="Collapsed · signed in">
+            <Frame user={OPERATOR}>
+              <LBRail mode="collapsed" active="home" />
+              <div style={{ flex: 1 }} />
+            </Frame>
+          </Card>
+          <Card label="Collapsed · signed out">
+            <Frame user={null}>
+              <LBRail mode="collapsed" active="home" />
+              <div style={{ flex: 1 }} />
+            </Frame>
+          </Card>
+
+          <h2>Sign-in page</h2>
+          <Card label="/sign-in · default">
+            <Frame user={null}>
+              <LBRail mode="collapsed" active={null} />
+              <LBLogin lang="en" />
+            </Frame>
+          </Card>
+          <Card label="/sign-in · wrong credentials">
+            <Frame user={null}>
+              <LBRail mode="collapsed" active={null} />
+              <LBLogin lang="en" error="Invalid username or password. Try again or ask your administrator." />
+            </Frame>
+          </Card>
+
+          <h2>Error states</h2>
+          <Card label="403 — access denied">
+            <Frame user={OPERATOR}>
+              <LBRail mode="collapsed" active={null} />
+              <LBForbidden lang="en" attemptedPath="/admin/users" requiredRole="admin" />
+            </Frame>
+          </Card>
+          <Card label="404 — not found">
+            <Frame user={OPERATOR}>
+              <LBRail mode="collapsed" active={null} />
+              <LBNotFound lang="en" attemptedPath="/lab/benchz-42" />
+            </Frame>
+          </Card>
+
+          <h2>Dialogs</h2>
+          <Card label="Sign-out confirmation">
+            <Frame user={OPERATOR}>
+              <LBRail mode="expanded" active="home" />
+              <div style={{ flex: 1, position: 'relative' }}>
+                <LBSignOutDialog lang="en" user={OPERATOR} />
+              </div>
+            </Frame>
+          </Card>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

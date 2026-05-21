@@ -155,12 +155,19 @@ https://__VPS_HOST__ {
         @e403 expression {http.error.status_code} == 403
         @e404 expression {http.error.status_code} == 404
         @e401 expression {http.error.status_code} == 401
-        rewrite @e403 /_errors/403
-        rewrite @e404 /_errors/404
+        # Thread the original request path through as ?path= so siteapp's
+        # 403/404 templates can display what the user actually tried to reach.
+        # Using {http.request.orig_uri.path} (not orig_uri) intentionally drops
+        # the query string — a raw URI would get spliced after ?path= and
+        # confuse the query-string parser. Special chars in the path are not
+        # re-encoded; malformed paths from non-browser clients may display
+        # truncated in the meta block.
+        rewrite @e403 /_errors/403?path={http.request.orig_uri.path}
+        rewrite @e404 /_errors/404?path={http.request.orig_uri.path}
         # 401 from forward_auth is already turned into a 302 to /login by the
         # snippet's rd= parameter. If we still see a 401 here, treat it as a
         # 403 so the user sees a useful page instead of Caddy's raw error.
-        rewrite @e401 /_errors/403
+        rewrite @e401 /_errors/403?path={http.request.orig_uri.path}
         reverse_proxy siteapp:8000 {
             header_up -Accept-Encoding
         }

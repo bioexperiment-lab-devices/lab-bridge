@@ -1688,3 +1688,411 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   font-size: 12.5px;
   white-space: pre;
 }
+
+
+/* ============================================================
+   Access denied (403) page
+   Authenticated user, wrong role. Rail stays — NOT a logout.
+   ============================================================ */
+.lb-forbidden-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 32px;
+}
+.lb-forbidden {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.lb-forbidden__code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.lb-forbidden__card {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+  padding: 28px 30px 22px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.lb-forbidden__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.lb-forbidden__lock {
+  width: 44px; height: 44px;
+  border-radius: 8px;
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-border);
+  display: grid;
+  place-items: center;
+  color: var(--warning);
+  flex-shrink: 0;
+}
+.lb-forbidden__lock svg { width: 22px; height: 22px; }
+.lb-forbidden__lock--404 {
+  background: var(--surface-sunken);
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.lb-forbidden__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.014em;
+  color: var(--text);
+  line-height: 1.25;
+  text-wrap: pretty;
+  flex: 1;
+  min-width: 0;
+}
+.lb-forbidden__body {
+  margin: 0 0 22px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.lb-forbidden__meta {
+  margin: 0 0 22px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.lb-forbidden__meta > div {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 14px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  align-items: baseline;
+}
+.lb-forbidden__meta > div:last-child { border-bottom: 0; }
+.lb-forbidden__meta dt {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+.lb-forbidden__meta dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lb-forbidden__meta code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12.5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 6px;
+  color: var(--text);
+  user-select: all;
+}
+.lb-forbidden__actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.lb-forbidden__primary {
+  appearance: none;
+  font: inherit;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 5px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: -0.005em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.lb-forbidden__primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+[data-theme="dark"] .lb-forbidden__primary { color: var(--text-inverse); }
+
+/* ============================================================
+   Sign-in page (/sign-in) — minimal credentials form
+   ============================================================ */
+.lb-login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 32px;
+  /* the rail stays to the left; this fills the rest */
+}
+.lb-login {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lb-login__card {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+  padding: 28px 30px 22px;
+  display: flex;
+  flex-direction: column;
+}
+.lb-login__title {
+  margin: 0 0 22px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  color: var(--text);
+}
+
+.lb-login__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  margin: 0 0 16px;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
+  border-left: 3px solid var(--danger);
+  border-radius: 4px;
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.lb-login__error-mark {
+  width: 18px; height: 18px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Form fields ----------------------------------------------- */
+.lb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+.lb-field__label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+.lb-field__wrap {
+  position: relative;
+  display: flex;
+}
+.lb-field__input {
+  font: inherit;
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border-input);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  letter-spacing: -0.003em;
+  transition: border-color 100ms, box-shadow 100ms;
+}
+.lb-field__wrap .lb-field__input { padding-right: 40px; }
+.lb-field__input::placeholder {
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+}
+.lb-field__input:hover { border-color: var(--border-strong); }
+.lb-field__input:focus {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.lb-field__reveal {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 30px;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.lb-field__reveal:hover { color: var(--text); background: var(--surface-strip); }
+.lb-field__reveal[aria-pressed="true"] { color: var(--accent); }
+.lb-field__reveal svg { width: 16px; height: 16px; }
+
+/* Checkbox -------------------------------------------------- */
+.lb-check {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 10px;
+  align-items: start;
+  margin: -4px 0 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.lb-check__input {
+  /* Visually hidden but still focusable so keyboard nav and a11y work. */
+  position: absolute;
+  opacity: 0;
+  width: 16px; height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+.lb-check__box {
+  width: 16px; height: 16px;
+  border: 1px solid var(--border-input);
+  border-radius: 3px;
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  color: transparent;
+  transition: background 80ms, border-color 80ms, color 80ms;
+  margin-top: 2px;
+}
+.lb-check__box svg {
+  width: 12px; height: 12px;
+  display: block;
+}
+.lb-check:hover .lb-check__box { border-color: var(--border-strong); }
+.lb-check__input:checked + .lb-check__box {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+[data-theme="dark"] .lb-check__input:checked + .lb-check__box { color: var(--text-inverse); }
+.lb-check__input:focus-visible + .lb-check__box {
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.lb-check__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.35;
+  min-width: 0;
+}
+.lb-check__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: -0.003em;
+}
+.lb-check__hint {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* Submit ---------------------------------------------------- */
+.lb-login__submit {
+  appearance: none;
+  font: inherit;
+  margin-top: 8px;
+  height: 40px;
+  border-radius: 5px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.005em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 100ms, opacity 100ms;
+}
+.lb-login__submit:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.lb-login__submit:disabled {
+  background: var(--surface-sunken);
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+[data-theme="dark"] .lb-login__submit { color: var(--text-inverse); }
+.lb-login__submit svg { width: 14px; height: 14px; }
+.lb-login__spinner {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: lb-spin 700ms linear infinite;
+}
+@keyframes lb-spin { to { transform: rotate(360deg); } }
+
+.lb-login__foot {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.lb-login__foot-lock {
+  width: 18px; height: 18px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+}
+.lb-login__foot-lock svg { width: 14px; height: 14px; }

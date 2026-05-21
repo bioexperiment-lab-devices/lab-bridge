@@ -1,24 +1,96 @@
 {% extends "base.html" %}
 {% block title %}Sign in — lab-bridge{% endblock %}
 {% block main %}
-  <section class="lb-login">
-    <h1>Sign in</h1>
-    <form id="login-form">
-      <label>
-        <span>Username</span>
-        <input type="text" name="username" autocomplete="username" autofocus required>
-      </label>
-      <label>
-        <span>Password</span>
-        <input type="password" name="password" autocomplete="current-password" required>
-      </label>
-      <label class="lb-login-remember">
-        <input type="checkbox" name="remember" checked>
-        Remember me
-      </label>
-      <button type="submit">Sign in</button>
-      <p class="lb-login-error" hidden></p>
-    </form>
+  <section class="lb-login-page">
+    <div class="lb-login">
+      <form id="login-form" class="lb-login__card" novalidate>
+        <h1 class="lb-login__title">Sign in to lab-bridge</h1>
+
+        <div class="lb-login__error" role="alert" aria-live="assertive" hidden>
+          <span class="lb-login__error-mark" aria-hidden="true">!</span>
+          <span class="lb-login__error-text"></span>
+        </div>
+
+        <div class="lb-field">
+          <label class="lb-field__label" for="lb-username">Username</label>
+          <input id="lb-username"
+                 class="lb-field__input"
+                 type="text"
+                 name="username"
+                 autocomplete="username"
+                 spellcheck="false"
+                 autocapitalize="off"
+                 autofocus
+                 required
+                 placeholder="e.g. a.volkova">
+        </div>
+
+        <div class="lb-field">
+          <label class="lb-field__label" for="lb-password">Password</label>
+          <div class="lb-field__wrap">
+            <input id="lb-password"
+                   class="lb-field__input"
+                   type="password"
+                   name="password"
+                   autocomplete="current-password"
+                   required
+                   placeholder="••••••••">
+            <button type="button"
+                    class="lb-field__reveal"
+                    aria-label="Show password"
+                    aria-pressed="false">
+              <svg class="lb-field__reveal-eye" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                   stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8s-2.4 4.5-6.5 4.5S1.5 8 1.5 8z"/>
+                <circle cx="8" cy="8" r="2"/>
+              </svg>
+              <svg class="lb-field__reveal-eye-off" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                   stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" hidden>
+                <path d="M2.5 4.5L13.5 13.5"/>
+                <path d="M5.5 5.2C3.4 6.2 1.5 8 1.5 8s2.4 4.5 6.5 4.5c1.2 0 2.2-.3 3.1-.8"/>
+                <path d="M10.7 10.7A2 2 0 016 8M9.3 5.2A2 2 0 0110 8"/>
+                <path d="M14.5 8s-1.4-2.6-3.6-3.8"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <label class="lb-check">
+          <input type="checkbox" class="lb-check__input" name="remember" checked>
+          <span class="lb-check__box" aria-hidden="true">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7l3 3 5-6"/>
+            </svg>
+          </span>
+          <span class="lb-check__text">
+            <span class="lb-check__label">Keep me signed in</span>
+            <span class="lb-check__hint">Stay signed in for 90 days on this device.</span>
+          </span>
+        </label>
+
+        <button type="submit" class="lb-login__submit" disabled>
+          <svg class="lb-login__submit-arrow" viewBox="0 0 14 14" fill="none"
+               stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 7h8M7.5 3.5L11 7l-3.5 3.5"/>
+          </svg>
+          <span class="lb-login__spinner" aria-hidden="true" hidden></span>
+          <span class="lb-login__submit-label">Sign in</span>
+        </button>
+
+        <footer class="lb-login__foot">
+          <span class="lb-login__foot-lock" aria-hidden="true">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor"
+                 stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="4.5" cy="7" r="2.25"/>
+              <path d="M6.75 7h5.25"/>
+              <path d="M10 7v1.75M12 7v2"/>
+            </svg>
+          </span>
+          <span>No account? Ask your server administrator — sign-up is not public.</span>
+        </footer>
+      </form>
+    </div>
   </section>
 
   <script>
@@ -26,36 +98,87 @@
       const params = new URLSearchParams(location.search);
       const rd = params.get('rd') || {{ rd|tojson }};
       const form = document.getElementById('login-form');
-      const errEl = form.querySelector('.lb-login-error');
+      const usernameEl = form.querySelector('input[name="username"]');
+      const passwordEl = form.querySelector('input[name="password"]');
+      const rememberEl = form.querySelector('input[name="remember"]');
+      const submitBtn = form.querySelector('.lb-login__submit');
+      const submitLabel = submitBtn.querySelector('.lb-login__submit-label');
+      const submitArrow = submitBtn.querySelector('.lb-login__submit-arrow');
+      const submitSpinner = submitBtn.querySelector('.lb-login__spinner');
+      const errBox = form.querySelector('.lb-login__error');
+      const errText = errBox.querySelector('.lb-login__error-text');
+      const revealBtn = form.querySelector('.lb-field__reveal');
+      const revealEye = revealBtn.querySelector('.lb-field__reveal-eye');
+      const revealEyeOff = revealBtn.querySelector('.lb-field__reveal-eye-off');
+
+      function refreshSubmitEnabled() {
+        const filled = usernameEl.value.trim() && passwordEl.value;
+        const loading = form.dataset.loading === 'true';
+        submitBtn.disabled = loading || !filled;
+      }
+
+      function setLoading(loading) {
+        form.dataset.loading = loading ? 'true' : 'false';
+        submitArrow.hidden = loading;
+        submitSpinner.hidden = !loading;
+        submitLabel.textContent = loading ? 'Signing in…' : 'Sign in';
+        refreshSubmitEnabled();
+      }
+
+      function showError(text) {
+        errText.textContent = text;
+        errBox.hidden = false;
+      }
+
+      function hideError() {
+        errBox.hidden = true;
+      }
+
+      usernameEl.addEventListener('input', refreshSubmitEnabled);
+      passwordEl.addEventListener('input', refreshSubmitEnabled);
+
+      revealBtn.addEventListener('click', () => {
+        const showing = passwordEl.type === 'text';
+        const next = !showing;
+        passwordEl.type = next ? 'text' : 'password';
+        revealBtn.setAttribute('aria-pressed', next ? 'true' : 'false');
+        revealBtn.setAttribute('aria-label', next ? 'Hide password' : 'Show password');
+        revealEye.hidden = next;
+        revealEyeOff.hidden = !next;
+      });
 
       form.addEventListener('submit', async (ev) => {
         ev.preventDefault();
-        errEl.hidden = true;
-        const data = new FormData(form);
+        if (submitBtn.disabled) return;
+        hideError();
+        setLoading(true);
         try {
           const r = await fetch('/api/auth/firstfactor', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              username: data.get('username'),
-              password: data.get('password'),
+              username: usernameEl.value,
+              password: passwordEl.value,
               targetURL: rd,
-              keepMeLoggedIn: data.get('remember') === 'on',
+              keepMeLoggedIn: rememberEl.checked,
             }),
           });
+          // Authelia /api/firstfactor returns 200 on success when called
+          // server-to-server by siteapp's /api/auth/firstfactor proxy —
+          // there is no redirect status to handle in this integration.
           if (r.status === 200) {
             const body = await r.json();
-            location.href = body.redirect || '/';
+            location.assign(body.redirect || '/');
             return;
           }
-          errEl.textContent = r.status === 401
+          showError(r.status === 401
             ? 'Incorrect username or password.'
-            : 'Sign-in failed (' + r.status + ').';
-          errEl.hidden = false;
+            : 'Sign-in failed (' + r.status + ').');
+          setLoading(false);
         } catch (e) {
-          errEl.textContent = 'Network error.';
-          errEl.hidden = false;
+          showError('Network error.');
+          setLoading(false);
         }
       });
     })();

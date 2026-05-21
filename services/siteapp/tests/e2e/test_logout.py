@@ -1,4 +1,4 @@
-"""GET /logout returns 302 with an expiring authelia_session cookie."""
+"""GET and POST /logout return 302 with an expiring authelia_session cookie."""
 
 from __future__ import annotations
 
@@ -46,4 +46,20 @@ def test_logout_also_expires_grafana_session_cookie(http: httpx.Client) -> None:
     # session cookie to /grafana/.
     assert all("Path=/grafana/" in c or "path=/grafana/" in c for c in matches), (
         f"grafana_session expire missing Path=/grafana/: {matches}"
+    )
+
+
+def test_logout_accepts_post_and_expires_cookie(http: httpx.Client) -> None:
+    cookie = _login(http, "alice", "alice-password")
+    r = http.post(
+        "/logout",
+        headers={"Cookie": cookie},
+        follow_redirects=False,
+    )
+    assert r.status_code == 302
+    assert r.headers["location"] == "/"
+    set_cookies = r.headers.get_list("set-cookie")
+    assert any(
+        "authelia_session=" in c and ("Max-Age=0" in c or "expires" in c.lower())
+        for c in set_cookies
     )
