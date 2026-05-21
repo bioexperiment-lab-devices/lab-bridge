@@ -52,6 +52,13 @@ setup() {
     [[ "$output" =~ [Ll]ocation:.*/login ]]
 }
 
+@test "/grafana/api/health stays public (deploy probe relies on it)" {
+    # scripts/deploy.sh polls this endpoint expecting 200. The forward_auth
+    # gate on /grafana/* must NOT cover it, otherwise every deploy fails.
+    run curl -ksS -o /dev/null -w '%{http_code}' "https://$FAKE_VPS_HOST/grafana/api/health"
+    [[ "$output" == "200" ]]
+}
+
 @test "OIDC authorization endpoint via /auth/ returns 30x (not portal HTML)" {
     # Regression guard: Caddy must strip /auth/ before proxying to Authelia,
     # otherwise Authelia falls through to its SPA catch-all and returns the
