@@ -143,8 +143,10 @@
         passwordEl.type = next ? 'text' : 'password';
         revealBtn.setAttribute('aria-pressed', next ? 'true' : 'false');
         revealBtn.setAttribute('aria-label', next ? 'Hide password' : 'Show password');
-        revealEye.hidden = next;
-        revealEyeOff.hidden = !next;
+        // `.hidden = ...` doesn't reflect to the content attribute on SVGElement,
+        // so the [hidden] CSS rule never matches. Toggle the attribute directly.
+        revealEye.toggleAttribute('hidden', next);
+        revealEyeOff.toggleAttribute('hidden', !next);
       });
 
       form.addEventListener('submit', async (ev) => {

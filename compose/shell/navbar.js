@@ -106,7 +106,16 @@
     return 'persistent';
   }
   function detectActiveId() {
-    const path = location.pathname;
+    // On /login the navbar should keep highlighting the service the user was
+    // trying to reach, not /login itself (which would always resolve to Home
+    // via the leading '/'). The rd= query param carries the original target.
+    let path = location.pathname;
+    if (path === '/login') {
+      const rd = new URLSearchParams(location.search).get('rd');
+      if (rd) {
+        try { path = new URL(rd, location.origin).pathname; } catch (_) { /* malformed rd — fall back to /login */ }
+      }
+    }
     let best = null, bestLen = -1;
     for (const svc of SERVICES) {
       if (path.startsWith(svc.href) && svc.href.length > bestLen) {
