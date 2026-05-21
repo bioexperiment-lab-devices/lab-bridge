@@ -122,8 +122,7 @@ def make_router(settings: Settings) -> APIRouter:
         host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
         domain = host.split(":")[0]  # strip port if present
         expire_cookie = (
-            f"authelia_session=; Max-Age=0; domain={domain}; path=/; "
-            "HttpOnly; SameSite=Lax"
+            f"authelia_session=; Max-Age=0; domain={domain}; path=/; HttpOnly; SameSite=Lax"
         )
         resp.raw_headers.append((b"set-cookie", expire_cookie.encode("latin-1")))
         return resp

@@ -17,5 +17,7 @@ def test_logout_returns_302_and_expires_cookie(http: httpx.Client) -> None:
     assert r.status_code == 302
     assert r.headers["location"] == "/"
     set_cookies = r.headers.get_list("set-cookie")
-    assert any("authelia_session=" in c and ("Max-Age=0" in c or "expires" in c.lower())
-               for c in set_cookies)
+    assert any(
+        "authelia_session=" in c and ("Max-Age=0" in c or "expires" in c.lower())
+        for c in set_cookies
+    )
