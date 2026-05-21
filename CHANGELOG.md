@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.3](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.14.2...v0.14.3) (2026-05-21)
+
+
+### Bug Fixes
+
+* **authelia:** skip OIDC consent prompt for grafana client ([#106](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/106)) ([e46d91f](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/e46d91f5a1d74b304fee010702b5c7e917eae6d1))
+* **siteapp:** 404 fall-through, login state, navbar active on /login ([#104](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/104)) ([b9c8463](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/b9c8463e104e05b2ea0e1153f4b320a374f4f771))
+
 ## [0.14.2](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.14.1...v0.14.2) (2026-05-21)
 
 
