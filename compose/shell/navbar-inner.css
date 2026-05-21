@@ -24,7 +24,7 @@
   --shadow-popover: 0 10px 24px -8px rgba(26,25,22,0.25), 0 2px 6px rgba(26,25,22,0.08);
   --shadow-overlay: 0 24px 50px -20px rgba(26,25,22,0.45), 0 8px 18px -6px rgba(26,25,22,0.18);
   --rail-w-collapsed: 56px;
-  --rail-w-expanded: 220px;
+  --rail-w-expanded: 180px;
   --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --surface-strip: #FAF8F3;
@@ -78,10 +78,13 @@ aside {
 }
 
 /* ─── Persistent mode ────────────────────────────────────────────────── */
-aside[data-mode="persistent"][data-state="collapsed"] { width: var(--rail-w-collapsed); }
+aside[data-mode="persistent"][data-state="collapsed"] {
+  width: var(--rail-w-collapsed);
+  /* Whole rail is a click target — empty space expands the rail. */
+  cursor: pointer;
+}
 aside[data-mode="persistent"][data-state="expanded"]  {
   width: var(--rail-w-expanded);
-  box-shadow: var(--shadow-overlay);
 }
 
 /* Brand row */
