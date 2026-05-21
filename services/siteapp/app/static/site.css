@@ -493,67 +493,105 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   color: var(--warning);
 }
 
-/* ---- Equipment panel — hidden state (signed-out visitor) ----
-   Replaces the online/offline groups when the home page is rendered for
-   an anonymous visitor. Reuses .lb-equip's outer chrome so the section's
-   header bar stays visually anchored. */
-.lb-equip__hidden {
+/* ---- Signed-out home: restricted-content panel -------------
+   Replaces the .lb-equip card under the "Lab status" section when an
+   anonymous visitor hits /. Lifted from docs/design_handoff_lab_bridge/
+   source/Lab Bridge.html (.lb-signed-out*). */
+.lb-signed-out {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 10px;
-  padding: 28px 24px 26px;
-  background: var(--surface-sunken);
-}
-.lb-equip__hidden-ico {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
   background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  display: grid;
-  place-items: center;
-  margin-bottom: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
 }
-.lb-equip__hidden-ico svg { width: 20px; height: 20px; display: block; }
-.lb-equip__hidden-title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.005em;
-  color: var(--text);
+.lb-signed-out__head {
+  padding: 26px 28px 22px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-strip) 100%);
 }
-.lb-equip__hidden-body {
-  margin: 0;
-  max-width: 360px;
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-.lb-equip__hidden-cta {
+.lb-signed-out__eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-top: 6px;
-  padding: 0 14px;
-  height: 32px;
-  border-radius: 5px;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-border);
-  color: var(--accent);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: 0.08em;
   text-transform: uppercase;
-  text-decoration: none;
-  transition: filter 100ms;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  margin-bottom: 10px;
 }
-.lb-equip__hidden-cta:hover { filter: brightness(0.97); }
-[data-theme="dark"] .lb-equip__hidden-cta:hover { filter: brightness(1.08); }
-.lb-equip__hidden-cta svg { width: 13px; height: 13px; flex-shrink: 0; }
+.lb-signed-out__lock {
+  width: 16px; height: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
+.lb-signed-out__lock svg { width: 14px; height: 14px; }
+.lb-signed-out__title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+  color: var(--text);
+  max-width: 640px;
+  text-wrap: pretty;
+}
+.lb-signed-out__body {
+  margin: 0 0 16px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 640px;
+}
+.lb-signed-out__actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.lb-signed-out__cta {
+  appearance: none;
+  font: inherit;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 5px;
+  padding: 0 14px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: -0.005em;
+  text-decoration: none;
+  transition: background 100ms;
+}
+.lb-signed-out__cta:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+[data-theme="dark"] .lb-signed-out__cta { color: var(--text-inverse); }
+.lb-signed-out__cta svg { width: 14px; height: 14px; }
+.lb-signed-out__admin {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.lb-signed-out__docs {
+  display: block;
+  padding: 12px 28px;
+  background: var(--surface-strip);
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+.lb-signed-out__docs:hover { color: var(--accent); }
 
 /* ---- Topology — vertical diagram with icons + edge labels --- */
 .lb-topo-section { min-width: 0; }
