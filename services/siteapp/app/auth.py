@@ -129,7 +129,9 @@ def make_router(settings: Settings) -> APIRouter:
 
     @router.get("/_errors/403", response_class=HTMLResponse, include_in_schema=False)
     async def error_403(request: Request) -> HTMLResponse:
-        # Caddy's handle_errors rewrites to /_errors/403?path={orig_uri}.
+        # Caddy's handle_errors rewrites to /_errors/403?path={http.request.orig_uri.path}.
+        # (orig_uri.path, not orig_uri — the query string is intentionally stripped
+        # to avoid splicing raw query params after ?path=.)
         # Direct hits (e2e, debugging) have no ?path= and fall back to the URI.
         attempted_path = request.query_params.get("path") or request.url.path
         return templates.TemplateResponse(

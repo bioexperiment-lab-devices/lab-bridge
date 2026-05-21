@@ -32,6 +32,16 @@ def test_error_403_falls_back_to_request_path_when_query_missing(http: httpx.Cli
     assert "<code>/_errors/403</code>" in r.text
 
 
+def test_error_403_escapes_html_in_attempted_path(http: httpx.Client) -> None:
+    # Guards against an accidental disable of Jinja autoescape in a future
+    # refactor of templates.py. The query is rendered inside a <code> chip.
+    r = http.get("/_errors/403?path=</code><script>x</script>")
+    assert r.status_code == 200
+    assert "<script>x</script>" not in r.text
+    assert "&lt;/code&gt;" in r.text
+    assert "&lt;script&gt;" in r.text
+
+
 def test_error_404_renders_with_base_template(http: httpx.Client) -> None:
     r = http.get("/_errors/404")
     assert r.status_code == 200
