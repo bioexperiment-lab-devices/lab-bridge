@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.2](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.13.1...v0.13.2) (2026-05-21)
+
+
+### Bug Fixes
+
+* **deploy:** probe /auth/api/health and emit bootstrap hint ([#91](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/91)) ([5fca91b](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/5fca91b338769e9bbb21fe25cadd34e82101053a))
+
 ## [0.13.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.13.0...v0.13.1) (2026-05-21)
 
 
