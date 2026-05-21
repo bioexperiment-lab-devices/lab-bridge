@@ -100,6 +100,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Heavy cells (everything except `cheap`) build 4 local service images
+      # and side-load them — plus the multi-GB scipy-notebook image — into the
+      # fake-VPS DinD. GitHub-hosted ubuntu-latest runners ship with ~14 GB
+      # free, which has been observed to run out (e.g. PR #105 hit
+      # "no space left on device" during scipy-notebook layer extraction).
+      # Reclaim ~20 GB by removing pre-installed SDKs we never use.
+      - name: free disk space
+        if: matrix.suite != 'cheap'
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: true
+
       - name: install Task
         uses: arduino/setup-task@v2
         with:
