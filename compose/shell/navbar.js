@@ -267,6 +267,10 @@
     }
 
     _render() {
+      // If the modal is open when we rebuild the shadow tree, close it first
+      // so its node is removed cleanly and _modalEl is nulled — otherwise the
+      // detached div would block reopening (the open guard checks _modalEl).
+      if (this._modalEl) this._closeSignOutModal();
       renderShadow(this.shadowRoot, this._mode, this._state, detectActiveId(), this._theme);
     }
 
@@ -410,7 +414,7 @@
           <header class="modal__head">
             <div class="modal__ico" aria-hidden="true">${ICONS.logoutBig}</div>
             <h2 id="lb-signout-title" class="modal__title">Sign out?</h2>
-            <button type="button" class="modal__close" aria-label="Cancel" data-action="cancel">
+            <button type="button" class="modal__close" aria-label="Close" data-action="cancel">
               ${ICONS.closeX}
             </button>
           </header>
@@ -446,6 +450,27 @@
       };
       this.shadowRoot.addEventListener('focusin', this._modalFocusTrap);
 
+      // Keydown trap on the card — handles Tab/Shift+Tab cycling explicitly
+      // so focus can't escape to the Light DOM through the shadow boundary
+      // (where focusin on the shadow root wouldn't fire).
+      const card = modal.querySelector('.modal__card');
+      this._modalKeydown = (e) => {
+        if (e.key !== 'Tab') return;
+        const focusable = [...card.querySelectorAll('button:not([disabled])')];
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = this.shadowRoot.activeElement;
+        if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      };
+      card.addEventListener('keydown', this._modalKeydown);
+
       // Focus the Cancel button (the safer default for a destructive dialog).
       const cancelBtn = modal.querySelector('.modal__btn[data-action="cancel"]');
       if (cancelBtn) cancelBtn.focus();
@@ -454,9 +479,12 @@
     _closeSignOutModal() {
       if (!this._modalEl) return;
       this.shadowRoot.removeEventListener('focusin', this._modalFocusTrap);
+      const card = this._modalEl.querySelector('.modal__card');
+      if (card && this._modalKeydown) card.removeEventListener('keydown', this._modalKeydown);
       this._modalEl.remove();
       this._modalEl = null;
       this._modalFocusTrap = null;
+      this._modalKeydown = null;
       if (this._modalFocusReturn && typeof this._modalFocusReturn.focus === 'function') {
         this._modalFocusReturn.focus();
       }
@@ -484,7 +512,6 @@
       if (e.key !== 'Escape') return;
       // Modal takes priority — closing it must not also collapse the rail.
       if (this._modalEl) {
-        e.stopPropagation();
         this._closeSignOutModal();
         return;
       }
