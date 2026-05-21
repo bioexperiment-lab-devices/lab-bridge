@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.2](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.14.1...v0.14.2) (2026-05-21)
+
+
+### Bug Fixes
+
+* **deploy:** guard against empty authelia users_database.yml ([#101](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/101)) ([dfebf4d](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/dfebf4d23ec01b45b69d92503a3c6cca7dc2c46b))
+* **siteapp:** normalize full-URL targetURL in firstfactor proxy ([#103](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/103)) ([0ed3675](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/0ed3675e58837c7a794ce1eaa0b1449177529b55))
+
 ## [0.14.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.14.0...v0.14.1) (2026-05-21)
 
 
