@@ -6,7 +6,7 @@
   if (customElements.get('lds-navbar')) return;
 
   const RAIL_W_COLLAPSED = '56px';
-  const RAIL_W_EXPANDED  = '220px';
+  const RAIL_W_EXPANDED  = '180px';
 
   // Read platform version off the injected <script> tag's data-version attr.
   // Caddy substitutes __PLATFORM_VERSION__ at deploy time (see Caddyfile.tmpl).
@@ -284,16 +284,19 @@
     }
 
     _applyNavWidth() {
-      setNavWidth(this._mode === 'persistent' ? RAIL_W_COLLAPSED : '0px');
+      if (this._mode !== 'persistent') {
+        setNavWidth('0px');
+        return;
+      }
+      setNavWidth(this._state === 'expanded' ? RAIL_W_EXPANDED : RAIL_W_COLLAPSED);
     }
 
     _setPersistentState(next) {
       this._state = next;
       localStorage.setItem(STATE_KEY, next);
+      this._applyNavWidth();
       this._render();
       this._wire();
-      const backdrop = this.shadowRoot.querySelector('.backdrop');
-      if (backdrop) backdrop.hidden = next !== 'expanded';
     }
 
     _setBookmarkState(next) {
@@ -323,15 +326,23 @@
 
       if (this._mode === 'persistent') {
         if (toggle) {
-          toggle.addEventListener('click', () => {
+          toggle.addEventListener('click', (e) => {
+            // Stop the click from bubbling to the rail handler below — otherwise
+            // the rail's "click empty space to expand" logic would fight the
+            // toggle when collapsing from expanded.
+            e.stopPropagation();
             this._setPersistentState(this._state === 'collapsed' ? 'expanded' : 'collapsed');
           });
         }
-        if (backdrop) {
-          backdrop.addEventListener('click', () => {
-            if (this._state === 'expanded') this._setPersistentState('collapsed');
-          });
-        }
+        // Click on empty rail space (not a link/button) expands when collapsed.
+        // When expanded, clicks on empty space do nothing — only the chevron
+        // collapses the rail, so the user can't accidentally close it while
+        // moving between links.
+        rail.addEventListener('click', (e) => {
+          if (this._state !== 'collapsed') return;
+          if (e.target.closest('a, button')) return;
+          this._setPersistentState('expanded');
+        });
       } else {
         // Bookmark mode: click-driven (no hover). Tab is also draggable so the
         // user can park it anywhere on screen; the chosen position is persisted.
