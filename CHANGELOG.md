@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.7...v0.13.0) (2026-05-21)
+
+
+### Features
+
+* **platform:** unified Authelia auth with groups and custom login ([#86](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/86)) ([9ad856c](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/9ad856c54730a0b68a5783557eedbcd41c54ce9c))
+
 ## [0.12.7](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.6...v0.12.7) (2026-05-20)
 
 
