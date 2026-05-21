@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.13.3](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.13.2...v0.13.3) (2026-05-21)
+
+
+### Bug Fixes
+
+* **deploy:** restart Authelia so newly-added users take effect ([#95](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/95)) ([2e8a6eb](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/2e8a6eb219f418ad3025a1de1423df439cac6bb8))
+* **platform:** gate Grafana behind forward_auth; tear down both sessions on logout ([#96](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/96)) ([dcf2fbc](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/dcf2fbc15453867f6cd36505b11b647d4f71043f))
+* **secrets:** bootstrap-authelia reads image pin from pins.yaml ([#93](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/93)) ([7cb9696](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/7cb969647850eb618e59db84a7a5ecbf8d881a3c))
+
 ## [0.13.2](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.13.1...v0.13.2) (2026-05-21)
 
 
