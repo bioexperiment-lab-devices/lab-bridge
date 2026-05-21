@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.14.0...v0.14.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* **deploy:** keep /grafana/api/health public so deploy probe passes ([#98](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/98)) ([4bec39e](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/4bec39ec62104016e8d63bef16ed505aa21d809b))
+
 ## [0.14.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.13.3...v0.14.0) (2026-05-21)
 
 
