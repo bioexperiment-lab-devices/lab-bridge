@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.13.0...v0.13.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* **deploy:** skip Authelia in stack-only CI deploys ([#88](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/88)) ([d830de9](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/d830de93f4634f6360a02b74f8e7aa41be1272ac))
+
 ## [0.13.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.12.7...v0.13.0) (2026-05-21)
 
 
