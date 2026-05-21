@@ -97,6 +97,15 @@ aside[data-mode="persistent"][data-state="expanded"]  {
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
   overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 0;
+}
+.brand:hover { background: transparent; text-decoration: none; }
+:host([data-theme="dark"]) .brand:hover { background: transparent; }
+.brand:focus-visible {
+  outline: 0;
+  box-shadow: inset 0 0 0 2px var(--accent-soft);
 }
 .brand__mark { display: inline-flex; flex-shrink: 0; }
 .brand__text {
