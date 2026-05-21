@@ -584,7 +584,9 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   display: block;
   padding: 12px 28px;
   background: var(--surface-strip);
-  border-top: 1px solid var(--border);
+  /* No border-top — the head already paints a 1px bottom border, and a
+     second hairline on the docs strip stacks into a 2px line that reads
+     as too heavy against the muted surfaces. */
   font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--text-secondary);
