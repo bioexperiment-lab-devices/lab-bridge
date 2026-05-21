@@ -110,6 +110,14 @@ https://__VPS_HOST__ {
     # Authelia's broken-under-sub-path React portal. Once they have an
     # authelia_session, Grafana's OIDC flow completes silently behind the
     # scenes and Grafana maps Authelia groups → Grafana roles.
+    # /grafana/api/health stays public — scripts/deploy.sh polls it during
+    # the post-deploy health check, and Grafana's own readiness probes
+    # would otherwise be redirected to /login.
+    handle /grafana/api/health {
+        reverse_proxy grafana:3000 {
+            header_up -Accept-Encoding
+        }
+    }
     handle /grafana/* {
         import authelia_required
         header Content-Security-Policy "(script-src[^;]*)" "${1} 'self'"
