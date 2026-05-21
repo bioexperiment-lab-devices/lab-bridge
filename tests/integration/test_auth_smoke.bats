@@ -55,8 +55,18 @@ setup() {
 @test "/grafana/api/health stays public (deploy probe relies on it)" {
     # scripts/deploy.sh polls this endpoint expecting 200. The forward_auth
     # gate on /grafana/* must NOT cover it, otherwise every deploy fails.
-    run curl -ksS -o /dev/null -w '%{http_code}' "https://$FAKE_VPS_HOST/grafana/api/health"
-    [[ "$output" == "200" ]]
+    # The fake-VPS setup waits for siteapp+authelia but not Grafana, so
+    # poll for up to ~60s (matching deploy.sh's own readiness window).
+    local code=""
+    local i
+    for i in $(seq 1 60); do
+        code="$(curl -ksS -o /dev/null -w '%{http_code}' \
+            "https://$FAKE_VPS_HOST/grafana/api/health" || true)"
+        [[ "$code" == "200" ]] && return 0
+        sleep 1
+    done
+    echo "timeout: /grafana/api/health = $code (expected 200)"
+    return 1
 }
 
 @test "OIDC authorization endpoint via /auth/ returns 30x (not portal HTML)" {
