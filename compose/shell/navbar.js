@@ -326,6 +326,10 @@
           backdrop.addEventListener('click', () => this._setBookmarkState('tab'));
         }
       }
+
+      // Repopulate the auth slot — _render() rebuilt the shadow tree and the
+      // .auth-slot inside it is empty until we fetch whoami again.
+      renderAuthSlot(this.shadowRoot, this);
     }
 
     _wireBookmarkDrag(rail) {
@@ -381,6 +385,9 @@
 
     _openSignOutModal(_user) {
       // Implemented in Task 8 — sign-out modal.
+      // Note for Task 8: _user.name and _user.initials are raw strings from
+      // /api/auth/whoami — escape with escapeHtml() before inserting into
+      // modal innerHTML.
       console.warn('[lds-navbar] sign-out modal not yet wired');
     }
 
@@ -413,8 +420,6 @@
   }
 
   async function renderAuthSlot(root, host) {
-    const slot = root.querySelector('.auth-slot');
-    if (!slot) return;
     let data = { user: null };
     try {
       const r = await fetch('/api/auth/whoami', { credentials: 'include' });
@@ -422,6 +427,11 @@
     } catch (_) {
       // Network error — render as logged-out, no surprises.
     }
+    // Re-query after await — a re-render (theme toggle, collapse) during the
+    // in-flight fetch may have replaced the shadow tree; the slot we captured
+    // before the await would be a detached node.
+    const slot = root.querySelector('.auth-slot');
+    if (!slot) return;
     if (data.user) {
       const name = data.display_name || data.user || 'Account';
       const initials = deriveInitials(data.display_name || data.user);
