@@ -90,9 +90,19 @@ services:
       GF_AUTH_GENERIC_OAUTH_TOKEN_URL: https://__VPS_HOST__/auth/api/oidc/token
       GF_AUTH_GENERIC_OAUTH_API_URL: https://__VPS_HOST__/auth/api/oidc/userinfo
       GF_AUTH_GENERIC_OAUTH_USE_PKCE: "true"
+      # Refresh-token rotation is what lets Authelia invalidate a Grafana
+      # session: Grafana periodically renews the access token, and once the
+      # corresponding Authelia session is gone the refresh fails and the
+      # user is dropped to the OAuth flow (which forward_auth then bounces
+      # to /login). Without this Grafana would coast for ~7 days on its
+      # own session cookie regardless of Authelia state.
+      GF_AUTH_GENERIC_OAUTH_USE_REFRESH_TOKEN: "true"
       GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "contains(groups[*], 'admins') && 'Admin' || contains(groups[*], 'researchers') && 'Viewer'"
       GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN: "true"
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      # Grafana's built-in "Sign out" menu lands here so a Grafana-initiated
+      # logout also tears down the Authelia session + grafana_session cookie.
+      GF_AUTH_SIGNOUT_REDIRECT_URL: https://__VPS_HOST__/logout
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana_data:/var/lib/grafana
