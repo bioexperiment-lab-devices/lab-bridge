@@ -77,6 +77,18 @@
                 <path d="M6.75 7h5.25"/>
                 <path d="M10 7v1.75M12 7v2"/>
               </svg>`,
+    logoutBig: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                  stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                  aria-hidden="true">
+                  <path d="M14 8V6.5A1.5 1.5 0 0 0 12.5 5h-6A1.5 1.5 0 0 0 5 6.5v11A1.5 1.5 0 0 0 6.5 19h6a1.5 1.5 0 0 0 1.5-1.5V16"/>
+                  <path d="M19 12H10"/>
+                  <path d="M16 9l3 3-3 3"/>
+                </svg>`,
+    closeX: `<svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor"
+               stroke-width="1.6" stroke-linecap="round"
+               aria-hidden="true">
+               <path d="M3 3l8 8M11 3l-8 8"/>
+             </svg>`,
   };
 
   const BRAND_MARK_SVG =
@@ -383,16 +395,100 @@
       });
     }
 
-    _openSignOutModal(_user) {
-      // Implemented in Task 8 — sign-out modal.
-      // Note for Task 8: _user.name and _user.initials are raw strings from
-      // /api/auth/whoami — escape with escapeHtml() before inserting into
-      // modal innerHTML.
-      console.warn('[lds-navbar] sign-out modal not yet wired');
+    _openSignOutModal(user) {
+      if (this._modalEl) return;  // already open
+      this._modalFocusReturn = this.shadowRoot.activeElement || null;
+
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+      modal.setAttribute('aria-labelledby', 'lb-signout-title');
+      modal.innerHTML = `
+        <div class="modal__backdrop" data-action="cancel"></div>
+        <div class="modal__card">
+          <header class="modal__head">
+            <div class="modal__ico" aria-hidden="true">${ICONS.logoutBig}</div>
+            <h2 id="lb-signout-title" class="modal__title">Sign out?</h2>
+            <button type="button" class="modal__close" aria-label="Cancel" data-action="cancel">
+              ${ICONS.closeX}
+            </button>
+          </header>
+          <div class="modal__body">
+            <p class="modal__lede">You'll be signed out of lab-bridge. Open sessions to JupyterLab, Grafana, and Flasher will end.</p>
+            <div class="modal__user">
+              <span class="user__avatar" aria-hidden="true">${escapeHtml(user.initials)}</span>
+              <div class="modal__user-text"><b>${escapeHtml(user.name)}</b></div>
+            </div>
+          </div>
+          <footer class="modal__foot">
+            <button type="button" class="modal__btn" data-action="cancel">Cancel</button>
+            <button type="button" class="modal__btn modal__btn--danger" data-action="confirm">Sign out</button>
+          </footer>
+        </div>`;
+      this.shadowRoot.appendChild(modal);
+      this._modalEl = modal;
+
+      modal.addEventListener('click', (e) => {
+        const action = e.target.closest('[data-action]')?.dataset?.action;
+        if (action === 'cancel') this._closeSignOutModal();
+        else if (action === 'confirm') this._confirmSignOut();
+      });
+
+      this._modalFocusTrap = (e) => {
+        if (!this._modalEl) return;
+        const card = this._modalEl.querySelector('.modal__card');
+        if (!card.contains(e.target)) {
+          e.stopPropagation();
+          const first = card.querySelector('button');
+          if (first) first.focus();
+        }
+      };
+      this.shadowRoot.addEventListener('focusin', this._modalFocusTrap);
+
+      // Focus the Cancel button (the safer default for a destructive dialog).
+      const cancelBtn = modal.querySelector('.modal__btn[data-action="cancel"]');
+      if (cancelBtn) cancelBtn.focus();
+    }
+
+    _closeSignOutModal() {
+      if (!this._modalEl) return;
+      this.shadowRoot.removeEventListener('focusin', this._modalFocusTrap);
+      this._modalEl.remove();
+      this._modalEl = null;
+      this._modalFocusTrap = null;
+      if (this._modalFocusReturn && typeof this._modalFocusReturn.focus === 'function') {
+        this._modalFocusReturn.focus();
+      }
+      this._modalFocusReturn = null;
+    }
+
+    _confirmSignOut() {
+      // Disable the confirm button so a slow network can't be double-clicked.
+      const btn = this._modalEl?.querySelector('.modal__btn--danger');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Signing out…';
+      }
+      // POST /logout invalidates the Authelia session server-side and expires
+      // the cookie client-side; the assign(/) reload then re-fetches whoami.
+      // We assign(/) regardless of the POST outcome so the user is never
+      // stranded — if logout silently failed the next page will show them
+      // signed in and they can retry.
+      fetch('/logout', { method: 'POST', credentials: 'include' })
+        .catch(() => {})
+        .finally(() => { location.assign('/'); });
     }
 
     _handleEscape(e) {
-      if (e.key !== 'Escape' || this._state !== 'expanded') return;
+      if (e.key !== 'Escape') return;
+      // Modal takes priority — closing it must not also collapse the rail.
+      if (this._modalEl) {
+        e.stopPropagation();
+        this._closeSignOutModal();
+        return;
+      }
+      if (this._state !== 'expanded') return;
       if (this._mode === 'persistent') {
         this._setPersistentState('collapsed');
       } else {
