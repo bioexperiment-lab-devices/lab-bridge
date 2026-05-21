@@ -153,12 +153,12 @@ main() {
     fi
     rsync -az --delete "${rsync_excludes[@]}" -e "$rsync_e" "$stage/" "$target:$VPS_REMOTE_ROOT/"
 
-    # Always restart caddy, siteapp, grafana, and (in full mode) chisel
-    # because their bind-mounted config files may have been replaced by rsync
-    # (atomic rename → new inode → the already-loaded reference inside the
-    # container goes stale; `up -d` doesn't recreate containers whose
-    # compose-config didn't change, and a single-file bind mount pins the
-    # original inode so even fsnotify-based auto-reload re-reads the same
+    # Always restart caddy, siteapp, grafana, and (in full mode) chisel +
+    # authelia because their bind-mounted config files may have been replaced
+    # by rsync (atomic rename → new inode → the already-loaded reference
+    # inside the container goes stale; `up -d` doesn't recreate containers
+    # whose compose-config didn't change, and a single-file bind mount pins
+    # the original inode so even fsnotify-based auto-reload re-reads the same
     # stale contents).
     # - caddy: Caddyfile
     # - siteapp: siteapp/agent_upload_token
@@ -168,13 +168,21 @@ main() {
     #   (e.g. the Prometheus addition in v0.10.0) requires a bounce. Without
     #   it, dashboards silently load with "No data" because the provisioned
     #   datasource isn't registered in Grafana's in-memory state.
+    # - authelia: authelia/configuration.yml + authelia/users_database.yml
+    #   (full mode only — stack-only CI deploys exclude both from rsync).
+    #   The configured authentication_backend.refresh_interval=30s only
+    #   re-reads the file through the FD bound at mount time, so a new
+    #   inode from rsync is invisible until the container restarts. Symptom:
+    #   `task users:add` followed by `task deploy` silently has no effect on
+    #   the running Authelia — only the first user (added before the
+    #   Authelia container ever existed) is recognised.
     # Flasher is intentionally excluded: it reads siteapp/clients.json on
     # every request (see services/flasher/app/routes.py), so a roster change
     # is picked up without a restart.
     log "bringing up the stack..."
     local restart_services="caddy siteapp grafana"
     if [[ "${LDS_STACK_ONLY:-}" != "1" ]]; then
-        restart_services="caddy chisel siteapp grafana"
+        restart_services="caddy chisel siteapp grafana authelia"
     fi
     $ssh_base "$target" "cd $VPS_REMOTE_ROOT && (docker compose pull --ignore-pull-failures || true) && docker compose up -d --remove-orphans && docker compose restart $restart_services"
 
