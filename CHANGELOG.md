@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.13.3...v0.14.0) (2026-05-21)
+
+
+### Features
+
+* **siteapp:** auth UI redesign — login, 403/404, navbar, sign-out ([#97](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/97)) ([578fcfd](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/578fcfd6766812b846d9e885da4eb6d130f02efd))
+
 ## [0.13.3](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.13.2...v0.13.3) (2026-05-21)
 
 
