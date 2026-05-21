@@ -1,4 +1,4 @@
-"""GET /logout returns 302 with an expiring authelia_session cookie."""
+"""GET and POST /logout return 302 with an expiring authelia_session cookie."""
 
 from __future__ import annotations
 
