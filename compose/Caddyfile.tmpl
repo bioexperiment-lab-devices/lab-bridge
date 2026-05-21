@@ -147,7 +147,9 @@ https://__VPS_HOST__ {
         # 403/404 templates can display what the user actually tried to reach.
         # Using {http.request.orig_uri.path} (not orig_uri) intentionally drops
         # the query string — a raw URI would get spliced after ?path= and
-        # confuse the query-string parser.
+        # confuse the query-string parser. Special chars in the path are not
+        # re-encoded; malformed paths from non-browser clients may display
+        # truncated in the meta block.
         rewrite @e403 /_errors/403?path={http.request.orig_uri.path}
         rewrite @e404 /_errors/404?path={http.request.orig_uri.path}
         # 401 from forward_auth is already turned into a 302 to /login by the

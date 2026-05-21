@@ -1818,32 +1818,6 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   color: var(--text);
   user-select: all;
 }
-.lb-forbidden__role-required {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: 3px;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-border);
-  color: var(--accent);
-}
-.lb-forbidden__role-sep {
-  color: var(--text-muted);
-}
-.lb-forbidden__role-yours {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-.lb-forbidden__role-yours b {
-  font-family: 'IBM Plex Mono', monospace;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: var(--text);
-}
-
 .lb-forbidden__actions {
   display: flex;
   align-items: center;
@@ -1870,63 +1844,6 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
 }
 .lb-forbidden__primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 [data-theme="dark"] .lb-forbidden__primary { color: var(--text-inverse); }
-.lb-forbidden__secondary {
-  font-size: 12.5px;
-  color: var(--text-secondary);
-  text-decoration: none;
-  border-bottom: 1px dotted var(--border-strong);
-  padding-bottom: 1px;
-}
-.lb-forbidden__secondary:hover { color: var(--accent); border-bottom-color: var(--accent); }
-
-.lb-forbidden__foot {
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-.lb-forbidden__foot-avatar {
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  font-family: 'IBM Plex Mono', monospace;
-  font-weight: 600;
-  font-size: 9.5px;
-  letter-spacing: 0.04em;
-  display: grid;
-  place-items: center;
-  text-transform: uppercase;
-  flex-shrink: 0;
-}
-[data-theme="dark"] .lb-forbidden__foot-avatar { color: var(--text-inverse); }
-.lb-forbidden__foot-text {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.lb-forbidden__foot-text b {
-  color: var(--text);
-  font-weight: 600;
-}
-.lb-forbidden__foot-sep { color: var(--text-muted); }
-.lb-forbidden__foot-action {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px dotted var(--border-strong);
-  font: inherit;
-  font-size: 12px;
-  color: var(--text-secondary);
-  padding: 0 0 1px;
-  cursor: pointer;
-}
-.lb-forbidden__foot-action:hover { color: var(--accent); border-bottom-color: var(--accent); }
 
 /* ============================================================
    Sign-in page (/sign-in) — minimal credentials form
@@ -1954,32 +1871,6 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   display: flex;
   flex-direction: column;
 }
-.lb-login__brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 18px;
-}
-.lb-login__brand-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.15;
-}
-.lb-login__brand-text b {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--text);
-}
-.lb-login__brand-text small {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-muted);
-}
-
 .lb-login__title {
   margin: 0 0 22px;
   font-size: 20px;
@@ -2205,12 +2096,3 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   margin-top: 1px;
 }
 .lb-login__foot-lock svg { width: 14px; height: 14px; }
-
-.lb-login__legal {
-  margin: 0;
-  text-align: center;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10.5px;
-  color: var(--text-muted);
-  letter-spacing: 0.04em;
-}

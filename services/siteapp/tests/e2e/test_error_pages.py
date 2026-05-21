@@ -64,3 +64,14 @@ def test_error_404_falls_back_to_request_path_when_query_missing(http: httpx.Cli
     r = http.get("/_errors/404")
     assert r.status_code == 200
     assert "<code>/_errors/404</code>" in r.text
+
+
+def test_error_404_escapes_html_in_attempted_path(http: httpx.Client) -> None:
+    # Symmetry with the 403 autoescape test — both share the same _attempted_path
+    # helper and the same Jinja rendering pipeline, so a regression would show
+    # up identically on both routes.
+    r = http.get("/_errors/404?path=</code><script>x</script>")
+    assert r.status_code == 200
+    assert "<script>x</script>" not in r.text
+    assert "&lt;/code&gt;" in r.text
+    assert "&lt;script&gt;" in r.text
