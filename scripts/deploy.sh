@@ -85,12 +85,17 @@ main() {
             install -m 644 "$authelia_secrets_dir/$f" "$stage/authelia/secrets/$f"
         done
 
+        # Authelia 4.38 fatals on startup if the users map is empty
+        # (`users: non zero value required` from the user provider). Without
+        # this guard the deploy would happily rsync a `users: {}` file and
+        # leave Authelia crash-looping on the VPS — fail loud at the laptop
+        # before touching the VPS, matching the secret-file guards above.
         local users_db="${LDS_USERS_DB:-$REPO_ROOT/compose/authelia/users_database.yml}"
-        if [[ ! -f "$users_db" ]]; then
-            printf 'users: {}\n' > "$stage/authelia/users_database.yml"
-        else
-            install -m 644 "$users_db" "$stage/authelia/users_database.yml"
-        fi
+        [[ -f "$users_db" ]] || die "authelia users_database.yml not found at $users_db — run: task users:add -- <name> admins"
+        local user_count
+        user_count="$(yq e '.users | length // 0' "$users_db")"
+        (( user_count > 0 )) || die "authelia users_database.yml has zero users at $users_db — run: task users:add -- <name> admins"
+        install -m 644 "$users_db" "$stage/authelia/users_database.yml"
     fi
 
     # Agent upload token — required at deploy time. Like the Grafana password,

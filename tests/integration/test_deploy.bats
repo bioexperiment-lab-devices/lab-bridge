@@ -168,6 +168,20 @@ teardown() { teardown_tmpdir; }
     [[ "$output" == *"rotate-agent-upload-token"* ]]
 }
 
+@test "deploy: fails fast when authelia users_database.yml is missing" {
+    export LDS_USERS_DB="$TMPDIR/does-not-exist-users.yml"
+    run bash "$ROOT/scripts/deploy.sh"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"users:add"* ]]
+}
+
+@test "deploy: fails fast when authelia users_database.yml has zero users" {
+    printf 'users: {}\n' > "$LDS_USERS_DB"
+    run bash "$ROOT/scripts/deploy.sh"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"users:add"* ]]
+}
+
 @test "deploy: stages siteapp/agent_upload_token" {
     # Gated on `docker compose pull` reaching the configured siteapp.image. The
     # fixture points at ghcr.io/test/lab-bridge-siteapp:0.0.1 (an unpublishable
