@@ -1699,6 +1699,10 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   align-items: center;
   justify-content: center;
   padding: 56px 32px;
+  /* Without this, the card collapses to its natural height and the flex
+     vertical centering has nothing to center against — the page sits at
+     the top of the viewport instead of being centred. */
+  min-height: 100vh;
 }
 .lb-forbidden {
   position: relative;

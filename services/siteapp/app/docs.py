@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal, TypedDict
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from starlette.status import HTTP_308_PERMANENT_REDIRECT
 
@@ -117,7 +117,7 @@ def make_router(settings: Settings) -> APIRouter:
             try:
                 candidate = safe_join(settings.docs_root, *[p for p in path.split("/") if p])
             except ValueError:
-                return Response(status_code=404)
+                raise HTTPException(status_code=404)
 
         # Trailing-slash semantics: a directory URL must end with `/` so relative
         # links inside index.md resolve correctly in the browser.
@@ -137,7 +137,7 @@ def make_router(settings: Settings) -> APIRouter:
 
         doc = find_doc(settings.docs_root, path)
         if doc is None:
-            return Response(status_code=404)
+            raise HTTPException(status_code=404)
 
         chosen = _pick_lang(lang, request.cookies.get("lang"))
         file = resolve_lang_file(settings.docs_root, doc, chosen)
