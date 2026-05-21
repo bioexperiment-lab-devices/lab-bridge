@@ -27,6 +27,11 @@
   --rail-w-expanded: 220px;
   --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --surface-strip: #FAF8F3;
+  --success: #2F7D3F;
+  --danger: #B23A2A;
+  --danger-soft: #F8E5E0;
+  --danger-border: #ECC5BC;
 }
 /* Shadow DOM doesn't inherit the host page's `* { box-sizing: border-box }`,
    so without this, height + padding compound and nav items render taller than
@@ -49,6 +54,11 @@
   --accent-soft: #2A3257;
   --accent-border: #4A5587;
   --accent-on: #1B1A17;
+  --surface-strip: #1F1E1B;
+  --success: #7CC18A;
+  --danger: #E58879;
+  --danger-soft: #34211D;
+  --danger-border: #6A3D34;
 }
 
 aside {
@@ -564,8 +574,7 @@ aside[data-mode="persistent"][data-state="collapsed"] .signin-cta__label { displ
 .modal__btn--danger {
   background: var(--danger, #B23A2A);
   border-color: var(--danger, #B23A2A);
-  color: #fff;
+  color: var(--text-inverse, #fff);
   font-weight: 600;
 }
-:host([data-theme="dark"]) .modal__btn--danger { color: var(--text-inverse); }
 .modal__btn--danger:hover { filter: brightness(0.93); border-color: var(--danger, #B23A2A); }
