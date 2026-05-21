@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.15.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.14.3...v0.15.0) (2026-05-21)
+
+
+### Features
+
+* **shell:** persist navbar expanded state, reserve layout space ([#113](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/113)) ([92f9019](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/92f9019837c6faf0e9a113211371602c32bf4e8c))
+* **siteapp:** hide home lab status from anonymous visitors ([#111](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/111)) ([4fa391c](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/4fa391cfea3068d81f68129dac3560414bb75b5c))
+
+
+### Bug Fixes
+
+* **siteapp:** expire grafana_session cookie at Path=/grafana (no trailing slash) ([#109](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/109)) ([adbe37c](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/adbe37cb0b80b2f0b8de764eda9ea7bf4cb7ec6a))
+* **siteapp:** styled 403/404 across all error paths, navbar on error pages ([#108](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/108)) ([3dbdd28](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/3dbdd284f2bbe7cc9c6d2f7c66d9e9bb54f2668a))
+
 ## [0.14.3](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.14.2...v0.14.3) (2026-05-21)
 
 
