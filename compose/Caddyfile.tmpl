@@ -150,6 +150,15 @@ https://__VPS_HOST__ {
         }
     }
 
+    # ─── Catch-all → 404 via handle_errors ───────────────────────────────
+    # Without this, paths that match none of the handle directives above
+    # fall through to Caddy's default behavior (empty 200 response). The
+    # `error 404` directive emits a 404 status, which triggers the
+    # handle_errors block below to render the styled /_errors/404 page.
+    handle {
+        error 404
+    }
+
     # ─── Global HTML rewrite — navbar injection ──────────────────────────
     replace {
         match {

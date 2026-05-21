@@ -1893,6 +1893,10 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   color: var(--text);
   line-height: 1.5;
 }
+/* The `display: flex` above defeats the UA `[hidden] { display: none }`
+   rule by specificity (class wins over the attribute selector). Without
+   this override the empty error box would render on the fresh form. */
+.lb-login__error[hidden] { display: none; }
 .lb-login__error-mark {
   width: 18px; height: 18px;
   flex-shrink: 0;
@@ -1972,6 +1976,12 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
 .lb-field__reveal:hover { color: var(--text); background: var(--surface-strip); }
 .lb-field__reveal[aria-pressed="true"] { color: var(--accent); }
 .lb-field__reveal svg { width: 16px; height: 16px; }
+/* Chrome's UA stylesheet doesn't apply `[hidden] { display: none }` to inline
+   SVG elements — the eye / eye-off icons would both render at once inside the
+   reveal button (grid + place-items: center stacks them). Make the rule
+   explicit. Scoped to the reveal so it doesn't change SVG hidden semantics
+   anywhere else. */
+.lb-field__reveal svg[hidden] { display: none; }
 
 /* Checkbox -------------------------------------------------- */
 .lb-check {
