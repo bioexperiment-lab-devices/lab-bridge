@@ -237,10 +237,23 @@ cmd_bootstrap_authelia() {
         hash="$(bash -c "$LDS_PBKDF2_HASH_CMD" _ "$raw")"
     else
         require_cmd docker
+        # Honour AUTHELIA_IMAGE if the caller already exported it (the bats
+        # bootstrap helper sets it to the upstream pin from the *real*
+        # compose/pins.yaml; the fixture pins.yaml under tests/integration/
+        # uses an unpullable ghcr.io/test/... tag). Otherwise read straight
+        # from compose/pins.yaml rather than depending on `load_config`
+        # (which validates the full config and is overkill here).
+        local authelia_image="${AUTHELIA_IMAGE:-}"
+        if [[ -z "$authelia_image" ]]; then
+            local pins_path="${LDS_PINS_FILE:-$SCRIPT_DIR/../compose/pins.yaml}"
+            authelia_image="$(yq e '.authelia_image' "$pins_path")"
+            [[ -n "$authelia_image" && "$authelia_image" != "null" ]] \
+                || die "authelia_image not set in $pins_path"
+        fi
         # `authelia crypto hash generate pbkdf2 --password <p>` prints the
         # hash after a label prefix. Older builds used "Password hash: " while
         # 4.38.x uses "Digest: "; match either to be forward-compatible.
-        hash="$(docker run --rm "$AUTHELIA_IMAGE" \
+        hash="$(docker run --rm "$authelia_image" \
             authelia crypto hash generate pbkdf2 --variant sha512 \
             --password "$raw" 2>/dev/null \
             | awk -F': ' '/Password hash:|Digest:/ {print $2; exit}')"
