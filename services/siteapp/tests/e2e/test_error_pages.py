@@ -75,3 +75,35 @@ def test_error_404_escapes_html_in_attempted_path(http: httpx.Client) -> None:
     assert "<script>x</script>" not in r.text
     assert "&lt;/code&gt;" in r.text
     assert "&lt;script&gt;" in r.text
+
+
+def test_unknown_route_returns_styled_404_to_browser(http: httpx.Client) -> None:
+    # Browsers hitting a path with no FastAPI route (e.g. /docsd) should land on
+    # the styled 404 template instead of FastAPI's default
+    # `{"detail":"Not Found"}` JSON. Triggered by the global exception handler
+    # in app.main.
+    r = http.get("/docsd", headers={"accept": "text/html"})
+    assert r.status_code == 404
+    body = r.text
+    assert "lb-forbidden__card" in body
+    assert "lb-forbidden__lock--404" in body
+    assert "<code>/docsd</code>" in body
+
+
+def test_unknown_docs_path_returns_styled_404(http: httpx.Client) -> None:
+    # `/docs/{path:path}` matches but find_doc returns None — the handler must
+    # raise so the global exception handler renders the styled template.
+    r = http.get("/docs/khj", headers={"accept": "text/html"})
+    assert r.status_code == 404
+    assert "lb-forbidden__card" in r.text
+    assert "<code>/docs/khj</code>" in r.text
+
+
+def test_unknown_route_returns_json_to_api_clients(http: httpx.Client) -> None:
+    # API clients (Accept: application/json or path under /api/) still get the
+    # original FastAPI-style JSON body — a styled HTML wall would only confuse
+    # scripts.
+    r = http.get("/docsd", headers={"accept": "application/json"})
+    assert r.status_code == 404
+    assert r.headers["content-type"].startswith("application/json")
+    assert r.json() == {"detail": "Not Found"}

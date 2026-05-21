@@ -14,6 +14,28 @@
     forward_auth authelia:9091 {
         uri /api/verify?rd=https://__VPS_HOST__/login
         copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
+
+        # Authelia returns 403 (raw "Forbidden" body) for authenticated users
+        # who lack the required role. Without this hook, forward_auth proxies
+        # that response unchanged. Converting it to an internal Caddy error
+        # routes it through handle_errors below → /_errors/403.
+        @forbidden status 403
+        handle_response @forbidden {
+            error 403
+        }
+    }
+}
+
+# Navbar injection — used both in the main route and inside handle_errors so
+# error pages get the rail too. Defined as a snippet because the directives
+# inside `handle_errors {…}` form their own subroute; a server-level `replace`
+# outside it doesn't apply to error responses.
+(inject_navbar) {
+    replace {
+        match {
+            header Content-Type *text/html*
+        }
+        "</head>" `<script src="/_shared/navbar.js?v=__PLATFORM_VERSION__" data-version="__PLATFORM_VERSION__" defer></script></head>`
     }
 }
 
@@ -160,12 +182,7 @@ https://__VPS_HOST__ {
     }
 
     # ─── Global HTML rewrite — navbar injection ──────────────────────────
-    replace {
-        match {
-            header Content-Type *text/html*
-        }
-        "</head>" `<script src="/_shared/navbar.js?v=__PLATFORM_VERSION__" data-version="__PLATFORM_VERSION__" defer></script></head>`
-    }
+    import inject_navbar
 
     # ─── Error pages → siteapp templates ─────────────────────────────────
     handle_errors {
@@ -188,5 +205,8 @@ https://__VPS_HOST__ {
         reverse_proxy siteapp:8000 {
             header_up -Accept-Encoding
         }
+        # handle_errors forms its own subroute; the main route's replace
+        # does not apply here. Inject the navbar inside the error subroute.
+        import inject_navbar
     }
 }
