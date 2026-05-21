@@ -205,6 +205,41 @@ wait_authelia_ready() {
     return 1
 }
 
+# Bootstrap Authelia secrets with REAL cryptographic material via the authelia
+# CLI. Required for tests that bring up the real Authelia container.
+# Prerequisite: $LDS_CONFIG must point to a writable config.yaml; $TMPDIR must exist.
+bootstrap_authelia_for_tests() {
+    export LDS_AUTHELIA_SECRETS_DIR="$TMPDIR/authelia_secrets"
+    export LDS_GRAFANA_OIDC_SECRET_FILE="$TMPDIR/grafana_oidc_secret"
+    export AUTHELIA_IMAGE
+    AUTHELIA_IMAGE="$(yq e '.authelia_image' "$ROOT/compose/pins.yaml")"
+    bash "$ROOT/scripts/secrets.sh" bootstrap-authelia
+    export AUTHELIA_GRAFANA_OIDC_SECRET_HASH
+    AUTHELIA_GRAFANA_OIDC_SECRET_HASH="$(yq e '.authelia.grafana_oidc_secret_hash' "$LDS_CONFIG")"
+    # Stage the users database file alongside secrets so the deploy rsyncs
+    # an empty-but-present file rather than fabricating one inline.
+    export LDS_USERS_DB="$TMPDIR/authelia_users_database.yml"
+    printf 'users: {}\n' > "$LDS_USERS_DB"
+}
+
+# Lightweight stub: create placeholder Authelia secret files and write a fake
+# hash to the config. For tests that DON'T bring up a real Authelia container
+# (spy/no-Docker tests like test_deploy_stack_only.bats).
+# Prerequisite: $LDS_CONFIG must point to a writable config.yaml; $TMPDIR exists.
+stub_authelia_for_tests() {
+    export LDS_AUTHELIA_SECRETS_DIR="$TMPDIR/authelia_secrets"
+    export LDS_GRAFANA_OIDC_SECRET_FILE="$TMPDIR/grafana_oidc_secret"
+    mkdir -p "$LDS_AUTHELIA_SECRETS_DIR"
+    for f in jwt_secret session_secret storage_encryption_key oidc_hmac_secret oidc_jwks_key.pem; do
+        printf 'stub' > "$LDS_AUTHELIA_SECRETS_DIR/$f"
+    done
+    printf 'stub' > "$LDS_GRAFANA_OIDC_SECRET_FILE"
+    export AUTHELIA_GRAFANA_OIDC_SECRET_HASH='$pbkdf2-sha512$310000$c3R1Yg$c3R1Yg'
+    yq -i ".authelia.grafana_oidc_secret_hash = \"\$pbkdf2-sha512\$310000\$c3R1Yg\$c3R1Yg\"" "$LDS_CONFIG"
+    export LDS_USERS_DB="$TMPDIR/authelia_users_database.yml"
+    printf 'users: {}\n' > "$LDS_USERS_DB"
+}
+
 # Bring up the fake-VPS with a full Authelia-enabled stack and seed user
 # accounts. Intended for setup_file() in auth smoke tests.
 #
@@ -238,28 +273,13 @@ fake_vps_up_with_users() {
     export LDS_PINS_FILE="$TMPDIR/pins.yaml"
 
     # ── Bootstrap Authelia secrets ─────────────────────────────────────────
-    export LDS_AUTHELIA_SECRETS_DIR="$TMPDIR/authelia_secrets"
-    export LDS_GRAFANA_OIDC_SECRET_FILE="$TMPDIR/grafana_oidc_secret"
-    # AUTHELIA_IMAGE is normally set by load_config (called inside deploy.sh),
-    # but bootstrap-authelia runs before deploy. The test fixture pins.yaml
-    # overrides authelia_image to a non-existent GHCR test tag, so we read
-    # the upstream pin from the real compose/pins.yaml instead. This is the
-    # same image that compose_images_available() guarantees is on the host.
-    export AUTHELIA_IMAGE
-    AUTHELIA_IMAGE="$(yq e '.authelia_image' "$ROOT/compose/pins.yaml")"
     # Use the real Authelia image for PBKDF2 hashing so the rendered
     # configuration.yml contains a hash that Authelia's config parser accepts.
     # authelia/authelia:4.38.10 is guaranteed present (compose_images_available
     # checked for it above). One docker run here, no LDS_PBKDF2_HASH_CMD bypass.
-    bash "$ROOT/scripts/secrets.sh" bootstrap-authelia
-    # bootstrap-authelia writes .authelia.grafana_oidc_secret_hash to the
-    # config; read it so render_authelia_config picks it up via config.sh.
-    local oidc_hash
-    oidc_hash="$(yq e '.authelia.grafana_oidc_secret_hash' "$TMPDIR/config.yaml")"
-    export AUTHELIA_GRAFANA_OIDC_SECRET_HASH="$oidc_hash"
+    bootstrap_authelia_for_tests
 
     # ── Seed users (before deploy so rsync ships the populated DB) ─────────
-    export LDS_USERS_DB="$TMPDIR/authelia_users_database.yml"
     # Real argon2id hashing via `docker run authelia/authelia hash-password`
     # is required so Authelia can actually verify the test passwords at
     # login time. The authelia/authelia image is guaranteed present on the

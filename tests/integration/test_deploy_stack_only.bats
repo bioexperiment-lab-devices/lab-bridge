@@ -16,6 +16,12 @@ setup() {
     printf 'flashertok' > "$TMPDIR/flasher_upload_token"
     chmod 600 "$TMPDIR/flasher_upload_token"
     export LDS_FLASHER_UPLOAD_TOKEN_FILE="$TMPDIR/flasher_upload_token"
+    # Stub Authelia secrets so render_authelia_config doesn't fail on missing
+    # AUTHELIA_GRAFANA_OIDC_SECRET_HASH. Use a throw-away config for the yq -i
+    # call; each test overrides LDS_CONFIG inline on its own `run` invocation.
+    cp "$ROOT/tests/integration/fixtures/valid_config.yaml" "$TMPDIR/stub_config.yaml"
+    export LDS_CONFIG="$TMPDIR/stub_config.yaml"
+    stub_authelia_for_tests
 }
 teardown() { teardown_tmpdir; }
 
@@ -30,6 +36,10 @@ jupyter: { password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef012
 siteapp: { admin_password_hash: "$2a$14$DG5Aycl5h3ED0V1Qz50BfuZDxSle4cvw7sRFYCArNvB03eCpKSPxa" }
 chisel_clients: []
 CFG
+    # load_config (sourced by deploy.sh) reads .authelia.grafana_oidc_secret_hash
+    # from the config file and overwrites the env var; inject the stub hash so
+    # render_authelia_config gets a non-empty value.
+    yq -i ".authelia.grafana_oidc_secret_hash = \"${AUTHELIA_GRAFANA_OIDC_SECRET_HASH}\"" "$spy_config"
 
     local spy_pins="$BATS_TEST_TMPDIR/stack_pins.yaml"
     cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$spy_pins"

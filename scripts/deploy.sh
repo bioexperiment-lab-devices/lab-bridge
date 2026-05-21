@@ -201,16 +201,16 @@ main() {
                 && [[ "$grafana_status" == "200" ]] \
                 && [[ "$docs_status" == "200" ]] \
                 && [[ "$download_status" == "200" ]] \
-                && [[ "$flash_status" == "401" ]] \
+                && [[ "$flash_status" == "302" ]] \
                 && [[ "$static_status" == "200" ]] \
                 && [[ "$public_status" == "200" ]] \
                 && [[ "$server_info_status" == "200" ]]; then
-                log "deployed: home $home_status, jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, flash $flash_status, static $static_status, public $public_status, server_info $server_info_status"
+                log "deployed: home $home_status, jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, flash $flash_status (forward_auth 302), static $static_status, public $public_status, server_info $server_info_status"
                 return 0
             fi
             sleep 1
         done
-        warn "health check timed out (home:$home_status jupyter:$jupyter_status grafana:$grafana_status docs:$docs_status download:$download_status flash:$flash_status static:$static_status public:$public_status server_info:$server_info_status). Check: task logs"
+        warn "health check timed out (home:$home_status jupyter:$jupyter_status grafana:$grafana_status docs:$docs_status download:$download_status flash:$flash_status[want 302] static:$static_status public:$public_status server_info:$server_info_status). Check: task logs"
         return 1
     fi
     log "deployed (healthcheck skipped)"

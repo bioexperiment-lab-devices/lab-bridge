@@ -42,6 +42,7 @@ setup_file() {
     load_siteapp_test_image
     load_flasher_test_image
     load_caddy_test_image
+    load_authelia_test_image
     preload_fake_vps_images
     export _OPS_TMPDIR="$TMPDIR"
 }
@@ -62,6 +63,7 @@ setup() {
     yq -i ".ssh_port = 2222" "$TMPDIR/pins.yaml"
     export LDS_CONFIG="$TMPDIR/config.yaml"
     export LDS_PINS_FILE="$TMPDIR/pins.yaml"
+    bootstrap_authelia_for_tests
     export LDS_SSH_KEY="$ROOT/tests/integration/fake_vps/id_test"
     export LDS_SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     export LDS_SKIP_HEALTHCHECK=1
