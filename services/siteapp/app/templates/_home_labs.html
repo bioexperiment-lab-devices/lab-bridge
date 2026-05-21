@@ -1,11 +1,17 @@
 {% set online = labs | selectattr('online') | list %}
 {% set offline = labs | rejectattr('online') | list %}
+{# Outer .lb-labs-section wrapper stays in both states so the home-page poll
+   can swap it in/out. The signed-in branch keeps the .lb-equip card; the
+   signed-out branch replaces it with the .lb-signed-out restricted-content
+   panel (head with eyebrow + title + body + accent CTA, plus a docs link
+   strip at the bottom). #}
 <section class="lb-section lb-labs-section" aria-labelledby="lb-equip-title">
   <header class="lb-section__head">
     <h2 id="lb-equip-title" class="lb-section__title">{{ s.labs_section_title }}</h2>
     <div class="lb-section__rule" aria-hidden="true"></div>
   </header>
 
+  {% if signed_in %}
   <div class="lb-equip">
     <header class="lb-equip__head">
       <h3>{{ s.labs_panel_title }}</h3>
@@ -41,4 +47,34 @@
       {% endfor %}
     </div>
   </div>
+  {% else %}
+  <div class="lb-signed-out" data-labs-hidden>
+    <div class="lb-signed-out__head">
+      <span class="lb-signed-out__eyebrow">
+        <span class="lb-signed-out__lock" aria-hidden="true">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="4.5" cy="7" r="2.25"/>
+            <path d="M6.75 7h5.25"/>
+            <path d="M10 7v1.75M12 7v2"/>
+          </svg>
+        </span>
+        {{ s.labs_hidden_eyebrow }}
+      </span>
+      <h3 class="lb-signed-out__title">{{ s.labs_hidden_title }}</h3>
+      <p class="lb-signed-out__body">{{ s.labs_hidden_body }}</p>
+      <div class="lb-signed-out__actions">
+        <a class="lb-signed-out__cta" href="/login?rd=/">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="4.5" cy="7" r="2.25"/>
+            <path d="M6.75 7h5.25"/>
+            <path d="M10 7v1.75M12 7v2"/>
+          </svg>
+          <span>{{ s.labs_hidden_cta }}</span>
+        </a>
+        <span class="lb-signed-out__admin">{{ s.labs_hidden_admin }}</span>
+      </div>
+    </div>
+    <a class="lb-signed-out__docs" href="/docs/">{{ s.labs_hidden_docs }}</a>
+  </div>
+  {% endif %}
 </section>

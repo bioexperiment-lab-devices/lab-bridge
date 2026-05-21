@@ -493,6 +493,108 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   color: var(--warning);
 }
 
+/* ---- Signed-out home: restricted-content panel -------------
+   Replaces the .lb-equip card under the "Lab status" section when an
+   anonymous visitor hits /. Lifted from docs/design_handoff_lab_bridge/
+   source/Lab Bridge.html (.lb-signed-out*). */
+.lb-signed-out {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+.lb-signed-out__head {
+  padding: 26px 28px 22px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-strip) 100%);
+}
+.lb-signed-out__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.lb-signed-out__lock {
+  width: 16px; height: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
+.lb-signed-out__lock svg { width: 14px; height: 14px; }
+.lb-signed-out__title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+  color: var(--text);
+  max-width: 640px;
+  text-wrap: pretty;
+}
+.lb-signed-out__body {
+  margin: 0 0 16px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 640px;
+}
+.lb-signed-out__actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.lb-signed-out__cta {
+  appearance: none;
+  font: inherit;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 5px;
+  padding: 0 14px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: -0.005em;
+  text-decoration: none;
+  transition: background 100ms;
+}
+.lb-signed-out__cta:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+[data-theme="dark"] .lb-signed-out__cta { color: var(--text-inverse); }
+.lb-signed-out__cta svg { width: 14px; height: 14px; }
+.lb-signed-out__admin {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.lb-signed-out__docs {
+  display: block;
+  padding: 12px 28px;
+  background: var(--surface-strip);
+  /* No border-top — the head already paints a 1px bottom border, and a
+     second hairline on the docs strip stacks into a 2px line that reads
+     as too heavy against the muted surfaces. */
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+.lb-signed-out__docs:hover { color: var(--accent); }
+
 /* ---- Topology — vertical diagram with icons + edge labels --- */
 .lb-topo-section { min-width: 0; }
 
