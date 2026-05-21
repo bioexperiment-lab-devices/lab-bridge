@@ -493,6 +493,68 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   color: var(--warning);
 }
 
+/* ---- Equipment panel — hidden state (signed-out visitor) ----
+   Replaces the online/offline groups when the home page is rendered for
+   an anonymous visitor. Reuses .lb-equip's outer chrome so the section's
+   header bar stays visually anchored. */
+.lb-equip__hidden {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 28px 24px 26px;
+  background: var(--surface-sunken);
+}
+.lb-equip__hidden-ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  margin-bottom: 2px;
+}
+.lb-equip__hidden-ico svg { width: 20px; height: 20px; display: block; }
+.lb-equip__hidden-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--text);
+}
+.lb-equip__hidden-body {
+  margin: 0;
+  max-width: 360px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.lb-equip__hidden-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 0 14px;
+  height: 32px;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: filter 100ms;
+}
+.lb-equip__hidden-cta:hover { filter: brightness(0.97); }
+[data-theme="dark"] .lb-equip__hidden-cta:hover { filter: brightness(1.08); }
+.lb-equip__hidden-cta svg { width: 13px; height: 13px; flex-shrink: 0; }
+
 /* ---- Topology — vertical diagram with icons + edge labels --- */
 .lb-topo-section { min-width: 0; }
 
