@@ -180,15 +180,25 @@ main() {
 
     # 5. Health check (skippable for tests). Probe each routed path:
     # `/` (siteapp Home → 200),
+    # `/auth/api/health` (Authelia's unauthenticated health endpoint → 200;
+    #   probed first because /jupyter/ and /flash/ depend on forward_auth
+    #   succeeding, which requires Authelia to be reachable. Without this
+    #   probe a forward_auth connect-refused yields 502 → handle_errors
+    #   rewrite, hiding the actual root cause behind a confusing "/flash/
+    #   expected 302 got 502" message),
     # `/jupyter/` (Authelia forward_auth → 302 to /login),
+    # `/flash/` (Authelia forward_auth → 302 to /login),
     # `/grafana/api/health` (Grafana's unauthenticated health endpoint → 200;
     #   /grafana/login now auto-redirects to OIDC, so we probe the terminal
     #   health endpoint instead of the login page).
     if [[ "${LDS_SKIP_HEALTHCHECK:-}" != "1" ]]; then
         log "waiting for HTTPS to respond..."
-        local i home_status jupyter_status grafana_status docs_status download_status flash_status static_status public_status server_info_status
+        local i home_status authelia_status jupyter_status grafana_status \
+            docs_status download_status flash_status static_status public_status \
+            server_info_status
         for ((i=0; i<60; i++)); do
             home_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/" || true)"
+            authelia_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/auth/api/health" || true)"
             jupyter_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/jupyter/" || true)"
             grafana_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/grafana/api/health" || true)"
             docs_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/docs/" || true)"
@@ -208,6 +218,7 @@ main() {
             # so a broken render fails the deploy.
             server_info_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/api/public/server-info" || true)"
             if [[ "$home_status" == "200" ]] \
+                && [[ "$authelia_status" == "200" ]] \
                 && [[ "$jupyter_status" =~ ^[23][0-9][0-9]$ ]] \
                 && [[ "$grafana_status" == "200" ]] \
                 && [[ "$docs_status" == "200" ]] \
@@ -216,12 +227,15 @@ main() {
                 && [[ "$static_status" == "200" ]] \
                 && [[ "$public_status" == "200" ]] \
                 && [[ "$server_info_status" == "200" ]]; then
-                log "deployed: home $home_status, jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, flash $flash_status (forward_auth 302), static $static_status, public $public_status, server_info $server_info_status"
+                log "deployed: home $home_status, authelia $authelia_status, jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, flash $flash_status (forward_auth 302), static $static_status, public $public_status, server_info $server_info_status"
                 return 0
             fi
             sleep 1
         done
-        warn "health check timed out (home:$home_status jupyter:$jupyter_status grafana:$grafana_status docs:$docs_status download:$download_status flash:${flash_status}[want 302] static:$static_status public:$public_status server_info:$server_info_status). Check: task logs"
+        warn "health check timed out (home:$home_status authelia:$authelia_status jupyter:$jupyter_status grafana:$grafana_status docs:$docs_status download:$download_status flash:${flash_status}[want 302] static:$static_status public:$public_status server_info:$server_info_status). Check: task logs"
+        if [[ "$authelia_status" != "200" ]]; then
+            warn "Authelia is not reachable (/auth/api/health = $authelia_status). If this is the first deploy, run from your laptop: task secrets:bootstrap-authelia && task users:add -- <name> admins && task deploy"
+        fi
         return 1
     fi
     log "deployed (healthcheck skipped)"
