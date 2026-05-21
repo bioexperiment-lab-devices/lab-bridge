@@ -159,6 +159,36 @@ jobs:
             LAB_BRIDGE_VERSION=${{ steps.ref.outputs.version }}
             LAB_BRIDGE_GIT_SHA=${{ github.sha }}
 
+      # services/authelia is a passthrough re-publish of authelia/authelia
+      # under our GHCR namespace (uniform Sigstore attestation chain). The
+      # upstream tag lives in compose/pins.yaml so Renovate can bump it
+      # without touching the Dockerfile ARG default.
+      - name: derive authelia upstream version
+        if: steps.ref.outputs.mode == 'release'
+        id: authelia-pin
+        run: |
+          set -euo pipefail
+          version="$(awk -F': ' '/^authelia_image:/ {sub(/.*:/, "", $2); print $2}' compose/pins.yaml)"
+          [[ -n "$version" ]] || { echo "::error::authelia_image not found in compose/pins.yaml"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: build & push authelia image
+        if: steps.ref.outputs.mode == 'release'
+        id: build-authelia
+        uses: docker/build-push-action@v6
+        with:
+          context: services/authelia
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/lab-bridge-authelia:${{ steps.ref.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/lab-bridge-authelia:latest
+          build-args: |
+            AUTHELIA_VERSION=${{ steps.authelia-pin.outputs.version }}
+            LAB_BRIDGE_VERSION=${{ steps.ref.outputs.version }}
+            LAB_BRIDGE_GIT_SHA=${{ github.sha }}
+
       - name: attest siteapp build provenance
         if: steps.ref.outputs.mode == 'release'
         uses: actions/attest-build-provenance@v4
@@ -181,6 +211,14 @@ jobs:
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/lab-bridge-caddy
           subject-digest: ${{ steps.build-caddy.outputs.digest }}
+          push-to-registry: true
+
+      - name: attest authelia build provenance
+        if: steps.ref.outputs.mode == 'release'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/lab-bridge-authelia
+          subject-digest: ${{ steps.build-authelia.outputs.digest }}
           push-to-registry: true
 
       - name: deploy + verify
