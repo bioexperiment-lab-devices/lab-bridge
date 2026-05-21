@@ -129,7 +129,12 @@ def make_router(settings: Settings) -> APIRouter:
 
     @router.get("/_errors/403", response_class=HTMLResponse, include_in_schema=False)
     async def error_403(request: Request) -> HTMLResponse:
-        return templates.TemplateResponse(request, "error_403.html", {})
+        # Caddy's handle_errors rewrites to /_errors/403?path={orig_uri}.
+        # Direct hits (e2e, debugging) have no ?path= and fall back to the URI.
+        attempted_path = request.query_params.get("path") or request.url.path
+        return templates.TemplateResponse(
+            request, "error_403.html", {"attempted_path": attempted_path}
+        )
 
     @router.get("/_errors/404", response_class=HTMLResponse, include_in_schema=False)
     async def error_404(request: Request) -> HTMLResponse:

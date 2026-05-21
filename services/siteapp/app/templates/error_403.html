@@ -1,9 +1,38 @@
 {% extends "base.html" %}
 {% block title %}Forbidden — lab-bridge{% endblock %}
 {% block main %}
-  <section class="lb-error">
-    <h1>403 — Forbidden</h1>
-    <p>You're signed in, but your account doesn't have permission to view this page.</p>
-    <p><a href="/">Go home</a></p>
+  <section class="lb-forbidden-page">
+    <div class="lb-forbidden">
+      <span class="lb-forbidden__code">Error 403 · Forbidden</span>
+
+      <div class="lb-forbidden__card">
+        <div class="lb-forbidden__head">
+          <div class="lb-forbidden__lock" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="11" width="14" height="9" rx="1.5"/>
+              <path d="M8 11V8a4 4 0 018 0v3"/>
+              <circle cx="12" cy="15.5" r="1.25" fill="currentColor" stroke="none"/>
+            </svg>
+          </div>
+          <h1 class="lb-forbidden__title">You don't have access to this page</h1>
+        </div>
+        <p class="lb-forbidden__body">This area is restricted to a different role. If you need access for your work, ask the server administrator to update your permissions.</p>
+
+        <dl class="lb-forbidden__meta">
+          <div>
+            <dt>Attempted path</dt>
+            <dd><code>{{ attempted_path }}</code></dd>
+          </div>
+        </dl>
+
+        <div class="lb-forbidden__actions">
+          <button type="button" class="lb-forbidden__primary" onclick="history.back()">
+            <span aria-hidden="true">←</span>
+            <span>Back</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </section>
 {% endblock %}
