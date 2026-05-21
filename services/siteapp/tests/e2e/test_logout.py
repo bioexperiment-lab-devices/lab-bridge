@@ -43,9 +43,11 @@ def test_logout_also_expires_grafana_session_cookie(http: httpx.Client) -> None:
     assert all(_is_expired(c) for c in matches), f"grafana_session not cleared: {matches}"
     # Must target Grafana's actual cookie path so the browser matches the
     # original cookie. Grafana with serve_from_sub_path=true scopes its
-    # session cookie to /grafana/.
-    assert all("Path=/grafana/" in c or "path=/grafana/" in c for c in matches), (
-        f"grafana_session expire missing Path=/grafana/: {matches}"
+    # session cookie to `/grafana` (no trailing slash) — using `/grafana/`
+    # creates a new empty cookie at a different path while the original
+    # at /grafana lives on, and the user stays logged in.
+    assert all("path=/grafana;" in c.lower() for c in matches), (
+        f"grafana_session expire must use Path=/grafana (no trailing slash): {matches}"
     )
 
 

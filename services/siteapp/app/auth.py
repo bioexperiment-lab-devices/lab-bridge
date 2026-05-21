@@ -150,13 +150,16 @@ def make_router(settings: Settings) -> APIRouter:
         # Grafana's session cookie is independent of Authelia — without
         # explicit expiry here, the user stays logged in (with whatever role
         # OIDC mapped them to) for up to 7 days on grafana_session alone.
-        # Grafana sets it host-only (no Domain attribute) with Path=/grafana/
-        # when serve_from_sub_path=true.
+        # Grafana sets these host-only (no Domain attribute) with `Path=/grafana`
+        # — no trailing slash, even when serve_from_sub_path=true. Per RFC 6265
+        # the browser identifies a cookie by (name, domain, path) exactly, so a
+        # `Path=/grafana/` expire creates a *new* empty cookie at /grafana/ and
+        # leaves the original at /grafana untouched. Mirror Grafana's path.
         for cookie_name in ("grafana_session", "grafana_session_expiry"):
             resp.raw_headers.append(
                 (
                     b"set-cookie",
-                    f"{cookie_name}=; Max-Age=0; path=/grafana/; HttpOnly; SameSite=Lax".encode(
+                    f"{cookie_name}=; Max-Age=0; path=/grafana; HttpOnly; SameSite=Lax".encode(
                         "latin-1"
                     ),
                 )
