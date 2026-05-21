@@ -21,9 +21,9 @@ def test_logout_returns_302_and_expires_cookie(http: httpx.Client) -> None:
     assert r.status_code == 302
     assert r.headers["location"] == "/"
     set_cookies = r.headers.get_list("set-cookie")
-    assert any(
-        "authelia_session=" in c and _is_expired(c) for c in set_cookies
-    ), f"authelia_session not cleared: {set_cookies}"
+    assert any("authelia_session=" in c and _is_expired(c) for c in set_cookies), (
+        f"authelia_session not cleared: {set_cookies}"
+    )
 
 
 def test_logout_also_expires_grafana_session_cookie(http: httpx.Client) -> None:
@@ -40,9 +40,7 @@ def test_logout_also_expires_grafana_session_cookie(http: httpx.Client) -> None:
     set_cookies = r.headers.get_list("set-cookie")
     matches = [c for c in set_cookies if "grafana_session=" in c]
     assert matches, f"expected grafana_session in Set-Cookie; got {set_cookies}"
-    assert all(_is_expired(c) for c in matches), (
-        f"grafana_session not cleared: {matches}"
-    )
+    assert all(_is_expired(c) for c in matches), f"grafana_session not cleared: {matches}"
     # Must target Grafana's actual cookie path so the browser matches the
     # original cookie. Grafana with serve_from_sub_path=true scopes its
     # session cookie to /grafana/.
