@@ -18,3 +18,6 @@ compose/siteapp/sample_data/
 
 # Claude Code internal state (worktrees, caches)
 .claude/
+
+# Playwright MCP scratch (per-session snapshots, console logs, screenshots)
+.playwright-mcp/

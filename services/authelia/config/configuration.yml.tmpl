@@ -91,6 +91,15 @@ identity_providers:
         secret: '__GRAFANA_OIDC_SECRET_HASH__'
         public: false
         authorization_policy: one_factor
+        # Skip the consent prompt: Authelia's React SPA is broken under our
+        # /auth/ sub-path (its assets are absolute-pathed to /static/... and
+        # /manifest.json with no prefix), and even if we routed /consent to
+        # Authelia the page would load with broken JS. Grafana is a trusted
+        # internal client, so implicit consent is appropriate. Without this,
+        # the OIDC flow ends with Authelia 302→/consent, which falls through
+        # Caddy's catch-all to 404 — the auth code never reaches Grafana and
+        # no OIDC user is ever provisioned.
+        consent_mode: implicit
         redirect_uris:
           - https://__VPS_HOST__/grafana/login/generic_oauth
         scopes:
