@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.15.0...v0.16.0) (2026-05-21)
+
+
+### Features
+
+* **ui:** center login, fix dark-theme contrast, lucide+simpleicons ([#112](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/112)) ([c66dc1e](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/c66dc1e40c5a901d8c510406534ba4366d6ebea8))
+
 ## [0.15.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.14.3...v0.15.0) (2026-05-21)
 
 
