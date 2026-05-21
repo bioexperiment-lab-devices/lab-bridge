@@ -56,6 +56,14 @@ CFG
     run cat "$rsync_log"
     [[ "$output" == *"--exclude=chisel/users.json"* ]]
     [[ "$output" == *"--exclude=siteapp/clients.json"* ]]
+    # Authelia config + users + secrets are laptop-managed; CI rsync preserves
+    # the on-disk VPS copies. Without these excludes, --delete would remove
+    # them on the first stack-only deploy (no source files = "extra" in dest).
+    [[ "$output" == *"--exclude=authelia/configuration.yml"* ]]
+    [[ "$output" == *"--exclude=authelia/users_database.yml"* ]]
+    [[ "$output" == *"--exclude=authelia/secrets/"* ]]
+    [[ "$output" == *"--exclude=grafana/oidc_secret"* ]]
+    [[ "$output" == *"--exclude=authelia_data/"* ]]
 }
 
 @test "deploy.sh: with LDS_STACK_ONLY=1 + LDS_REQUIRE_VAULT=1, fails if chisel_clients is non-empty" {

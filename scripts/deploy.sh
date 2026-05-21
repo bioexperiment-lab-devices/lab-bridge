@@ -35,8 +35,12 @@ main() {
     mkdir -p "$stage/chisel" "$stage/loki" "$stage/grafana/provisioning" "$stage/siteapp" "$stage/shell" "$stage/prometheus" "$stage/authelia"
     render_compose     "$REPO_ROOT/compose/docker-compose.yml.tmpl" "$stage/docker-compose.yml"
     render_caddyfile   "$REPO_ROOT/compose/Caddyfile.tmpl"           "$stage/Caddyfile"
-    render_authelia_config "$REPO_ROOT/services/authelia/config/configuration.yml.tmpl" "$stage/authelia/configuration.yml"
+    # Authelia config + users + secrets are laptop-bootstrapped (operator owns
+    # `task secrets:bootstrap-authelia` and `task users:*`). CI deploys are
+    # stack-only and never re-render or rsync these — the rsync excludes below
+    # keep the VPS-resident copies intact.
     if [[ "${LDS_STACK_ONLY:-}" != "1" ]]; then
+        render_authelia_config "$REPO_ROOT/services/authelia/config/configuration.yml.tmpl" "$stage/authelia/configuration.yml"
         render_chisel_users "$stage/chisel/users.json"
         render_siteapp_clients "$stage/siteapp/clients.json"
     fi
@@ -63,34 +67,30 @@ main() {
     [[ -f "$pwfile" ]] || die "grafana admin password not found at $pwfile — run: task secrets:set-grafana-password"
     install -m 644 "$pwfile" "$stage/grafana/admin_password"
 
-    # Grafana OIDC client secret (raw value for the Grafana container; the
-    # PBKDF2 hash for Authelia's config was written to config.yaml by
-    # `task secrets:bootstrap-authelia` and substituted above).
-    local grafana_oidc_secret_file="${LDS_GRAFANA_OIDC_SECRET_FILE:-$REPO_ROOT/compose/grafana/oidc_secret}"
-    [[ -f "$grafana_oidc_secret_file" ]] || die "grafana OIDC secret not found at $grafana_oidc_secret_file — run: task secrets:bootstrap-authelia"
-    install -m 644 "$grafana_oidc_secret_file" "$stage/grafana/oidc_secret"
+    # Grafana OIDC client secret + Authelia secret material + users DB are
+    # laptop-only: `task secrets:bootstrap-authelia` writes them, `task deploy`
+    # rsyncs them to the VPS, and they persist there. CI release deploys
+    # (stack-only) preserve the on-disk copies via the rsync excludes below.
+    if [[ "${LDS_STACK_ONLY:-}" != "1" ]]; then
+        local grafana_oidc_secret_file="${LDS_GRAFANA_OIDC_SECRET_FILE:-$REPO_ROOT/compose/grafana/oidc_secret}"
+        [[ -f "$grafana_oidc_secret_file" ]] || die "grafana OIDC secret not found at $grafana_oidc_secret_file — run: task secrets:bootstrap-authelia"
+        install -m 644 "$grafana_oidc_secret_file" "$stage/grafana/oidc_secret"
 
-    # Authelia JWT / session / storage / OIDC secrets (created by
-    # `task secrets:bootstrap-authelia`). Mode 0644 for bind-mount readability
-    # inside the container; the local copies stay 0600.
-    local authelia_secrets_dir="${LDS_AUTHELIA_SECRETS_DIR:-$REPO_ROOT/compose/authelia/secrets}"
-    for f in jwt_secret session_secret storage_encryption_key oidc_hmac_secret oidc_jwks_key.pem; do
-        [[ -f "$authelia_secrets_dir/$f" ]] || die "authelia secret $f not found in $authelia_secrets_dir — run: task secrets:bootstrap-authelia"
-    done
-    mkdir -p "$stage/authelia/secrets"
-    for f in jwt_secret session_secret storage_encryption_key oidc_hmac_secret oidc_jwks_key.pem; do
-        install -m 644 "$authelia_secrets_dir/$f" "$stage/authelia/secrets/$f"
-    done
+        local authelia_secrets_dir="${LDS_AUTHELIA_SECRETS_DIR:-$REPO_ROOT/compose/authelia/secrets}"
+        for f in jwt_secret session_secret storage_encryption_key oidc_hmac_secret oidc_jwks_key.pem; do
+            [[ -f "$authelia_secrets_dir/$f" ]] || die "authelia secret $f not found in $authelia_secrets_dir — run: task secrets:bootstrap-authelia"
+        done
+        mkdir -p "$stage/authelia/secrets"
+        for f in jwt_secret session_secret storage_encryption_key oidc_hmac_secret oidc_jwks_key.pem; do
+            install -m 644 "$authelia_secrets_dir/$f" "$stage/authelia/secrets/$f"
+        done
 
-    # Authelia users database — populated by `task users:add`.
-    # An empty file is valid (no users → everyone is locked out, which is the
-    # desired initial state before the operator bootstraps the first user).
-    local users_db="${LDS_USERS_DB:-$REPO_ROOT/compose/authelia/users_database.yml}"
-    if [[ ! -f "$users_db" ]]; then
-        # First deploy before any users have been added — create an empty DB.
-        printf 'users: {}\n' > "$stage/authelia/users_database.yml"
-    else
-        install -m 644 "$users_db" "$stage/authelia/users_database.yml"
+        local users_db="${LDS_USERS_DB:-$REPO_ROOT/compose/authelia/users_database.yml}"
+        if [[ ! -f "$users_db" ]]; then
+            printf 'users: {}\n' > "$stage/authelia/users_database.yml"
+        else
+            install -m 644 "$users_db" "$stage/authelia/users_database.yml"
+        fi
     fi
 
     # Agent upload token — required at deploy time. Like the Grafana password,
@@ -134,9 +134,22 @@ main() {
         --exclude='site_data/'
         --exclude='flasher_data/'
         --exclude='prometheus_data/'
+        --exclude='authelia_data/'
     )
     if [[ "${LDS_STACK_ONLY:-}" == "1" ]]; then
-        rsync_excludes+=(--exclude='chisel/users.json' --exclude='siteapp/clients.json')
+        # Stack-only CI deploys preserve laptop-managed state on the VPS:
+        # chisel/siteapp client rosters AND the Authelia config + secrets +
+        # users database + Grafana OIDC client secret. The operator runs
+        # `task secrets:bootstrap-authelia` and `task users:*` from the laptop;
+        # CI never touches these files.
+        rsync_excludes+=(
+            --exclude='chisel/users.json'
+            --exclude='siteapp/clients.json'
+            --exclude='authelia/configuration.yml'
+            --exclude='authelia/users_database.yml'
+            --exclude='authelia/secrets/'
+            --exclude='grafana/oidc_secret'
+        )
     fi
     rsync -az --delete "${rsync_excludes[@]}" -e "$rsync_e" "$stage/" "$target:$VPS_REMOTE_ROOT/"
 
@@ -166,20 +179,18 @@ main() {
     $ssh_base "$target" "cd $VPS_REMOTE_ROOT && (docker compose pull --ignore-pull-failures || true) && docker compose up -d --remove-orphans && docker compose restart $restart_services"
 
     # 5. Health check (skippable for tests). Probe each routed path:
-    # `/` (siteapp Home → 200; was JupyterLab catchall pre-navbar split),
-    # `/jupyter/` (JupyterLab → 302 redirect to /jupyter/login), and
-    # `/grafana/login` (Grafana → 200, terminal, no redirect). Probing a
-    # terminal page rather than `/grafana/` itself is deliberate: a 3xx-only
-    # check passes a redirect loop (e.g. when the proxy is misconfigured to
-    # strip the sub-path Grafana expects to receive), which 200-on-login
-    # does not.
+    # `/` (siteapp Home → 200),
+    # `/jupyter/` (Authelia forward_auth → 302 to /login),
+    # `/grafana/api/health` (Grafana's unauthenticated health endpoint → 200;
+    #   /grafana/login now auto-redirects to OIDC, so we probe the terminal
+    #   health endpoint instead of the login page).
     if [[ "${LDS_SKIP_HEALTHCHECK:-}" != "1" ]]; then
         log "waiting for HTTPS to respond..."
         local i home_status jupyter_status grafana_status docs_status download_status flash_status static_status public_status server_info_status
         for ((i=0; i<60; i++)); do
             home_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/" || true)"
             jupyter_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/jupyter/" || true)"
-            grafana_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/grafana/login" || true)"
+            grafana_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/grafana/api/health" || true)"
             docs_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/docs/" || true)"
             download_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/download/agent" || true)"
             flash_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/flash/" || true)"
