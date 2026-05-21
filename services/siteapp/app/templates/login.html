@@ -6,7 +6,7 @@
       <form id="login-form" class="lb-login__card" novalidate>
         <h1 class="lb-login__title">Sign in to lab-bridge</h1>
 
-        <div class="lb-login__error" role="alert" hidden>
+        <div class="lb-login__error" role="alert" aria-live="assertive" hidden>
           <span class="lb-login__error-mark" aria-hidden="true">!</span>
           <span class="lb-login__error-text"></span>
         </div>
@@ -164,6 +164,9 @@
               keepMeLoggedIn: rememberEl.checked,
             }),
           });
+          // Authelia /api/firstfactor returns 200 on success when called
+          // server-to-server by siteapp's /api/auth/firstfactor proxy —
+          // there is no redirect status to handle in this integration.
           if (r.status === 200) {
             const body = await r.json();
             location.assign(body.redirect || '/');

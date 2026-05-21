@@ -12,10 +12,10 @@ def test_error_403_renders_with_base_template(http: httpx.Client) -> None:
     # Base template marker.
     assert "/_static/site.css" in body or "/_static/tokens.css" in body
     # New design markers.
-    assert "Error 403 · Forbidden" in body          # mono eyebrow
-    assert "lb-forbidden__card" in body              # card shell
-    assert "lb-forbidden__lock" in body              # warning lock badge
-    assert "lb-forbidden__meta" in body              # attempted-path meta block
+    assert "Error 403 · Forbidden" in body  # mono eyebrow
+    assert "lb-forbidden__card" in body  # card shell
+    assert "lb-forbidden__lock" in body  # warning lock badge
+    assert "lb-forbidden__meta" in body  # attempted-path meta block
     assert "You don't have access to this page" in body  # title copy
 
 
@@ -49,9 +49,9 @@ def test_error_404_renders_with_base_template(http: httpx.Client) -> None:
     assert "/_static/site.css" in body or "/_static/tokens.css" in body
     assert "Error 404 · Not found" in body
     assert "lb-forbidden__card" in body
-    assert "lb-forbidden__lock--404" in body         # neutral magnifier modifier
+    assert "lb-forbidden__lock--404" in body  # neutral magnifier modifier
     assert "lb-forbidden__meta" in body
-    assert "Page not found" in body                  # title copy
+    assert "Page not found" in body  # title copy
 
 
 def test_error_404_renders_attempted_path_from_query(http: httpx.Client) -> None:
