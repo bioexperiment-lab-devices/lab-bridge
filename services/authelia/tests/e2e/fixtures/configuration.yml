@@ -89,6 +89,7 @@ identity_providers:
         secret: '$pbkdf2-sha512$310000$6dRXBdgWEAAM7jMll77TNA$nYmyVgHgaNAudIuHdfXqgmUnx36Eqbx.af2365otaXJrIkimFl5icbCa6jnFIWNWS0VY0nu68rA16rr83lWqug'
         public: false
         authorization_policy: one_factor
+        consent_mode: implicit
         redirect_uris:
           - https://test.local/grafana/login/generic_oauth
         scopes:
