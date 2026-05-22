@@ -64,7 +64,7 @@ Expect the call to block for ~3 seconds.
 
 ## Valves
 
-The `Valve` class is currently a placeholder — the lab-bridge serial vocabulary for valves is being added. Pass-through commands work via `client.send_command(device_id, …)` if you need them today; check the latest `bioexperiment_suite` release notes for new high-level methods as they land.
+The `Valve` class is currently a placeholder — the lab-bridge serial vocabulary for valves is being added. High-level methods (set position, query state) will land here as the library exposes them; check the latest `bioexperiment_suite` release notes.
 
 ## Picking by position
 

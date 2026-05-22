@@ -11,7 +11,7 @@ There are two situations that call for a laptop-driven deploy:
 
 - SSH access to the VPS, key-based, with no password prompts (`ssh <vps-host>` should drop you straight into a shell).
 - `task`, `yq` v4 (the mikefarah build, not the python wrapper), `openssl`, `ssh`, and `rsync` installed on your laptop. `task doctor` checks for these.
-- A copy of `config.yaml` filled in for this VPS — `cp config.example.yaml config.yaml`, then edit `vps.*`, `chisel.*`, retention, and instance name. `config.yaml` is gitignored on purpose.
+- A copy of `config.yaml` filled in for this VPS — `cp config.example.yaml config.yaml`, then edit `vps.host` and `vps.ssh_user`. `config.yaml` is gitignored on purpose.
 
 ## First-time bring-up
 
@@ -19,7 +19,7 @@ The full sequence from a clean checkout on your laptop to a running stack on the
 
 ```bash title="laptop"
 task doctor
-cp config.example.yaml config.yaml             # then edit VPS details, ports, retention
+cp config.example.yaml config.yaml             # then edit vps.host and vps.ssh_user
 task secrets:set-grafana-password
 task secrets:bootstrap-authelia
 task users:add -- admin admins                 # bootstrap admin
@@ -32,7 +32,7 @@ task deploy
 Step by step:
 
 1. **`task doctor`** checks that your laptop has every tool the rest of the flow assumes — `task`, `yq` v4, `openssl`, `ssh`, `rsync`. Fix anything it flags before moving on; the later steps will fail less helpfully.
-2. **`cp config.example.yaml config.yaml`** seeds the instance config. Edit it: `vps.host` (public IPv4), `vps.ssh_user`, `chisel.listen_port`, `instance_name`, and the retention knobs for loki/site data. `chisel_clients` stays `[]` for now; you'll fill it in once labs come online (see [registering a new lab](/docs/admin/labs)).
+2. **`cp config.example.yaml config.yaml`** seeds the instance config. Edit it to set `vps.host` (the VPS's public IPv4 or hostname) and `vps.ssh_user` (an account with passwordless `sudo`). Leave `chisel_clients: []` for now; you'll fill it in once labs come online (see [registering a new lab](/docs/admin/labs)). Stack-wide pins — chisel listen port, image versions, log retention — live in `compose/pins.yaml`, which is tracked in git and managed by Renovate; edit there only if you need to deviate from the defaults.
 3. **`task secrets:set-grafana-password`** prompts for the password you'll use to sign in to Grafana the first time as the built-in `admin` user. Written to `compose/grafana/admin_password` with mode 0600.
 4. **`task secrets:bootstrap-authelia`** generates Authelia's runtime secrets — JWT key, session secret, storage encryption key, OIDC HMAC, the RSA JWKS, and the Grafana OIDC client secret. Run this once per VPS. Later, if you ever need to invalidate everything, re-run with `task secrets:bootstrap-authelia -- --rotate` (the `--` is required to pass the flag through `task`).
 5. **`task users:add -- admin admins`** creates the bootstrap admin user in Authelia's user database and prompts for a password. The `admins` group is what unlocks Flasher and the Grafana Admin role; without an admin user you can't reach `/flash/*`.

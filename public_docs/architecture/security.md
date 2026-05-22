@@ -8,7 +8,7 @@ The lab PC initiates the only network connection — a single outbound TCP sessi
 
 ## Chisel auth
 
-The chisel server enforces a per-client `user`/`pass` allowlist. The list is rendered from `chisel_clients` in `config.yaml` via `compose/chisel-users.json.tmpl`; on the VPS the rendered file lives at `<stack-root>/chisel/users.json` and is mounted into the chisel container read-only. Per-lab credentials are minted with `task secrets:add-client`, which appends the entry to `chisel_clients` in `config.yaml` and prints the `chisel client` invocation for the operator to run on the lab PC (or paste into `SerialHop_config.yaml`). Rotation: re-run `task secrets:add-client` to issue fresh creds (deleting the old entry from `config.yaml` first if you want a hard cutover), then `task deploy` re-renders the allowlist on the VPS.
+The chisel server enforces a per-client `user`/`pass` allowlist. The list is rendered from `chisel_clients` in `config.yaml` via `compose/chisel-users.json.tmpl`; on the VPS the rendered file lives at `<stack-root>/chisel/users.json` (concretely `/srv/lab-bridge/chisel/users.json` on the standard install) and is mounted into the chisel container read-only. Per-lab credentials are minted with `task secrets:add-client`, which appends the entry to `chisel_clients` in `config.yaml` and prints the `chisel client` invocation for the operator to run on the lab PC (or paste into `SerialHop_config.yaml`). Rotation: re-run `task secrets:add-client` to issue fresh creds (deleting the old entry from `config.yaml` first if you want a hard cutover), then `task deploy` re-renders the allowlist on the VPS.
 
 ## Bearer tokens
 

@@ -40,7 +40,7 @@ After the operator starts SerialHop, check from your end:
 
 - Visit `https://<vps-host>/`. The new lab should appear in the "Registered labs" panel. The pill next to its name turns **ONLINE** once the chisel session is up.
 - Open `/grafana/d/lab-bridge-client-logs/lab-client-logs` and filter by the new lab name. You should see a live log stream — at minimum the SerialHop startup messages, version banner, and the first chisel session handshake.
-- From a notebook on the team JupyterLab: `LabDevicesClient.list_active_users()` should include the new lab name in its return value.
+- From a notebook on the shared JupyterLab: `LabDevicesClient.list_active_users()` should include the new lab name in its return value.
 
 ## Rotating credentials
 

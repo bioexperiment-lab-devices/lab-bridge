@@ -39,6 +39,7 @@ The lab PC opens a single outbound chisel session to the VPS and multiplexes eve
 | Path | Service | Auth |
 |------|---------|------|
 | `/` | siteapp | public |
+| `/_static/*` | siteapp | public |
 | `/docs/*` | siteapp | public |
 | `/download/*` | siteapp | public |
 | `/api/agent/upload` | siteapp | bearer token |
@@ -48,6 +49,7 @@ The lab PC opens a single outbound chisel session to the VPS and multiplexes eve
 | `/auth/*` | authelia | public (OIDC + portal) |
 | `/jupyter/*` | jupyter | Authelia (any user) |
 | `/grafana/*` | grafana | Authelia + OIDC |
+| `/flash/api/v1/*` | flasher | bearer token |
 | `/flash/*` | flasher | Authelia (admins group) |
 | `/_shared/*` | caddy (navbar) | public |
 
