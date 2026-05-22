@@ -3,7 +3,7 @@
 lab-bridge is a single platform for running and managing remote lab
 experiments. Researchers drive bench instruments from a shared JupyterLab;
 operators install a small Windows agent (SerialHop) on each lab PC; admins
-run the whole thing from one VPS. These docs help you find your way around.
+run the whole thing from one VPS. Use the table below to find your section.
 
 ## Find your section
 
