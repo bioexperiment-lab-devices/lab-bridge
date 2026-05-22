@@ -386,3 +386,40 @@ def test_bearer_get_by_sha256(http_app: TestClient) -> None:
         "/flash/api/v1/firmware?sha256=deadbeef", headers={"Authorization": "Bearer test-token"}
     )
     assert r.status_code == 404
+
+
+def test_bearer_get_without_token_and_without_sha256_returns_401(
+    http_app: TestClient,
+) -> None:
+    """An unauthenticated GET /api/v1/firmware with no sha256 query must
+    return 401 (bearer required), not 422 (schema leak). Audit finding 3.7."""
+    r = http_app.get("/flash/api/v1/firmware")
+    assert r.status_code == 401
+    assert r.json()["error"] == "bearer required"
+
+
+def test_bearer_get_with_wrong_token_and_without_sha256_returns_401(
+    http_app: TestClient,
+) -> None:
+    """Same as above but with an invalid bearer — must reject on bearer, not
+    surface the missing-sha256 422."""
+    r = http_app.get(
+        "/flash/api/v1/firmware",
+        headers={"Authorization": "Bearer wrong"},
+    )
+    assert r.status_code == 401
+    assert r.json()["error"] == "bearer invalid"
+
+
+def test_bearer_get_with_valid_token_but_missing_sha256_returns_400(
+    http_app: TestClient,
+) -> None:
+    """With a valid bearer but no sha256, return our own 400 (not pydantic's
+    422). This keeps the auth-leak fix from breaking the legitimate
+    'missing-param' UX for authenticated clients."""
+    r = http_app.get(
+        "/flash/api/v1/firmware",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert r.status_code == 400
+    assert r.json()["error"] == "missing query"
