@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.docs_manifest import (
-    MANIFEST_FILENAME,
     ManifestEntry,
     load_dir_manifest,
 )
@@ -43,14 +42,8 @@ def build_nav(docs_root: Path) -> list[NavEntry]:
 
 
 def _build_level(directory: Path, url_prefix: str, is_root: bool) -> list[NavEntry]:
-    manifest_path = directory / MANIFEST_FILENAME
-    if manifest_path.is_file():
-        entries = load_dir_manifest(directory)
-        return _from_manifest(directory, entries, url_prefix, is_root)
-    # Fallback: no manifest in this directory. Used during transition (Task 4)
-    # and by tests written before manifests existed. Task 7 removes this branch
-    # and makes a missing manifest an error.
-    return _from_alphabetic(directory, url_prefix, is_root)
+    entries = load_dir_manifest(directory)
+    return _from_manifest(directory, entries, url_prefix, is_root)
 
 
 def _from_manifest(
@@ -100,55 +93,3 @@ def _maybe_home(directory: Path, url_prefix: str) -> NavEntry | None:
         return None
     title_en, title_ru = _read_titles(index, directory / "index.ru.md", "Home")
     return NavEntry(title_en=title_en, title_ru=title_ru, url=url_prefix)
-
-
-def _from_alphabetic(directory: Path, url_prefix: str, is_root: bool) -> list[NavEntry]:
-    """Pre-manifest behavior. Removed in Task 7."""
-    dirs: list[NavEntry] = []
-    files: list[NavEntry] = []
-    home_entry: NavEntry | None = _maybe_home(directory, url_prefix) if is_root else None
-
-    for child in sorted(directory.iterdir(), key=lambda p: p.name.lower()):
-        if child.name.startswith("."):
-            continue
-        if child.name == MANIFEST_FILENAME:
-            continue
-        if child.is_dir():
-            index = child / "index.md"
-            children = _build_level(child, url_prefix + child.name + "/", is_root=False)
-            if not index.is_file():
-                if children:
-                    dirs.append(
-                        NavEntry(
-                            title_en=child.name,
-                            title_ru=None,
-                            url=url_prefix + child.name + "/",
-                            children=tuple(children),
-                        )
-                    )
-                continue
-            title_en, title_ru = _read_titles(index, child / "index.ru.md", child.name)
-            dirs.append(
-                NavEntry(
-                    title_en=title_en,
-                    title_ru=title_ru,
-                    url=url_prefix + child.name + "/",
-                    children=tuple(children),
-                )
-            )
-        elif (
-            child.is_file()
-            and child.suffix == ".md"
-            and not child.name.endswith(".ru.md")
-            and child.stem != "index"
-        ):
-            stem = child.stem
-            title_en, title_ru = _read_titles(child, child.with_name(stem + ".ru.md"), stem)
-            files.append(NavEntry(title_en=title_en, title_ru=title_ru, url=url_prefix + stem))
-
-    result: list[NavEntry] = []
-    if home_entry is not None:
-        result.append(home_entry)
-    result.extend(dirs)
-    result.extend(files)
-    return result

@@ -22,6 +22,10 @@ def client(tmp_path: Path, monkeypatch) -> TestClient:
     section.mkdir()
     (section / "index.md").write_text("# Section\n", encoding="utf-8")
     (section / "page.md").write_text("# Page\n", encoding="utf-8")
+    (section / "_nav.yaml").write_text("- name: page\n", encoding="utf-8")
+    (docs / "_nav.yaml").write_text(
+        "- name: intro\n- name: diagram\n- name: section\n", encoding="utf-8"
+    )
     icons = docs / "icons"
     icons.mkdir()
     (icons / "jupyter.svg").write_bytes(

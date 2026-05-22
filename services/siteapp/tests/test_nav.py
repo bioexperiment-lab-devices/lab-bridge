@@ -11,6 +11,7 @@ from app.nav import NavEntry, build_nav
 @pytest.fixture
 def tree(tmp_path: Path) -> Path:
     d = tmp_path / "docs-root"
+    d.mkdir(exist_ok=True)
     (d / "index.md").write_text("# Home\n", encoding="utf-8")
     (d / "index.ru.md").write_text("# Главная\n", encoding="utf-8")
     (d / "alpha.md").write_text("# Alpha\n", encoding="utf-8")
@@ -19,16 +20,16 @@ def tree(tmp_path: Path) -> Path:
     sec.mkdir()
     (sec / "index.md").write_text("# Advanced\n", encoding="utf-8")
     (sec / "deep.md").write_text("# Deep dive\n", encoding="utf-8")
+    (sec / "_nav.yaml").write_text("- name: deep\n", encoding="utf-8")
+    (d / "_nav.yaml").write_text(
+        "- name: advanced\n- name: alpha\n- name: guide\n", encoding="utf-8"
+    )
     return d
 
 
-def test_top_level_order_home_dirs_then_files(tree: Path) -> None:
+def test_top_level_order_follows_manifest(tree: Path) -> None:
     nav = build_nav(tree)
     titles_en = [e.title_en for e in nav]
-    # Home first (the root index.md), then directory sections, then remaining
-    # root-level files alphabetical. The 'alpha' file is intentionally ordered
-    # to ensure Home-first ordering is the actual behavior under test (not a
-    # coincidence of strict alphabetical sort).
     assert titles_en == ["Home", "Advanced", "Alpha", "Guide"]
 
 
@@ -54,7 +55,9 @@ def test_directory_url_has_trailing_slash(tree: Path) -> None:
 
 def test_filename_fallback_when_no_h1(tmp_path: Path) -> None:
     d = tmp_path / "docs-root"
+    d.mkdir(exist_ok=True)
     (d / "no-heading.md").write_text("just a paragraph\n", encoding="utf-8")
+    (d / "_nav.yaml").write_text("- name: no-heading\n", encoding="utf-8")
     nav = build_nav(d)
     entry = next(e for e in nav if e.url == "/docs/no-heading")
     assert entry.title_en == "no-heading"
@@ -62,6 +65,7 @@ def test_filename_fallback_when_no_h1(tmp_path: Path) -> None:
 
 def test_orphan_ru_file_is_ignored(tmp_path: Path) -> None:
     d = tmp_path / "docs-root"
+    d.mkdir(exist_ok=True)
     (d / "only-ru.ru.md").write_text("# Только\n", encoding="utf-8")
     nav = build_nav(d)
     assert all(e.url != "/docs/only-ru" for e in nav)
@@ -69,28 +73,21 @@ def test_orphan_ru_file_is_ignored(tmp_path: Path) -> None:
 
 def test_section_title_falls_back_to_dir_name(tmp_path: Path) -> None:
     d = tmp_path / "docs-root"
+    d.mkdir(exist_ok=True)
     sec = d / "untitled"
     sec.mkdir()
     (sec / "index.md").write_text("just a paragraph\n", encoding="utf-8")
+    (d / "_nav.yaml").write_text("- name: untitled\n", encoding="utf-8")
     nav = build_nav(d)
     entry = next(e for e in nav if e.url == "/docs/untitled/")
     assert entry.title_en == "untitled"
 
 
-def test_dir_without_index_uses_dir_name(tmp_path: Path) -> None:
-    d = tmp_path / "docs-root"
-    sec = d / "loose"
-    sec.mkdir()
-    (sec / "page.md").write_text("# Page\n", encoding="utf-8")
-    nav = build_nav(d)
-    entry = next(e for e in nav if e.url == "/docs/loose/")
-    assert entry.title_en == "loose"
-    assert entry.title_ru is None
-    assert {c.url for c in entry.children} == {"/docs/loose/page"}
-
-
 def test_empty_dir_is_skipped(tmp_path: Path) -> None:
+    # An asset-only / empty subdirectory needs no manifest entry. The parent
+    # also doesn't need a manifest if nothing is listable at its level.
     d = tmp_path / "docs-root"
+    d.mkdir(exist_ok=True)
     (d / "empty").mkdir()
     nav = build_nav(d)
     assert all(e.url != "/docs/empty/" for e in nav)
@@ -195,13 +192,23 @@ def test_manifest_section_walks_subdir_manifest(tmp_path: Path) -> None:
     assert [c.url for c in researcher.children] == ["/docs/researcher/first-notebook"]
 
 
-def test_fallback_still_works_when_no_manifest(tmp_path: Path) -> None:
-    # Transitional: while the fallback is in place, a docs root with no
-    # manifests at any level still renders via the alphabetic walk. Task 7
-    # removes this behavior.
+def test_strict_mode_missing_manifest_raises(tmp_path: Path) -> None:
+    from app.docs_manifest import DocsNavError
+
     d = tmp_path / "docs-root"
     d.mkdir(exist_ok=True)
-    (d / "index.md").write_text("# Home\n", encoding="utf-8")
-    (d / "alpha.md").write_text("# Alpha\n", encoding="utf-8")
-    nav = build_nav(d)
-    assert {e.url for e in nav} == {"/docs/", "/docs/alpha"}
+    (d / "intro.md").write_text("# Intro\n", encoding="utf-8")
+    with pytest.raises(DocsNavError, match="_nav.yaml not found"):
+        build_nav(d)
+
+
+def test_strict_mode_unlisted_file_raises(tmp_path: Path) -> None:
+    from app.docs_manifest import DocsNavError
+
+    d = tmp_path / "docs-root"
+    d.mkdir(exist_ok=True)
+    (d / "intro.md").write_text("# Intro\n", encoding="utf-8")
+    (d / "extra.md").write_text("# Extra\n", encoding="utf-8")
+    (d / "_nav.yaml").write_text("- name: intro\n", encoding="utf-8")
+    with pytest.raises(DocsNavError, match="extra.md exists but is not in _nav.yaml"):
+        build_nav(d)
