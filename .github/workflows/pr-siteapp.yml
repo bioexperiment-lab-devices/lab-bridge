@@ -25,6 +25,7 @@ jobs:
           filters: |
             src:
               - 'services/siteapp/**'
+              - 'public_docs/**'
               - '.github/workflows/pr-siteapp.yml'
 
       - id: should-run
@@ -65,6 +66,11 @@ jobs:
         if: steps.should-run.outputs.run == 'true'
         working-directory: services/siteapp
         run: uv run ruff format --check app tests
+
+      - name: docs_lint
+        if: steps.should-run.outputs.run == 'true'
+        working-directory: services/siteapp
+        run: uv run python -m app.docs_lint ../../public_docs
 
       - name: pytest (unit)
         if: steps.should-run.outputs.run == 'true'
