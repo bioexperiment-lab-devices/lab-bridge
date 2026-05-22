@@ -35,7 +35,7 @@ Same flow, different group. Jane now has Flasher access and the Grafana Admin ro
 task users:list                                  # show all users
 task users:set-password -- jane                  # rotate jane's password
 task users:set-groups -- jane admins,researchers # change membership
-task users:rm -- jane                            # remove jane (effective on next request)
+task users:rm -- jane                            # remove jane (laptop file; deploy to apply)
 ```
 
 `task users:set-groups` replaces the user's group list — it does not append. Pass the complete intended list (`admins,researchers` not just `admins`) if you want them in both. Every mutation requires `task deploy` to land on the VPS.

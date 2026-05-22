@@ -32,7 +32,7 @@ That is the `chisel client …` command the operator runs on the lab PC — or, 
 
 The printout above contains a long-lived password. Give it to the operator out-of-band — 1Password share, Signal, encrypted email — not over Slack DMs or plaintext email. They paste the values (host, port, lab name, password) into `SerialHop_config.yaml` on the lab PC; the operator-side walkthrough is at [setup the lab PC](/docs/operator/setup-lab-pc).
 
-If you ever need to re-print the printout for an existing lab (e.g. the operator lost it before pasting), use `task secrets:show-client -- <lab-name>` — it pulls the password back out of `config.yaml` and re-prints the same block.
+If you ever need to re-print the printout for an existing lab (e.g. the operator lost it before pasting), use `task secrets:show-client -- <lab-name>` — it pulls the password back out of `config.yaml` and re-prints the same block. Note: `secrets:show-client` re-prints the same long-lived password from `config.yaml`. Use it only if the operator never received the credential. If it was received and may have leaked, rotate instead — see [Rotating credentials](#rotating-credentials).
 
 ## Verifying the lab is online
 

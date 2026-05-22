@@ -12,7 +12,7 @@ Real-time view of every lab agent's log stream, sourced from Loki via the chisel
 
 Use it when:
 
-- A specific lab reports a problem and you want to see what the agent is actually saying right now.
+- A specific lab reports a problem and you want to see what the agent is saying right now.
 - You want to confirm which labs are actively connected (the panel only shows clients with recent logs).
 - You're verifying that a SerialHop release reached every lab — the version banner is the first thing each agent logs on connect.
 

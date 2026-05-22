@@ -16,4 +16,13 @@ These pages are written to be read in order on a first pass. After that, treat t
 
 ## The Taskfile
 
-Every admin operation is wrapped by a `task <name>` command — there are no bare shell scripts to run by hand. Run `task --list` from a fresh clone of the repo on your laptop to see the full menu. The group prefixes used throughout this guide are `task doctor` (laptop prerequisites check), `task provision` (first-time VPS prep), `task deploy` (render templates + bring the stack up), `task secrets:*` (passwords, tokens, the chisel client roster), `task users:*` (Authelia identities), and `task ops:*` (logs, disk usage, restart).
+Every admin operation is wrapped by a `task <name>` command — there are no bare shell scripts to run by hand. Run `task --list` from a fresh clone of the repo on your laptop to see the full menu.
+
+Group prefixes used by this guide:
+
+- `task doctor` — laptop prerequisite check.
+- `task provision` — first-time VPS prep.
+- `task deploy` — render + rsync + bring the stack up.
+- `task secrets:*` — secret management (passwords, tokens, chisel credentials).
+- `task users:*` — Authelia user management.
+- `task ops:*` — logs and operational utilities.

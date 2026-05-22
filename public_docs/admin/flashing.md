@@ -13,7 +13,7 @@ There are two ingestion paths, and you should strongly prefer the first:
 
 1. Sign in at `/flash/`. You must be in the `admins` group; researchers cannot reach this UI.
 2. Pick the firmware build from the library on the left. The list is sorted newest-first; each entry shows the version and upload time.
-3. Pick the target lab from the lab roster on the right. The roster comes from the same `chisel_clients` array as the home page's Registered Labs panel.
+3. Pick the target lab from the lab roster on the right. The roster comes from the same `chisel_clients` array as the home page's Registered Labs panel. If the lab isn't in the roster yet, register it first — see [Registering a new lab](/docs/admin/labs).
 4. Confirm. Flasher opens the chisel reverse tunnel back to the lab, hands the firmware bytes to SerialHop, and SerialHop programs the device.
 5. Verify on the [lab client logs dashboard](/grafana/d/lab-bridge-client-logs/lab-client-logs) filtered by the lab name — the agent reports the new firmware version on its first connect after the flash completes.
 
