@@ -11,6 +11,7 @@ from clients import auth_denied, not_found
 from conftest import Finding
 
 
+@pytest.mark.regression
 def test_5_0_status_code_masquerading(anon, anon_log, record):
     """Caddy + siteapp serves 403/404 pages at HTTP 200.
 
@@ -51,6 +52,7 @@ def test_5_0_status_code_masquerading(anon, anon_log, record):
     )
 
 
+@pytest.mark.regression
 def test_5_1_security_headers(anon, anon_log, record):
     r = anon.get("/")
     headers = {k.lower(): v for k, v in r.headers.items()}
@@ -151,9 +153,7 @@ def test_5_5_attempted_path_xss(anon, anon_log, record):
     r = anon.get(payload)
     body = r.text
     raw_present = "<script>alert(1)</script>" in body
-    escaped_present = (
-        "&lt;script&gt;alert(1)&lt;/script&gt;" in body or "&#x3C;script" in body
-    )
+    escaped_present = "&lt;script&gt;alert(1)&lt;/script&gt;" in body or "&#x3C;script" in body
     ok = (not raw_present) or escaped_present
     record(
         Finding(

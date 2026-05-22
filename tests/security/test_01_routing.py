@@ -111,6 +111,7 @@ def test_1_5_researcher_flash(researcher, researcher_log, record):
     assert ok, f"researcher reached /flash/ with {r.status_code}"
 
 
+@pytest.mark.regression
 def test_1_6_researcher_flash_post(researcher, researcher_log, record, admin):
     body = {
         "name": "audit-probe",
@@ -303,9 +304,7 @@ def test_1_13_trailing_slash(anon, anon_log, record, path):
     assert ok, f"{path} → {r.status_code}"
 
 
-@pytest.mark.parametrize(
-    "method,path", [("OPTIONS", "/flash/"), ("HEAD", "/flash/api/firmware")]
-)
+@pytest.mark.parametrize("method,path", [("OPTIONS", "/flash/"), ("HEAD", "/flash/api/firmware")])
 def test_1_14_method_confusion(anon, anon_log, record, method, path):
     r = anon.request(method, path)
     ok = _expect_redirect_or_forbidden(r) or r.status_code in (404, 405)

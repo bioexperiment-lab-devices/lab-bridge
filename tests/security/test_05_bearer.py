@@ -73,9 +73,7 @@ def test_3_3_agent_upload_no_auth(anon, anon_log, record):
     r = anon.post(
         "/api/agent/upload",
         data={"version": "0.0.1"},
-        files={
-            "binary": ("agent.exe", io.BytesIO(b"PE\x00\x00"), "application/octet-stream")
-        },
+        files={"binary": ("agent.exe", io.BytesIO(b"PE\x00\x00"), "application/octet-stream")},
     )
     ok = r.status_code == 401
     record(
@@ -96,9 +94,7 @@ def test_3_4_agent_upload_wrong_bearer(anon, anon_log, record):
     r = anon.post(
         "/api/agent/upload",
         data={"version": "0.0.1"},
-        files={
-            "binary": ("agent.exe", io.BytesIO(b"PE\x00\x00"), "application/octet-stream")
-        },
+        files={"binary": ("agent.exe", io.BytesIO(b"PE\x00\x00"), "application/octet-stream")},
         headers={"Authorization": "Bearer aaaaaaaa-bogus-token-aaaaaaaa"},
     )
     ok = r.status_code == 401
@@ -126,9 +122,7 @@ def test_3_5_token_separation(anon, anon_log, record):
     r2 = anon.post(
         "/api/agent/upload",
         data={"version": "0.0.1"},
-        files={
-            "binary": ("agent.exe", io.BytesIO(b"PE\x00\x00"), "application/octet-stream")
-        },
+        files={"binary": ("agent.exe", io.BytesIO(b"PE\x00\x00"), "application/octet-stream")},
         headers={"Authorization": bogus},
     )
     ok = r1.status_code == 401 and r2.status_code == 401
@@ -146,6 +140,7 @@ def test_3_5_token_separation(anon, anon_log, record):
     assert ok
 
 
+@pytest.mark.regression
 def test_3_7_bearer_validation_order(anon, anon_log, record):
     """Bearer endpoints should check auth BEFORE schema validation.
 
