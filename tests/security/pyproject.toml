@@ -1,0 +1,23 @@
+[project]
+name = "lab-bridge-security-audit"
+version = "0.1.0"
+description = "Security audit harness for lab-bridge platform"
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.27,<0.29",
+    "pytest>=8.3,<9",
+    "pytest-asyncio>=0.24,<0.25",
+]
+
+[tool.pytest.ini_options]
+addopts = "-v --tb=short"
+asyncio_mode = "auto"
+markers = [
+    "slow: opt-in tests with cooldowns or large uploads (requires --slow)",
+    "audit_only: one-off audit case, not promoted to regression CI",
+    "regression: candidate for promotion to CI regression suite",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
