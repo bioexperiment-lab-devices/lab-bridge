@@ -184,7 +184,20 @@ def make_router(settings: Settings) -> APIRouter:
         # Direct hits (e2e, debugging) have no ?path= and fall back to the URI.
         return request.query_params.get("path") or request.url.path
 
-    @router.get("/_errors/403", response_class=HTMLResponse, include_in_schema=False)
+    # All HTTP methods land on the error pages: Caddy's handle_errors rewrites
+    # the original request's URI to /_errors/{403,404} but preserves its
+    # method. A POST /flash/api/firmware that Authelia denies arrives here as
+    # POST /_errors/403; restricting to GET would return 405 to the client,
+    # which masquerades as "request reached upstream" to the security audit
+    # harness and to humans inspecting it. Audit finding 1.6.
+    _ERROR_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+
+    @router.api_route(
+        "/_errors/403",
+        methods=_ERROR_METHODS,
+        response_class=HTMLResponse,
+        include_in_schema=False,
+    )
     async def error_403(request: Request) -> HTMLResponse:
         return templates.TemplateResponse(
             request,
@@ -193,7 +206,12 @@ def make_router(settings: Settings) -> APIRouter:
             status_code=403,
         )
 
-    @router.get("/_errors/404", response_class=HTMLResponse, include_in_schema=False)
+    @router.api_route(
+        "/_errors/404",
+        methods=_ERROR_METHODS,
+        response_class=HTMLResponse,
+        include_in_schema=False,
+    )
     async def error_404(request: Request) -> HTMLResponse:
         return templates.TemplateResponse(
             request,
