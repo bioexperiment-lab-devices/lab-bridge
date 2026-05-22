@@ -4,11 +4,11 @@ This page is for auditors and operators who need to understand where lab-bridge'
 
 ## No inbound ports on the lab network
 
-The lab PC initiates the only network connection — a single outbound TCP session from SerialHop to the VPS chisel port. The lab network never accepts an inbound connection from the internet, so institutional firewalls do not need a hole punched, no port-forwarding rule is required on a campus router, and the lab does not need a static public IP. The single trust assumption is that the lab PC is allowed to make outbound TCP to the VPS chisel port; every site we have onboarded so far satisfies that by default.
+The lab PC initiates the only network connection — a single outbound TCP session from SerialHop to the VPS chisel port. The lab network never accepts an inbound connection from the internet, so institutional firewalls do not need a hole punched, no port-forwarding rule is required on a campus router, and the lab does not need a static public IP. The single trust assumption is that the lab PC is allowed to make outbound TCP to the VPS chisel port; every site onboarded so far satisfies this by default.
 
 ## Chisel auth
 
-The chisel server enforces a per-client `user`/`pass` allowlist held on the VPS at `compose/chisel/users.json`. Each lab gets its own credentials, issued with `task secrets:add-client` on the operator laptop, which writes the entry locally and reminds the operator to mirror it into the VPS bring-up. Rotating credentials is the same path: re-run `task secrets:add-client` to issue fresh creds and update the operator's `SerialHop_config.yaml` so the agent reconnects with the new identity. Stale entries are removed by editing the roster file.
+The chisel server enforces a per-client `user`/`pass` allowlist. The list is rendered from `chisel_clients` in `config.yaml` via `compose/chisel-users.json.tmpl`; on the VPS the rendered file lives at `<stack-root>/chisel/users.json` and is mounted into the chisel container read-only. Per-lab credentials are minted with `task secrets:add-client`, which appends the entry to `chisel_clients` in `config.yaml` and prints the `chisel client` invocation for the operator to run on the lab PC (or paste into `SerialHop_config.yaml`). Rotation: re-run `task secrets:add-client` to issue fresh creds (deleting the old entry from `config.yaml` first if you want a hard cutover), then `task deploy` re-renders the allowlist on the VPS.
 
 ## Bearer tokens
 

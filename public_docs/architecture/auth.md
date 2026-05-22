@@ -11,7 +11,7 @@ Authelia is the identity provider for every protected route in the stack. Caddy 
 | `researchers` | ✓ | ✓ (Viewer role) | ✗ |
 | `admins` | ✓ | ✓ (Admin role) | ✓ |
 
-The Grafana role assignment happens via the OIDC `groups` claim — Authelia issues the token with the user's groups, Grafana maps each group to a role at sign-in. Users without a group can authenticate but see no protected pages: a `forward_auth` check that returns "allowed for everyone in `researchers` or `admins`" will reject them and Caddy will keep returning the login page.
+The Grafana role assignment happens via the OIDC `groups` claim — Authelia issues the token with the user's groups, Grafana maps each group to a role at sign-in. Users without a group can authenticate but see no protected pages: every gated route requires `researchers` or `admins`, so the `forward_auth` check rejects them and Caddy redirects to the login page.
 
 ## OIDC handshake with Grafana
 

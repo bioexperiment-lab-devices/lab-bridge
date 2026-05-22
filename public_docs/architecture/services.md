@@ -24,7 +24,7 @@ JupyterLab is the shared notebook environment at `/jupyter/*` and the primary re
 
 ## chisel
 
-The public `chisel` server is what makes the lab-PC-as-client model work. Each SerialHop instance opens one outbound TCP session to it; over that session chisel publishes the lab's REST API into `labnet` (so `jupyter` and `flasher` can call it by container DNS) and carries a forward tunnel `lab_pc:127.0.0.1:3100 → loki:3100` for log shipping. The per-client allowlist lives in `compose/chisel/users.json`.
+The public `chisel` server is what makes the lab-PC-as-client model work. Each SerialHop instance opens one outbound TCP session to it; over that session chisel publishes the lab's REST API into `labnet` (so `jupyter` and `flasher` can call it by container DNS) and carries a forward tunnel `lab_pc:127.0.0.1:3100 → loki:3100` for log shipping. The per-client allowlist is rendered from `chisel_clients` in `config.yaml` via `compose/chisel-users.json.tmpl` and mounted into the container on the VPS.
 
 ## Loki
 
