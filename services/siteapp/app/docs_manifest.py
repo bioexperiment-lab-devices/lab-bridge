@@ -91,3 +91,104 @@ def _parse_entry(
     seen.add(name)
 
     return ManifestEntry(name=name, title=title, hidden=hidden)
+
+
+MANIFEST_FILENAME = "_nav.yaml"
+
+
+def has_md_descendants(directory: Path) -> bool:
+    """Does this directory contain any .md content (anywhere in the subtree)?
+
+    Used to decide whether the directory needs a manifest. ``.ru.md`` translation
+    files don't count — a directory containing only translations is considered
+    asset-only (it can't be navigated to without a canonical English doc).
+    """
+    if not directory.is_dir():
+        return False
+    for child in directory.iterdir():
+        if child.name.startswith("."):
+            continue
+        if child.is_file() and child.suffix == ".md" and not child.name.endswith(".ru.md"):
+            return True
+        if child.is_dir() and has_md_descendants(child):
+            return True
+    return False
+
+
+def _listable_children(directory: Path) -> tuple[set[str], set[str]]:
+    """Return (file_stems, subdir_names) that a manifest in ``directory`` must cover.
+
+    File rules: include ``.md`` files except ``index.md`` and ``*.ru.md``.
+    Directory rules: include subdirs that have any ``.md`` descendants (asset-only
+    subdirs are excluded).
+    """
+    files: set[str] = set()
+    dirs: set[str] = set()
+    for child in directory.iterdir():
+        if child.name.startswith("."):
+            continue
+        if (
+            child.is_file()
+            and child.suffix == ".md"
+            and child.stem != "index"
+            and not child.name.endswith(".ru.md")
+        ):
+            files.add(child.stem)
+        elif child.is_dir() and has_md_descendants(child):
+            dirs.add(child.name)
+    return files, dirs
+
+
+def _resolve_entry(directory: Path, name: str) -> Path | None:
+    """Return the on-disk target of an entry, or None if it doesn't exist.
+
+    File ``<name>.md`` wins over directory ``<name>/`` when both exist —
+    deterministic tie-break for the rare case where an author has both.
+    """
+    f = directory / f"{name}.md"
+    if f.is_file():
+        return f
+    d = directory / name
+    if d.is_dir() and (d / "index.md").is_file():
+        return d
+    return None
+
+
+def load_dir_manifest(directory: Path) -> list[ManifestEntry]:
+    """Read + validate ``directory``'s manifest. Raise DocsNavError on any violation.
+
+    Directories with no listable children (only ``index.md``, translations, or
+    asset files) need no manifest and return ``[]``. Directories with content
+    but no manifest raise.
+    """
+    files, dirs = _listable_children(directory)
+    needs_manifest = bool(files or dirs)
+    manifest_path = directory / MANIFEST_FILENAME
+
+    if not manifest_path.is_file():
+        if needs_manifest:
+            raise DocsNavError(f"{manifest_path}: _nav.yaml not found")
+        return []
+
+    text = manifest_path.read_text(encoding="utf-8")
+    entries = parse_manifest_yaml(text, manifest_path)
+
+    errors: list[str] = []
+    listed: set[str] = set()
+    for entry in entries:
+        listed.add(entry.name)
+        if _resolve_entry(directory, entry.name) is None:
+            errors.append(
+                f"{manifest_path}: entry '{entry.name}' has no "
+                f"{entry.name}.md or {entry.name}/index.md"
+            )
+
+    for f in sorted(files - listed):
+        errors.append(f"{manifest_path}: {f}.md exists but is not in _nav.yaml")
+    for d in sorted(dirs - listed):
+        errors.append(f"{manifest_path}: {d}/ exists but is not in _nav.yaml")
+
+    if errors:
+        raise DocsNavError("\n".join(errors))
+
+    return entries
