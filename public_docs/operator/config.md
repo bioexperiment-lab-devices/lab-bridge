@@ -7,8 +7,8 @@ Every operator-facing setting lives in `SerialHop_config.yaml`, the YAML file ne
 ```yaml title="SerialHop_config.yaml (chisel section)"
 chisel:
   host: <vps-host>
-  port: 8080
-  remote_port: 9001
+  port: <chisel-port>
+  remote_port: <reverse-port>
   user: <lab-name>
   pass: <secret>
 ```
@@ -34,7 +34,7 @@ logging:
 | `max_size_mb` | Roll a log file once it grows past this many MB. | 10 |
 | `keep` | How many rotated files to keep (`SerialHop.log.1`, …). | 3 |
 
-Logs live next to the binary as `SerialHop.log` (slog JSON) and `SerialHop_stderr.log` (chisel state + panic traces).
+Logs live next to the binary as `SerialHop.log` and `SerialHop_stderr.log` (chisel state + panic traces).
 
 ## What's out of scope here
 

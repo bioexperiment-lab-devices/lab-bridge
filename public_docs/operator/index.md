@@ -11,7 +11,7 @@ As a lab operator you install SerialHop on the Windows PC that has the instrumen
 ## Ongoing tasks
 
 - Keep instruments plugged into the lab PC.
-- Check the lab-bridge home page roster periodically — if your lab shows OFFLINE, restart SerialHop from its control panel.
+- Check the lab-bridge home page roster periodically — if your lab shows OFFLINE, restart SerialHop from its control panel (double-click `SerialHop.exe` to open it).
 - Watch `/grafana/d/lab-bridge-client-logs/lab-client-logs?var-client=<your-lab>` if a researcher reports a problem.
 
 ## Reading order

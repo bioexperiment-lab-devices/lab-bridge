@@ -19,18 +19,18 @@ Visit [`/download/agent`](/download/agent) from any browser. Download the Window
 
 Copy `SerialHop.exe` to a stable directory — `C:\Tools\SerialHop\` is a good default. Don't put it in `Downloads`, `Desktop`, or any per-user temporary location.
 
-## 3. Edit SerialHop_config.yaml before installing the service
+## 3. Edit `SerialHop_config.yaml` before installing the service
 
 ```yaml title="SerialHop_config.yaml"
 chisel:
   host: <vps-host>
-  port: 8080
-  remote_port: 9001
+  port: <chisel-port>
+  remote_port: <reverse-port>
   user: <lab-name>
   pass: <secret>
 ```
 
-Paste the five values from the admin into the matching keys.
+Replace every value in the example with what the admin issued you. There are five fields: the VPS hostname, the chisel listen port, the per-lab reverse port, your lab's chisel `user`, and the matching `pass`.
 
 > [!IMPORTANT]
 > Edit `SerialHop_config.yaml` BEFORE clicking Install. The Windows service starts with whatever config is on disk at install time. A wrong `user` or `pass` silently logs auth failures until the file is corrected and the service restarted.
@@ -43,7 +43,7 @@ Paste the five values from the admin into the matching keys.
 
 ## 5. Verify the lab is online
 
-- Open [the lab-bridge home page](/) and sign in. The "Registered labs" panel should show your lab name with an **ONLINE** pill within a minute.
+- Open [the lab-bridge home page](/) and sign in. The "Registered labs" panel should show your lab name with an **ONLINE** pill shortly.
 - Open `/grafana/d/lab-bridge-client-logs/lab-client-logs?var-client=<your-lab>` to see the agent's log stream live.
 
 ## Boot-time handshake
@@ -67,4 +67,4 @@ sequenceDiagram
 
 - Lab stays OFFLINE on the home page → check `SerialHop_config.yaml` against the credentials your admin gave you (see [`SerialHop_config.yaml` reference](/docs/operator/config)).
 - Service won't start → open the control panel, click **Open log**, check `SerialHop.log` and `SerialHop_stderr.log` next to the binary.
-- Devices not detected → open the control panel, click **Re-discover** (this is destructive and interrupts any in-flight measurement, so coordinate with researchers).
+- Devices not detected → click **Restart** in the control panel. SerialHop re-scans serial ports on each service start, so this picks up any newly plugged-in device. Coordinate with researchers — restart interrupts any in-flight measurement.
