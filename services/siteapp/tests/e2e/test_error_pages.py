@@ -107,3 +107,25 @@ def test_unknown_route_returns_json_to_api_clients(http: httpx.Client) -> None:
     assert r.status_code == 404
     assert r.headers["content-type"].startswith("application/json")
     assert r.json() == {"detail": "Not Found"}
+
+
+def test_error_403_accepts_non_get_methods(http: httpx.Client) -> None:
+    # Caddy's handle_errors rewrites the original request URI to /_errors/403
+    # but preserves the original method. A researcher's POST to /flash/api/...
+    # that Authelia denies arrives here as POST /_errors/403, so this route
+    # must answer the same way as GET — otherwise the response masquerades as
+    # 405 ("Method Not Allowed") and looks like the request reached the
+    # flasher upstream. Audit finding 1.6.
+    for method in ("POST", "PUT", "PATCH", "DELETE"):
+        r = http.request(method, "/_errors/403", json={"x": 1})
+        assert r.status_code == 403, f"{method} /_errors/403 → {r.status_code}"
+        assert "lb-forbidden__card" in r.text, f"{method} body unstyled: {r.text[:100]}"
+
+
+def test_error_404_accepts_non_get_methods(http: httpx.Client) -> None:
+    # Symmetry with the 403 case: the same handle_errors rewrite path runs
+    # for 404, and the audit harness probes 404 masquerade similarly.
+    for method in ("POST", "PUT", "PATCH", "DELETE"):
+        r = http.request(method, "/_errors/404", json={"x": 1})
+        assert r.status_code == 404, f"{method} /_errors/404 → {r.status_code}"
+        assert "lb-forbidden__card" in r.text, f"{method} body unstyled: {r.text[:100]}"
