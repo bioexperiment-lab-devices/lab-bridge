@@ -12,11 +12,17 @@ from app.config import load_settings
 from app.docs import make_router as make_docs_router
 from app.home import make_router as make_home_router
 from app.labs import make_router as make_labs_router
+from app.nav import build_nav
 from app.public_clients import make_router as make_public_clients_router
 from app.server_info import make_router as make_server_info_router
 from app.templates import TEMPLATE_DIR, templates
 
 settings = load_settings()
+
+# Fail fast at import: malformed docs manifest crashes uvicorn before it
+# starts serving, so a bad deploy can't silently 500 every doc page.
+build_nav(settings.docs_root)
+
 app = FastAPI(title="lab-bridge siteapp")
 
 app.mount(
