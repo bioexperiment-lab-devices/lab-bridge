@@ -1,6 +1,6 @@
 # Composing experiments
 
-One-off device calls are fine for exploration. For a real experiment you usually chain steps — set up the devices, run a sequence, record results, tear down. `bioexperiment_suite.experiment` is the place for that.
+One-off device calls are fine for exploration. For a real experiment you usually chain steps — set up the devices, run a sequence, record results, tear down. The `bioexperiment_suite.experiment` module gives you a structured composition layer for that — this page sketches the by-hand shape and points at a reference notebook that uses the module end-to-end.
 
 ## Minimal example
 
@@ -18,7 +18,7 @@ od = densitometer.measure_optical_density()
 print({"od": od})
 ```
 
-This is "an experiment by hand" — just a notebook cell. For long-running protocols (timed steps, branches, error handling), the `experiment/` module gives you a structured composition layer; see the upstream repo for the canonical entry points.
+This is "an experiment by hand" — just a notebook cell. For long-running protocols (timed steps, branches, error handling), the `bioexperiment_suite.experiment` module gives you a structured composition layer; see the upstream repo for the canonical entry points.
 
 ## Reference notebook
 
@@ -30,6 +30,6 @@ A full reference experiment notebook (multi-step protocol, results, plotting) li
 - Save outputs to the same directory as the notebook. JupyterLab persists across sessions.
 - Note your lab name in the first cell. Future-you will thank you.
 
-## When discover takes too long
+## Reuse the discovery result
 
 `discover()` is destructive — every call re-probes the serial ports. For an iterative session (write code, run, tweak), call `discover()` once at the start, then reuse the returned `devices` object. If the device set changes mid-session (someone plugged something in), call `client.list_devices()` to refresh from SerialHop's cache without forcing another re-probe.

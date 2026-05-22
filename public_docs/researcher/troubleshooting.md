@@ -6,7 +6,7 @@ This page covers what to do when a call doesn't return what you expected. Operat
 
 - Lab is offline. Confirm with `LabDevicesClient.list_active_users()` — if your lab isn't in the list, ping the operator to restart SerialHop.
 - Devices aren't physically connected to the lab PC. Operator-side check.
-- The discovery cache is stale. Try `client.discover()` once more (it's the destructive re-probe).
+- The discovery cache is stale. Run `client.discover()` once more to force a fresh probe. Note this is destructive — see the [first-notebook walkthrough](/docs/researcher/first-notebook) for what that means.
 
 ## Lab appears in `list_registered_users()` but not in `list_active_users()`
 

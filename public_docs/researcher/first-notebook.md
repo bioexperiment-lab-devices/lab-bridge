@@ -8,7 +8,7 @@ Open `/jupyter/` in a browser. Authelia gates the page — sign in with the cred
 
 ## 2. Find your lab's name
 
-Open `/` in another tab. The **Registered labs** panel shows every lab the server knows about. Your lab's pill says ONLINE if its SerialHop is currently connected. The lab name on the card is what you pass to `LabDevicesClient(user=…)`. From the notebook you can also list them:
+Open `/` in another tab. The **Registered labs** panel shows every lab the server knows about. Your lab's badge says ONLINE if its SerialHop is currently connected. The lab name on the card is what you pass to `LabDevicesClient(user=…)`. From the notebook you can also list them:
 
 ```python
 from bioexperiment_suite.interfaces import LabDevicesClient
@@ -35,12 +35,11 @@ print(devices)
 
 ```python
 pump = devices.pumps[0]
-pump.set_default_flow_rate(1)        # ml/min
-pump.start_continuous_rotation(1)    # direction
-pump.stop_continuous_rotation()
+pump.set_default_flow_rate(1.0)   # ml/min
+pump.pour_in_volume(1.0)          # ml; uses the default flow rate
 ```
 
-Each call returns once the device acknowledges, so you can chain commands in a single cell without worrying about timing. The full recipe set lives in [Working with devices](/docs/researcher/working-with-devices).
+`pour_in_volume` blocks until the pump has dispensed the requested volume, so the cell finishes only once the device has acknowledged the move — you'll see liquid actually shift. The full recipe set lives in [Working with devices](/docs/researcher/working-with-devices).
 
 ## 5. Read from a densitometer
 

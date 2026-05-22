@@ -60,7 +60,7 @@ Returns immediately; cheap to poll.
 od = densitometer.measure_optical_density()
 ```
 
-Behind the scenes the call sends a start command, sleeps ~3 seconds while the device settles, and reads. Expect the call to block for ~3 seconds.
+Expect the call to block for ~3 seconds.
 
 ## Valves
 
@@ -68,4 +68,4 @@ The `Valve` class is currently a placeholder — the lab-bridge serial vocabular
 
 ## Picking by position
 
-`devices.pumps[0]` picks the first pump SerialHop returned. The order is stable across calls for a given lab unless the operator re-runs discovery or unplugs hardware. If you have multiple devices of the same type and want determinism, address them by their position in the list and document which is which in your notebook — a one-line comment in the first cell ("pumps[0] is the inlet pump, pumps[1] is the outlet pump") will save you and future-you a lot of time.
+`devices.pumps[0]` picks the first pump SerialHop returned. The order is stable across calls for a given lab unless the operator re-runs discovery or unplugs hardware. When you have multiple devices of the same type and want determinism, address them by position and document which is which in your notebook — future-you will thank you.
