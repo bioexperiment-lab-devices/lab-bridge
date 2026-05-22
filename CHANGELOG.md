@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.16.2](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.16.1...v0.16.2) (2026-05-22)
+
+
+### Bug Fixes
+
+* **siteapp:** light-theme variant for code blocks ([#121](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/121)) ([2f40e17](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/2f40e17560315a550f0f0b902bcbfff7ce6a1179))
+* **siteapp:** render mermaid in the user's chosen theme ([#119](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/119)) ([96f797b](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/96f797bfe9adbcc7e61e57e9363842c7073c773c))
+
 ## [0.16.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.16.0...v0.16.1) (2026-05-22)
 
 
