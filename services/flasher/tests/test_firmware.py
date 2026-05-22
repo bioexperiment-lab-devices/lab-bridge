@@ -356,6 +356,19 @@ def test_bearer_post_succeeds(http_app: TestClient) -> None:
     assert r.json()["name"] == "x"
 
 
+def test_bearer_post_short_token_rejected_cleanly(http_app: TestClient) -> None:
+    """A bearer token whose length differs from the expected token must be
+    rejected with the standard 401 error shape. compare_digest accepts
+    unequal-length inputs without raising. Audit hardening 3.2."""
+    r = http_app.post(
+        "/flash/api/v1/firmware",
+        json={"name": "x", "firmware": ":00000001FF\n"},
+        headers={"Authorization": "Bearer short"},
+    )
+    assert r.status_code == 401
+    assert r.json()["error"] == "bearer invalid"
+
+
 def test_bearer_get_by_sha256(http_app: TestClient) -> None:
     posted = http_app.post(
         "/flash/api/v1/firmware",

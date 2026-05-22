@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 from pathlib import Path
 from typing import Any
 
@@ -73,7 +74,10 @@ def _require_bearer(authorization: str | None, expected: str) -> None:
                 "detail": "Authorization: Bearer <token> required",
             },
         )
-    if authorization[len("Bearer ") :] != expected:
+    provided = authorization[len("Bearer ") :]
+    # compare_digest avoids a timing side-channel and accepts unequal-length
+    # inputs without raising. Mirrors services/flasher/app/routes/agent.py.
+    if not secrets.compare_digest(provided.encode(), expected.encode()):
         raise HTTPException(
             status_code=401,
             detail={
