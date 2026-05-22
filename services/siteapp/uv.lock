@@ -490,6 +490,7 @@ dependencies = [
     { name = "packaging" },
     { name = "pygments" },
     { name = "python-multipart" },
+    { name = "pyyaml" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -512,6 +513,7 @@ requires-dist = [
     { name = "packaging", specifier = ">=24,<26" },
     { name = "pygments", specifier = ">=2.18,<3" },
     { name = "python-multipart", specifier = ">=0.0.9,<0.1" },
+    { name = "pyyaml", specifier = ">=6,<7" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30,<0.31" },
 ]
 
