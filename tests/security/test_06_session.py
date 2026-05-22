@@ -7,7 +7,7 @@ import time
 import httpx
 import pytest
 
-from clients import SessionLog, login, make_client
+from clients import SessionLog, auth_denied, login, make_client
 from conftest import Finding
 
 
@@ -46,7 +46,13 @@ def test_2_1_replay_after_get_logout(target_url, verify_tls, admin_creds, record
         cookies={"authelia_session": session_cookie},
     ) as replay:
         r = replay.get("/flash/")
-    ok = r.status_code == 302 and "/login" in (r.headers.get("location") or "")
+    # Stale cookie should make Authelia reject (302 to /login) — Forbidden body
+    # would actually indicate the cookie is still valid but the user lacks
+    # role, which is not the logout scenario. So we expect honest redirect
+    # to /login, not status-200-Forbidden masquerade.
+    redirect_to_login = r.status_code in (302, 303) and "/login" in (r.headers.get("location") or "")
+    reached_flasher = r.status_code == 200 and "<title>Flasher</title>" in r.text
+    ok = redirect_to_login and not reached_flasher
     record(
         Finding(
             id="2.1",
@@ -54,17 +60,22 @@ def test_2_1_replay_after_get_logout(target_url, verify_tls, admin_creds, record
             severity="High",
             status="verified" if ok else "vulnerable",
             summary=(
-                "Server-side session must be invalidated, not just client-side cookie cleared."
+                "Server-side session must be invalidated, not just client-side cookie cleared. "
+                "siteapp/app/auth.py:133 fires-and-forgets POST /api/logout to Authelia; "
+                "if Authelia 4.38 server-to-server logout doesn't kill the session, "
+                "the stale cookie keeps working until inactivity timeout."
             ),
             details={
                 "replay_status": r.status_code,
                 "replay_location": r.headers.get("location"),
+                "reached_flasher_spa": reached_flasher,
+                "body_excerpt": r.text[:160],
             },
         ),
         log,
     )
     assert ok, (
-        f"stale cookie still works: {r.status_code} → {r.headers.get('location')}"
+        f"stale cookie still works: {r.status_code} reached_flasher={reached_flasher}"
     )
 
 
@@ -80,7 +91,9 @@ def test_2_2_replay_after_post_logout(target_url, verify_tls, admin_creds, recor
         cookies={"authelia_session": session_cookie},
     ) as replay:
         r = replay.get("/flash/")
-    ok = r.status_code == 302 and "/login" in (r.headers.get("location") or "")
+    redirect_to_login = r.status_code in (302, 303) and "/login" in (r.headers.get("location") or "")
+    reached_flasher = r.status_code == 200 and "<title>Flasher</title>" in r.text
+    ok = redirect_to_login and not reached_flasher
     record(
         Finding(
             id="2.2",
@@ -91,6 +104,7 @@ def test_2_2_replay_after_post_logout(target_url, verify_tls, admin_creds, recor
             details={
                 "replay_status": r.status_code,
                 "replay_location": r.headers.get("location"),
+                "reached_flasher_spa": reached_flasher,
             },
         ),
         log,
@@ -281,11 +295,11 @@ def test_2_9_cross_role_cookie(
     a_client.close()
     r_client.close()
 
-    admin_ok = admin_on_flash.status_code in (200, 302) and not (
-        admin_on_flash.status_code == 302
-        and "/login" in (admin_on_flash.headers.get("location") or "")
+    admin_ok = (
+        admin_on_flash.status_code == 200
+        and "<title>Flasher</title>" in admin_on_flash.text
     )
-    res_blocked = res_on_flash.status_code in (302, 403)
+    res_blocked = auth_denied(res_on_flash)
     ok = distinct and admin_ok and res_blocked
     record(
         Finding(

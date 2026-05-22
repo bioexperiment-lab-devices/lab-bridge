@@ -7,7 +7,48 @@ import ssl
 
 import pytest
 
+from clients import auth_denied, not_found
 from conftest import Finding
+
+
+def test_5_0_status_code_masquerading(anon, anon_log, record):
+    """Caddy + siteapp serves 403/404 pages at HTTP 200.
+
+    siteapp's /_errors/403 and /_errors/404 handlers (services/siteapp/app/auth.py)
+    return TemplateResponse without status_code, defaulting to 200. handle_errors
+    in compose/Caddyfile.tmpl rewrites and proxies, preserving the 200 from
+    upstream. Result: programmatic clients cannot distinguish authorisation
+    failures (or missing resources) from successful 200 responses by status.
+    """
+    deny_r = anon.get("/flash/")  # known anon-denied
+    nf_r = anon.get("/this-route-definitely-does-not-exist")
+    deny_masquerade = deny_r.status_code == 200 and "Forbidden — lab-bridge" in deny_r.text
+    nf_masquerade = nf_r.status_code == 200 and "Not found — lab-bridge" in nf_r.text
+    any_masquerade = deny_masquerade or nf_masquerade
+    # /flash/ for anon is 302 to /login (forward_auth rd=); the 200-masquerade
+    # only shows when an authenticated non-admin hits /flash. So 'deny_masquerade'
+    # here likely False; the 404 masquerade is the smoking gun for anon.
+    record(
+        Finding(
+            id="5.0",
+            title="Status-code masquerading: 403/404 pages served at HTTP 200",
+            severity="Medium",
+            status="vulnerable" if any_masquerade else "verified",
+            summary=(
+                "Caddy's handle_errors rewrites 403/404 → /_errors/{403,404} on siteapp, "
+                "which returns TemplateResponse without an explicit status_code (defaults to 200). "
+                "Fix: services/siteapp/app/auth.py error_403/error_404 handlers should pass "
+                "status_code=403/404 to TemplateResponse."
+            ),
+            details={
+                "anon_flash_status": deny_r.status_code,
+                "anon_flash_masquerade": deny_masquerade,
+                "anon_missing_status": nf_r.status_code,
+                "anon_missing_masquerade": nf_masquerade,
+            },
+        ),
+        anon_log,
+    )
 
 
 def test_5_1_security_headers(anon, anon_log, record):
@@ -46,19 +87,23 @@ def test_5_1_security_headers(anon, anon_log, record):
 
 def test_5_2_healthz_not_exposed(anon, anon_log, record):
     r = anon.get("/healthz")
-    ok = r.status_code == 404
+    ok = not_found(r) and '"status":"ok"' not in r.text and "status: ok" not in r.text
     record(
         Finding(
             id="5.2",
             title="/healthz must not be reachable through Caddy",
             severity="Low",
             status="verified" if ok else "vulnerable",
-            summary="Per-service /healthz endpoints are docker-network-only.",
-            details={"status_code": r.status_code},
+            summary=(
+                "Per-service /healthz endpoints are docker-network-only. "
+                "Caddy serves the 404 page at status 200 (masquerade); body must "
+                "be the 404 template, not the JSON health response."
+            ),
+            details={"status_code": r.status_code, "body_excerpt": r.text[:120]},
         ),
         anon_log,
     )
-    assert ok, f"/healthz exposed: {r.status_code}"
+    assert ok, f"/healthz exposed: {r.status_code} body={r.text[:120]!r}"
 
 
 def test_5_3_no_traceback(anon, anon_log, record):
@@ -177,9 +222,7 @@ def test_5_7_tls_protocols(target_host, record):
 )
 def test_5_8_internal_observability_not_exposed(anon, anon_log, record, path):
     r = anon.get(path)
-    ok = r.status_code == 404 or (
-        r.status_code == 302 and "/login" in (r.headers.get("location") or "")
-    )
+    ok = not_found(r) or auth_denied(r)
     record(
         Finding(
             id=f"5.8({path})",

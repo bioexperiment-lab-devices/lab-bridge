@@ -8,13 +8,13 @@ from __future__ import annotations
 import httpx
 import pytest
 
+from clients import auth_denied, not_found
 from conftest import Finding
 
 
 def _expect_redirect_or_forbidden(resp: httpx.Response) -> bool:
-    if resp.status_code == 302:
-        return "/login" in (resp.headers.get("location") or "")
-    return resp.status_code in (401, 403)
+    """Accept honest deny statuses or Caddy's status-200-with-Forbidden-body masquerade."""
+    return auth_denied(resp)
 
 
 def test_1_1_anon_flash_index(anon, anon_log, record):
@@ -96,7 +96,7 @@ def test_1_4_anon_flash_api_firmware_post(anon, anon_log, record):
 
 def test_1_5_researcher_flash(researcher, researcher_log, record):
     r = researcher.get("/flash/")
-    ok = r.status_code in (302, 403)
+    ok = auth_denied(r)
     record(
         Finding(
             id="1.5",
@@ -121,8 +121,16 @@ def test_1_6_researcher_flash_post(researcher, researcher_log, record, admin):
     created_id = None
     try:
         r = researcher.post("/flash/api/firmware", json=body)
-        ok = r.status_code in (302, 403)
-        if r.status_code == 200:
+        # Authelia denial → 302/303 to /login or 200 with Forbidden body.
+        # Anything else means the request reached flasher upstream and Authelia
+        # did NOT enforce the admin-only rule for this method.
+        denied = auth_denied(r)
+        reached_upstream = (
+            r.headers.get("server") == "uvicorn"
+            or "Method Not Allowed" in (r.text[:200] if r.text else "")
+            or "detail" in (r.text[:200] if r.text else "")
+        )
+        if r.status_code == 200 and not denied:
             try:
                 created_id = (r.json() or {}).get("id")
             except Exception:
@@ -130,15 +138,26 @@ def test_1_6_researcher_flash_post(researcher, researcher_log, record, admin):
         record(
             Finding(
                 id="1.6",
-                title="Researcher must not POST firmware",
+                title="Researcher POST /flash/api/firmware must be denied by Authelia",
                 severity="Critical",
-                status="verified" if ok else "vulnerable",
-                summary="Researchers cannot create firmware entries.",
-                details={"status_code": r.status_code, "created_id": created_id},
+                status="verified" if denied else "vulnerable",
+                summary=(
+                    "Authelia rule '^/flash.*' subject:group:admins must enforce on all methods. "
+                    "If a non-GET request from a researcher reaches flasher upstream, the gate "
+                    "fails for non-GET methods (Caddy forward_auth + Authelia interaction)."
+                ),
+                details={
+                    "status_code": r.status_code,
+                    "reached_upstream": reached_upstream,
+                    "created_id": created_id,
+                    "body_excerpt": (r.text or "")[:200],
+                },
             ),
             researcher_log,
         )
-        assert ok, f"researcher created firmware with {r.status_code}"
+        assert denied, (
+            f"researcher non-GET reached flasher upstream: {r.status_code} body={r.text[:120]!r}"
+        )
     finally:
         if created_id:
             try:
@@ -219,9 +238,7 @@ def test_1_10_grafana_health_public(anon, anon_log, record):
 @pytest.mark.parametrize("path", ["/FLASH/", "/Flash/api/v1/firmware", "/FLASH/api/firmware"])
 def test_1_11_case_mutation(anon, anon_log, record, path):
     r = anon.get(path)
-    ok = r.status_code == 404 or (
-        r.status_code == 302 and "/login" in (r.headers.get("location") or "")
-    )
+    ok = not_found(r) or auth_denied(r)
     record(
         Finding(
             id=f"1.11({path})",
@@ -245,9 +262,7 @@ def test_1_11_case_mutation(anon, anon_log, record, path):
 )
 def test_1_12_path_traversal(anon, anon_log, record, path):
     r = anon.get(path)
-    ok = r.status_code in (302, 401, 403, 404)
-    if r.status_code == 302:
-        ok = "/login" in (r.headers.get("location") or "")
+    ok = auth_denied(r) or not_found(r)
     record(
         Finding(
             id=f"1.12({path})",
@@ -312,7 +327,7 @@ def test_1_14_method_confusion(anon, anon_log, record, method, path):
     "path,public_ok",
     [
         ("/auth/.well-known/openid-configuration", True),
-        ("/auth/api/oidc/jwks.json", True),
+        ("/auth/jwks.json", True),
         ("/auth/api/health", True),
         ("/auth/api/state", None),
         ("/auth/api/configuration", None),

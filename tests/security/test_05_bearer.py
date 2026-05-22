@@ -146,6 +146,31 @@ def test_3_5_token_separation(anon, anon_log, record):
     assert ok
 
 
+def test_3_7_bearer_validation_order(anon, anon_log, record):
+    """Bearer endpoints should check auth BEFORE schema validation.
+
+    Hitting /flash/api/v1/firmware as GET with no sha256 query: if the bearer
+    check runs first, we expect 401. If pydantic validation runs first, we get
+    422 (exposing the schema to unauthenticated probes).
+    """
+    r = anon.get("/flash/api/v1/firmware")  # no sha256 param, no Authorization
+    record(
+        Finding(
+            id="3.7",
+            title="Bearer check ordering on /flash/api/v1/firmware",
+            severity="Low",
+            status="verified" if r.status_code == 401 else "vulnerable",
+            summary=(
+                "If the endpoint returns 422 (validation error) to an unauthenticated "
+                "request missing the sha256 query, the schema is enumerable without "
+                "credentials. Bearer enforcement should precede pydantic validation."
+            ),
+            details={"status_code": r.status_code, "body_excerpt": r.text[:200]},
+        ),
+        anon_log,
+    )
+
+
 @pytest.mark.slow
 def test_3_6_oversize_agent_upload(anon, anon_log, record, slow_enabled):
     if not slow_enabled:

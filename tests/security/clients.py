@@ -197,6 +197,41 @@ def login(
     return client, {"raw_set_cookies": "\n".join(set_cookies), **cookies}
 
 
+FORBIDDEN_BODY_MARKER = "Forbidden — lab-bridge"
+NOT_FOUND_BODY_MARKER = "Not found — lab-bridge"
+
+
+def auth_denied(response: httpx.Response) -> bool:
+    """True if Authelia/Caddy denied the request.
+
+    Covers both honest deny statuses (302/303/401/403) and the platform's
+    status-code-masquerading pattern where the 403 template is served at
+    HTTP 200 via Caddy's handle_errors + siteapp's _errors/403 handler.
+    """
+    if response.status_code in (302, 303):
+        return "/login" in (response.headers.get("location") or "")
+    if response.status_code in (401, 403):
+        return True
+    if response.status_code == 200:
+        try:
+            return FORBIDDEN_BODY_MARKER in response.text
+        except Exception:
+            return False
+    return False
+
+
+def not_found(response: httpx.Response) -> bool:
+    """True if the response is a 404 in either honest or masqueraded form."""
+    if response.status_code == 404:
+        return True
+    if response.status_code == 200:
+        try:
+            return NOT_FOUND_BODY_MARKER in response.text
+        except Exception:
+            return False
+    return False
+
+
 def iter_redirects(client: httpx.Client, method: str, path: str, **kwargs) -> Iterator[httpx.Response]:
     """Follow redirects manually up to 5 hops, yielding each response."""
     current_method = method

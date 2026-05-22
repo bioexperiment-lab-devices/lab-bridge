@@ -185,12 +185,21 @@ def _short(s: str) -> str:
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:
     findings: list[tuple[str, Finding]] = []
+    seen: set[tuple[str, str]] = set()
     for report_list in terminalreporter.stats.values():
         for r in report_list:
             if not hasattr(r, "user_properties"):
                 continue
+            # Only consider the 'call' phase report to avoid the same Finding
+            # being collected from setup/call/teardown of one test.
+            if getattr(r, "when", "call") != "call":
+                continue
             for name, value in r.user_properties:
                 if name == "finding" and isinstance(value, Finding):
+                    key = (r.nodeid, value.id)
+                    if key in seen:
+                        continue
+                    seen.add(key)
                     findings.append((r.nodeid, value))
 
     report_path = Path(config.getoption("--report")).resolve()
