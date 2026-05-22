@@ -142,7 +142,7 @@ def make_router(settings: Settings) -> APIRouter:
         resp.raw_headers.append(
             (
                 b"set-cookie",
-                f"authelia_session=; Max-Age=0; domain={domain}; path=/; HttpOnly; SameSite=Lax".encode(
+                f"authelia_session=; Max-Age=0; domain={domain}; path=/; HttpOnly; Secure; SameSite=Lax".encode(
                     "latin-1"
                 ),
             )
@@ -159,7 +159,7 @@ def make_router(settings: Settings) -> APIRouter:
             resp.raw_headers.append(
                 (
                     b"set-cookie",
-                    f"{cookie_name}=; Max-Age=0; path=/grafana; HttpOnly; SameSite=Lax".encode(
+                    f"{cookie_name}=; Max-Age=0; path=/grafana; HttpOnly; Secure; SameSite=Lax".encode(
                         "latin-1"
                     ),
                 )

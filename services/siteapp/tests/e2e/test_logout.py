@@ -65,3 +65,20 @@ def test_logout_accepts_post_and_expires_cookie(http: httpx.Client) -> None:
         "authelia_session=" in c and ("Max-Age=0" in c or "expires" in c.lower())
         for c in set_cookies
     )
+
+
+def test_logout_cleared_cookies_carry_secure(http: httpx.Client) -> None:
+    """All three logout-cleared cookies must include Secure so they're never
+    re-sent over plaintext. Audit finding 2.5."""
+    cookie = _login(http, "alice", "alice-password")
+    r = http.get(
+        "/logout",
+        headers={"Cookie": cookie},
+        follow_redirects=False,
+    )
+    set_cookies = r.headers.get_list("set-cookie")
+    for name in ("authelia_session", "grafana_session", "grafana_session_expiry"):
+        matches = [c for c in set_cookies if c.startswith(f"{name}=")]
+        assert matches, f"missing clear-line for {name}: {set_cookies}"
+        for c in matches:
+            assert "Secure" in c, f"{name} clear-line missing Secure: {c}"
