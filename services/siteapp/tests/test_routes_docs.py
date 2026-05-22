@@ -106,6 +106,18 @@ def test_plain_page_does_not_load_mermaid_script(client: TestClient) -> None:
     assert "/_static/mermaid-init.js" not in r.text
 
 
+def test_mermaid_init_re_renders_on_theme_change(client: TestClient) -> None:
+    """Guard the no-reload theme switch: mermaid-init.js must observe
+    <html data-theme> and re-run, otherwise toggling the site theme leaves
+    diagrams stuck in their original colors until the user reloads."""
+    r = client.get("/_static/mermaid-init.js")
+    assert r.status_code == 200
+    body = r.text
+    assert "MutationObserver" in body, "missing observer that re-renders on theme flip"
+    assert "data-theme" in body, "observer must watch data-theme"
+    assert "data-processed" in body, "must clear mermaid's processed flag before re-run"
+
+
 def test_doc_static_svg_is_served(client: TestClient) -> None:
     r = client.get("/docs/icons/jupyter.svg")
     assert r.status_code == 200
