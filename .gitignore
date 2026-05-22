@@ -13,6 +13,10 @@ backups/
 tests/integration/fake_vps/id_test
 tests/integration/fake_vps/id_test.pub
 compose/grafana/admin_password
+compose/grafana/oidc_secret
+compose/authelia/secrets/
+compose/authelia/users_database.yml
+compose/authelia/configuration.yml
 compose/siteapp/agent_upload_token
 compose/siteapp/sample_data/
 
