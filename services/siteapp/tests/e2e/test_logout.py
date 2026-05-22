@@ -65,3 +65,41 @@ def test_logout_accepts_post_and_expires_cookie(http: httpx.Client) -> None:
         "authelia_session=" in c and ("Max-Age=0" in c or "expires" in c.lower())
         for c in set_cookies
     )
+
+
+def test_logout_cleared_cookies_carry_secure(http: httpx.Client) -> None:
+    """All three logout-cleared cookies must include Secure so they're never
+    re-sent over plaintext. Audit finding 2.5."""
+    cookie = _login(http, "alice", "alice-password")
+    r = http.get(
+        "/logout",
+        headers={"Cookie": cookie},
+        follow_redirects=False,
+    )
+    set_cookies = r.headers.get_list("set-cookie")
+    for name in ("authelia_session", "grafana_session", "grafana_session_expiry"):
+        matches = [c for c in set_cookies if c.startswith(f"{name}=")]
+        assert matches, f"missing clear-line for {name}: {set_cookies}"
+        for c in matches:
+            assert "Secure" in c, f"{name} clear-line missing Secure: {c}"
+
+
+def test_logout_invalidates_authelia_session_server_side(
+    http: httpx.Client,
+) -> None:
+    """The cookie issued by /api/auth/firstfactor must not work against
+    /api/auth/whoami after /logout. Without server-side invalidation,
+    Authelia's session record persists and the cookie remains valid even
+    though the client-side clear succeeded. Audit findings 2.1, 2.2."""
+    cookie = _login(http, "alice", "alice-password")
+    # Sanity: the cookie works pre-logout.
+    r = http.get("/api/auth/whoami", headers={"Cookie": cookie})
+    assert r.status_code == 200
+    assert r.json()["user"] == "alice", f"pre-logout whoami unexpected: {r.json()}"
+    # Log out via GET (covers 2.1) — POST flavour covered by 2.2 in the
+    # audit harness.
+    http.get("/logout", headers={"Cookie": cookie}, follow_redirects=False)
+    # Replay the *original* cookie. It must not authenticate any more.
+    r = http.get("/api/auth/whoami", headers={"Cookie": cookie})
+    assert r.status_code == 200
+    assert r.json()["user"] is None, f"replay after logout should not authenticate; got {r.json()}"

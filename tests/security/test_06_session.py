@@ -33,6 +33,7 @@ def _login_short(target_url, verify_tls, creds):
     return client, info, log
 
 
+@pytest.mark.regression
 def test_2_1_replay_after_get_logout(target_url, verify_tls, admin_creds, record):
     client, info, log = _login_short(target_url, verify_tls, admin_creds)
     session_cookie = info.get("authelia_session", "")
@@ -50,7 +51,9 @@ def test_2_1_replay_after_get_logout(target_url, verify_tls, admin_creds, record
     # would actually indicate the cookie is still valid but the user lacks
     # role, which is not the logout scenario. So we expect honest redirect
     # to /login, not status-200-Forbidden masquerade.
-    redirect_to_login = r.status_code in (302, 303) and "/login" in (r.headers.get("location") or "")
+    redirect_to_login = r.status_code in (302, 303) and "/login" in (
+        r.headers.get("location") or ""
+    )
     reached_flasher = r.status_code == 200 and "<title>Flasher</title>" in r.text
     ok = redirect_to_login and not reached_flasher
     record(
@@ -74,11 +77,10 @@ def test_2_1_replay_after_get_logout(target_url, verify_tls, admin_creds, record
         ),
         log,
     )
-    assert ok, (
-        f"stale cookie still works: {r.status_code} reached_flasher={reached_flasher}"
-    )
+    assert ok, f"stale cookie still works: {r.status_code} reached_flasher={reached_flasher}"
 
 
+@pytest.mark.regression
 def test_2_2_replay_after_post_logout(target_url, verify_tls, admin_creds, record):
     client, info, log = _login_short(target_url, verify_tls, admin_creds)
     session_cookie = info.get("authelia_session", "")
@@ -91,7 +93,9 @@ def test_2_2_replay_after_post_logout(target_url, verify_tls, admin_creds, recor
         cookies={"authelia_session": session_cookie},
     ) as replay:
         r = replay.get("/flash/")
-    redirect_to_login = r.status_code in (302, 303) and "/login" in (r.headers.get("location") or "")
+    redirect_to_login = r.status_code in (302, 303) and "/login" in (
+        r.headers.get("location") or ""
+    )
     reached_flasher = r.status_code == 200 and "<title>Flasher</title>" in r.text
     ok = redirect_to_login and not reached_flasher
     record(
@@ -112,9 +116,7 @@ def test_2_2_replay_after_post_logout(target_url, verify_tls, admin_creds, recor
     assert ok, f"stale cookie after POST logout still works: {r.status_code}"
 
 
-def test_2_3_concurrent_sessions_independent(
-    target_url, verify_tls, admin_creds, record
-):
+def test_2_3_concurrent_sessions_independent(target_url, verify_tls, admin_creds, record):
     a_client, a_info, log = _login_short(target_url, verify_tls, admin_creds)
     b_client, b_info, _ = _login_short(target_url, verify_tls, admin_creds)
     a_cookie = a_info.get("authelia_session")
@@ -147,9 +149,7 @@ def test_2_3_concurrent_sessions_independent(
 def test_2_4_login_cookie_attributes(target_url, verify_tls, admin_creds, record):
     _, info, log = _login_short(target_url, verify_tls, admin_creds)
     raw = info.get("raw_set_cookies", "")
-    session_lines = [
-        line for line in raw.splitlines() if line.startswith("authelia_session=")
-    ]
+    session_lines = [line for line in raw.splitlines() if line.startswith("authelia_session=")]
     missing: list[str] = []
     if not session_lines:
         missing.append("no authelia_session Set-Cookie at all")
@@ -178,6 +178,7 @@ def test_2_4_login_cookie_attributes(target_url, verify_tls, admin_creds, record
     )
 
 
+@pytest.mark.regression
 def test_2_5_logout_cookie_attributes(target_url, verify_tls, admin_creds, record):
     client, info, log = _login_short(target_url, verify_tls, admin_creds)
     r = client.get("/logout")
@@ -257,9 +258,7 @@ def test_2_7_truncated_cookie_rejected(target_url, verify_tls, admin_creds, reco
 
 
 @pytest.mark.slow
-def test_2_8_inactivity_timeout(
-    target_url, verify_tls, admin_creds, slow_enabled, record
-):
+def test_2_8_inactivity_timeout(target_url, verify_tls, admin_creds, slow_enabled, record):
     if not slow_enabled:
         pytest.skip("requires --slow (waits past 5 min inactivity)")
     client, info, log = _login_short(target_url, verify_tls, admin_creds)
@@ -280,9 +279,7 @@ def test_2_8_inactivity_timeout(
     )
 
 
-def test_2_9_cross_role_cookie(
-    target_url, verify_tls, admin_creds, researcher_creds, record
-):
+def test_2_9_cross_role_cookie(target_url, verify_tls, admin_creds, researcher_creds, record):
     a_client, a_info, a_log = _login_short(target_url, verify_tls, admin_creds)
     r_client, r_info, r_log = _login_short(target_url, verify_tls, researcher_creds)
     a_cookie = a_info.get("authelia_session")
@@ -295,10 +292,7 @@ def test_2_9_cross_role_cookie(
     a_client.close()
     r_client.close()
 
-    admin_ok = (
-        admin_on_flash.status_code == 200
-        and "<title>Flasher</title>" in admin_on_flash.text
-    )
+    admin_ok = admin_on_flash.status_code == 200 and "<title>Flasher</title>" in admin_on_flash.text
     res_blocked = auth_denied(res_on_flash)
     ok = distinct and admin_ok and res_blocked
     record(

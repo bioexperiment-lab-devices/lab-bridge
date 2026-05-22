@@ -13,6 +13,17 @@
 (authelia_required) {
     forward_auth authelia:9091 {
         uri /api/verify?rd=https://__VPS_HOST__/login
+        # Pin the verify sub-request to GET. By default Caddy forwards the
+        # original method (and body) to /api/verify, which causes Authelia
+        # 4.38 to treat non-GET requests inconsistently — researcher POSTs
+        # to /flash/api/firmware reach upstream and return the backend's 405
+        # instead of Authelia's 403. Audit finding 1.6.
+        method GET
+        header_up X-Forwarded-Method {method}
+        header_up X-Forwarded-Uri {uri}
+        # Strip the original Content-Length so Authelia doesn't try to read
+        # a body off the GET we just pinned above.
+        header_up Content-Length ""
         copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
 
         # Authelia returns 403 (raw "Forbidden" body) for authenticated users
@@ -44,6 +55,18 @@ https://__VPS_HOST__ {
         issuer acme {
             profile shortlived
         }
+    }
+
+    # ─── Global security headers ─────────────────────────────────────────
+    # Applied to every response except where a child `handle` block sets
+    # its own Content-Security-Policy (Grafana / Jupyter override below).
+    # Audit finding 5.1.
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options    "nosniff"
+        Referrer-Policy           "strict-origin-when-cross-origin"
+        Content-Security-Policy   "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'"
+        -Server
     }
 
     # ─── Platform shell assets ───────────────────────────────────────────

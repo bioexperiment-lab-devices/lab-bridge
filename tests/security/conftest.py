@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import socket
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -168,8 +167,16 @@ def _fmt_evidence(evidence: list[dict[str, Any]]) -> str:
         if ex["request_body"]:
             out.append(f"  - req body: `{_short(ex['request_body'])}`")
         resp_h = ", ".join(
-            f"{k}: {v}" for k, v in ex["response_headers"].items() if k.lower() in
-            ("location", "set-cookie", "content-type", "www-authenticate", "strict-transport-security")
+            f"{k}: {v}"
+            for k, v in ex["response_headers"].items()
+            if k.lower()
+            in (
+                "location",
+                "set-cookie",
+                "content-type",
+                "www-authenticate",
+                "strict-transport-security",
+            )
         )
         if resp_h:
             out.append(f"  - resp headers: {resp_h}")

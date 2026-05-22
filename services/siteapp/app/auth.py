@@ -126,15 +126,26 @@ def make_router(settings: Settings) -> APIRouter:
     @router.api_route("/logout", methods=["GET", "POST"], include_in_schema=False)
     async def logout(request: Request) -> Response:
         cookie = request.headers.get("cookie", "")
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+        proto = request.headers.get("x-forwarded-proto") or "https"
         # Authelia 4.38 /api/logout is POST-only; it invalidates the session
-        # server-side but does not emit a Set-Cookie header.  We POST to
-        # invalidate, then clear the client-side cookie ourselves.
+        # server-side but does not emit a Set-Cookie header. Authelia matches
+        # the session by cookie domain, so we must forward X-Forwarded-Host —
+        # otherwise the in-cluster request (Host: authelia:9091) fails the
+        # session-domain check and the logout is a no-op (audit 2.1, 2.2).
+        # We POST to invalidate, then clear the client-side cookie ourselves.
         try:
-            await client.post("/api/logout", headers={"Cookie": cookie})
+            await client.post(
+                "/api/logout",
+                headers={
+                    "Cookie": cookie,
+                    "X-Forwarded-Host": host,
+                    "X-Forwarded-Proto": proto,
+                },
+            )
         except httpx.RequestError:
             pass
         resp = RedirectResponse("/", status_code=302)
-        host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
         domain = host.split(":")[0]  # strip port if present
         # Expire the authelia_session cookie. Domain-scoped to match the one
         # Authelia set; the browser only deletes a cookie when (name, domain,
@@ -142,7 +153,7 @@ def make_router(settings: Settings) -> APIRouter:
         resp.raw_headers.append(
             (
                 b"set-cookie",
-                f"authelia_session=; Max-Age=0; domain={domain}; path=/; HttpOnly; SameSite=Lax".encode(
+                f"authelia_session=; Max-Age=0; domain={domain}; path=/; HttpOnly; Secure; SameSite=Lax".encode(
                     "latin-1"
                 ),
             )
@@ -159,7 +170,7 @@ def make_router(settings: Settings) -> APIRouter:
             resp.raw_headers.append(
                 (
                     b"set-cookie",
-                    f"{cookie_name}=; Max-Age=0; path=/grafana; HttpOnly; SameSite=Lax".encode(
+                    f"{cookie_name}=; Max-Age=0; path=/grafana; HttpOnly; Secure; SameSite=Lax".encode(
                         "latin-1"
                     ),
                 )
@@ -176,13 +187,19 @@ def make_router(settings: Settings) -> APIRouter:
     @router.get("/_errors/403", response_class=HTMLResponse, include_in_schema=False)
     async def error_403(request: Request) -> HTMLResponse:
         return templates.TemplateResponse(
-            request, "error_403.html", {"attempted_path": _attempted_path(request)}
+            request,
+            "error_403.html",
+            {"attempted_path": _attempted_path(request)},
+            status_code=403,
         )
 
     @router.get("/_errors/404", response_class=HTMLResponse, include_in_schema=False)
     async def error_404(request: Request) -> HTMLResponse:
         return templates.TemplateResponse(
-            request, "error_404.html", {"attempted_path": _attempted_path(request)}
+            request,
+            "error_404.html",
+            {"attempted_path": _attempted_path(request)},
+            status_code=404,
         )
 
     return router

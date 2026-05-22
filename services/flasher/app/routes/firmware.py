@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 from pathlib import Path
 from typing import Any
 
@@ -73,7 +74,10 @@ def _require_bearer(authorization: str | None, expected: str) -> None:
                 "detail": "Authorization: Bearer <token> required",
             },
         )
-    if authorization[len("Bearer ") :] != expected:
+    provided = authorization[len("Bearer ") :]
+    # compare_digest avoids a timing side-channel and accepts unequal-length
+    # inputs without raising. Mirrors services/flasher/app/routes/agent.py.
+    if not secrets.compare_digest(provided.encode(), expected.encode()):
         raise HTTPException(
             status_code=401,
             detail={
@@ -238,10 +242,18 @@ def make_router(settings: Settings, conn_factory, blobs_root: Path) -> APIRouter
 
     @router.get("/api/v1/firmware")
     async def bearer_get_by_sha256(
-        sha256: str = Query(),
+        sha256: str | None = Query(default=None),
         authorization: str | None = Header(default=None),
     ) -> dict[str, Any]:
         _require_bearer(authorization, settings.upload_token)
+        if not sha256:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "missing query",
+                    "detail": "sha256 query parameter required",
+                },
+            )
         async with conn_factory() as conn:
             row = await get_firmware_by_sha256(conn, sha256=sha256)
         if row is None:
