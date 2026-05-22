@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.16.0...v0.16.1) (2026-05-22)
+
+
+### Bug Fixes
+
+* **siteapp:** align docs nav title, header height, dark-mode sign-in CTA ([#115](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/115)) ([831a264](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/831a2642bb73f874df2c74fa1b4b4e17cb538ffd))
+
 ## [0.16.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.15.0...v0.16.0) (2026-05-21)
 
 
