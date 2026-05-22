@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.17.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.16.4...v0.17.0) (2026-05-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **siteapp:** manifest-driven docs sidebar nav ([#128](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/128))
+
+### Features
+
+* **siteapp:** manifest-driven docs sidebar nav ([#128](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/128)) ([36cf679](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/36cf679909b8be609e67fdaf81bdf41f394fb859))
+
+
+### Bug Fixes
+
+* **siteapp:** accept all methods on /_errors/{403,404} (1.6 follow-up) ([#127](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/127)) ([75ac35f](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/75ac35f656cf6e076b4c3fa86f60d03ee1cee12b))
+
 ## [0.16.4](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.16.3...v0.16.4) (2026-05-22)
 
 
