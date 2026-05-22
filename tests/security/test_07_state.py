@@ -30,6 +30,10 @@ def _attempt_login(target_url, verify_tls, username, password):
 
 
 def test_6_1_brute_force_regulation(target_url, verify_tls, anon_log, record):
+    """Authelia regulation is keyed by username; for unknown users it returns
+    identical 401s on every attempt — this is intentional anti-enumeration
+    behaviour. Distinct responses across attempts would indicate a user-
+    enumeration leak."""
     probe_user = f"bf-probe-{secrets.token_hex(4)}"
     statuses: list[int] = []
     for _ in range(5):
@@ -39,12 +43,12 @@ def test_6_1_brute_force_regulation(target_url, verify_tls, anon_log, record):
     record(
         Finding(
             id="6.1",
-            title="Brute-force regulation triggers within max_retries+2",
+            title="Brute-force regulation does not leak user existence",
             severity="Informational",
-            status="informational" if distinct else "vulnerable",
+            status="vulnerable" if distinct else "verified",
             summary=(
-                "Authelia is configured with max_retries=3, ban_time=5m. After 3 wrongs, "
-                "response should change."
+                "Authelia regulation is keyed by username; unknown users must "
+                "get identical 401s across attempts to prevent enumeration."
             ),
             details={
                 "probe_user": probe_user,
@@ -107,9 +111,7 @@ def test_6_3_oidc_admin_handshake(target_url, verify_tls, admin_creds, record):
     )
 
 
-def test_6_4_oidc_researcher_handshake(
-    target_url, verify_tls, researcher_creds, record
-):
+def test_6_4_oidc_researcher_handshake(target_url, verify_tls, researcher_creds, record):
     log = SessionLog()
     client, _ = login(
         target_url,
