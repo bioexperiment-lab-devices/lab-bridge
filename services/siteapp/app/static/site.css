@@ -169,7 +169,8 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 14px 32px;
+  height: 56px;
+  padding: 0 32px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   /* no shadow by default; added on scroll via .is-scrolled */
@@ -586,7 +587,16 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   transition: background 100ms;
 }
 .lb-signed-out__cta:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-[data-theme="dark"] .lb-signed-out__cta { color: var(--text-inverse); }
+[data-theme="dark"] .lb-signed-out__cta {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+[data-theme="dark"] .lb-signed-out__cta:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  filter: brightness(1.08);
+}
 .lb-signed-out__cta svg { width: 14px; height: 14px; }
 .lb-signed-out__admin {
   font-size: 12px;
@@ -1323,7 +1333,7 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   flex: 0 0 256px;
   background: var(--surface-strip);
   border-right: 1px solid var(--border);
-  padding: 18px 0 24px;
+  padding: 0 0 24px;
   overflow-y: auto;
   align-self: stretch;
   /* Stick the sidebar to viewport top so it stays put while the article
@@ -1336,9 +1346,10 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 18px 14px;
+  height: 56px;
+  padding: 0 18px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -1346,16 +1357,10 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   border-bottom: 1px solid var(--border);
   margin-bottom: 10px;
 }
-.lb-docs-side__brand svg {
-  width: 14px;
-  height: 14px;
-  display: block;
-  color: var(--accent);
-}
 .lb-docs-side__group {
   padding: 16px 18px 4px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.12em;
