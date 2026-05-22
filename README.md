@@ -39,10 +39,15 @@ Services on the `labnet` Docker network:
 - **caddy** — TLS edge on 80/443, applies the route table below, and injects a
   shared navbar into every HTML response.
 - **siteapp** — FastAPI service serving the home page, public docs (`/docs/`),
-  the agent download (`/download/agent`), and the public API (`/api/public/*`).
+  the agent download (`/download/agent`), the login form at `/login`, and the
+  public API (`/api/public/*`).
+- **authelia** — Identity provider behind every protected route. Caddy gates
+  `/flash/*`, `/grafana/*`, and `/jupyter/*` via `forward_auth`; Grafana
+  additionally completes an OIDC handshake against Authelia to map groups onto
+  Grafana roles.
 - **flasher** — Firmware library and flashing UI at `/flash/*`; pushes firmware
   to lab devices over the chisel tunnels.
-- **jupyter** — Shared JupyterLab at `/jupyter/`, cookie-authenticated.
+- **jupyter** — Shared JupyterLab at `/jupyter/`, gated by Authelia.
 - **chisel** — Public chisel server. Reverse tunnels expose device ports to the
   VPS; a forward tunnel pushes lab-agent logs to Loki.
 - **grafana**, **loki**, **prometheus**, **node-exporter**, **cadvisor** —
@@ -57,9 +62,12 @@ Route map:
 | `/download/*` | siteapp | public |
 | `/api/agent/upload` | siteapp | bearer token |
 | `/api/public/*` | siteapp | public |
-| `/jupyter/*` | jupyter | shared password |
-| `/grafana/*` | grafana | own login |
-| `/flash/*` | flasher | admin basic_auth |
+| `/login`, `/logout` | siteapp | public (login form) |
+| `/api/auth/*` | siteapp | public (firstfactor proxy) |
+| `/auth/*` | authelia | public (OIDC + portal) |
+| `/jupyter/*` | jupyter | Authelia (any user) |
+| `/grafana/*` | grafana | Authelia + OIDC |
+| `/flash/*` | flasher | Authelia (admins group) |
 | `/_shared/*` | caddy (navbar) | public |
 
 Each service lives at `services/<name>/` with its own Dockerfile, tests, and CI
@@ -108,7 +116,12 @@ Run tests at each layer:
 cd services/siteapp && uv run pytest                 # unit
 cd services/siteapp && uv run pytest tests/e2e/      # service e2e
 bats tests/integration/test_routes_smoke.bats        # cross-service wiring
+bash scripts/security_audit.sh                       # security audit (preprod target)
 ```
+
+The security audit harness in `tests/security/` runs black-box probes
+(auth-bypass, header-smuggling, info-disclosure, …) against a live deployment.
+See `docs/security/` for the latest report.
 
 To add a new service, follow `docs/adding-a-service.md`.
 
@@ -119,9 +132,9 @@ and recovery.
 
 1. Open a PR. Conventional Commit title (`feat fix chore docs refactor …`);
    squash-merge only.
-2. Per-service workflows (`pr-caddy`, `pr-siteapp`, `pr-flasher`, `pr-platform`)
-   gate the merge. `dorny/paths-filter` fast-skips workflows for services the PR
-   doesn't touch.
+2. Per-service workflows (`pr-caddy`, `pr-siteapp`, `pr-flasher`, `pr-authelia`,
+   `pr-platform`) gate the merge. `dorny/paths-filter` fast-skips workflows for
+   services the PR doesn't touch.
 3. After merge, release-please maintains a single platform release PR with the
    next version. Merging it cuts a `vX.Y.Z` tag.
 4. The tag triggers `release-please.yml`, which builds the service images to
@@ -161,17 +174,21 @@ See [docs/adding-a-user.md](docs/adding-a-user.md). Users are managed via
 
 ## Repo layout
 
-- `services/<name>/` — siteapp, flasher, caddy. Each has its own `Dockerfile`,
-  `app/`, `tests/`, `tests/e2e/`, and `build.sh`.
+- `services/<name>/` — siteapp, flasher, caddy, authelia. Each has its own
+  `Dockerfile`, `app/` (or `config/` for authelia), `tests/`, `tests/e2e/`, and
+  `build.sh`.
 - `compose/` — `docker-compose.yml.tmpl`, `Caddyfile.tmpl`, `pins.yaml` (image
   pins, paths, retention), `grafana/`, `loki/`, `prometheus/`, `shell/` (shared
   navbar assets).
-- `scripts/` — `provision.sh`, `deploy.sh`, `secrets.sh`, `ops.sh`, `doctor.sh`,
-  plus `lib/` helpers and a `fake_vps/` test container.
+- `scripts/` — `provision.sh`, `deploy.sh`, `secrets.sh`, `users.sh`, `ops.sh`,
+  `doctor.sh`, `security_audit.sh`, plus `lib/` helpers and a `fake_vps/` test
+  container.
 - `public_docs/` — Markdown for the public documentation portal; deployed via
   the `deploy-public-docs` workflow on every push to main. Drop a `*.ru.md` next
   to any `*.md` to surface an EN/RU language toggle.
 - `tests/integration/` — bats suites for cross-service wiring (`task test`).
+- `tests/security/` — pytest-based black-box security audit harness; runs via
+  `scripts/security_audit.sh` against a live deployment.
 - `.github/workflows/` — per-service PR workflows, `release-please.yml`,
   `ghcr-cleanup.yml`, `deploy-public-docs.yml`.
 - `docs/superpowers/specs/` — design docs covering the base stack, CI/CD, the
