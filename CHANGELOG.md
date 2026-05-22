@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.3](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.16.2...v0.16.3) (2026-05-22)
+
+
+### Bug Fixes
+
+* **siteapp:** re-render mermaid diagrams on theme toggle ([#123](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/123)) ([ee58e38](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/ee58e3803ca8901cc2bedecd1c551bf7690533d8))
+
 ## [0.16.2](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.16.1...v0.16.2) (2026-05-22)
 
 
