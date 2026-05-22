@@ -134,3 +134,74 @@ def test_prev_next_across_top_level():
     # System-overview comes after Researchers section (top-level order is dirs then files).
     assert prev is not None and prev.title_en == "Researchers"
     assert nxt is None
+
+
+def test_manifest_drives_root_order(tmp_path: Path) -> None:
+    d = tmp_path / "docs-root"
+    d.mkdir(exist_ok=True)
+    (d / "index.md").write_text("# Home\n", encoding="utf-8")
+    (d / "alpha.md").write_text("# Alpha\n", encoding="utf-8")
+    (d / "guide.md").write_text("# Guide\n", encoding="utf-8")
+    (d / "_nav.yaml").write_text("- name: guide\n- name: alpha\n", encoding="utf-8")
+    nav = build_nav(d)
+    assert [e.title_en for e in nav] == ["Home", "Guide", "Alpha"]
+
+
+def test_manifest_title_override(tmp_path: Path) -> None:
+    d = tmp_path / "docs-root"
+    d.mkdir(exist_ok=True)
+    (d / "intro.md").write_text("# Long intro heading\n", encoding="utf-8")
+    (d / "_nav.yaml").write_text('- name: intro\n  title: "Intro"\n', encoding="utf-8")
+    nav = build_nav(d)
+    intro = next(e for e in nav if e.url == "/docs/intro")
+    assert intro.title_en == "Intro"
+
+
+def test_manifest_hidden_omits_from_nav(tmp_path: Path) -> None:
+    d = tmp_path / "docs-root"
+    d.mkdir(exist_ok=True)
+    (d / "intro.md").write_text("# Intro\n", encoding="utf-8")
+    (d / "draft.md").write_text("# Draft\n", encoding="utf-8")
+    (d / "_nav.yaml").write_text("- name: intro\n- name: draft\n  hidden: true\n", encoding="utf-8")
+    nav = build_nav(d)
+    urls = [e.url for e in nav]
+    assert "/docs/intro" in urls
+    assert "/docs/draft" not in urls
+
+
+def test_manifest_home_pinned_first(tmp_path: Path) -> None:
+    # Even if the root manifest lists other things first, Home (the root
+    # index.md) is implicit and pinned at position 0.
+    d = tmp_path / "docs-root"
+    d.mkdir(exist_ok=True)
+    (d / "index.md").write_text("# Home\n", encoding="utf-8")
+    (d / "intro.md").write_text("# Intro\n", encoding="utf-8")
+    (d / "_nav.yaml").write_text("- name: intro\n", encoding="utf-8")
+    nav = build_nav(d)
+    assert nav[0].url == "/docs/"
+    assert nav[1].url == "/docs/intro"
+
+
+def test_manifest_section_walks_subdir_manifest(tmp_path: Path) -> None:
+    d = tmp_path / "docs-root"
+    sec = d / "researcher"
+    sec.mkdir(parents=True)
+    (d / "_nav.yaml").write_text("- name: researcher\n", encoding="utf-8")
+    (sec / "index.md").write_text("# Researcher\n", encoding="utf-8")
+    (sec / "first-notebook.md").write_text("# First notebook\n", encoding="utf-8")
+    (sec / "_nav.yaml").write_text("- name: first-notebook\n", encoding="utf-8")
+    nav = build_nav(d)
+    researcher = next(e for e in nav if e.url == "/docs/researcher/")
+    assert [c.url for c in researcher.children] == ["/docs/researcher/first-notebook"]
+
+
+def test_fallback_still_works_when_no_manifest(tmp_path: Path) -> None:
+    # Transitional: while the fallback is in place, a docs root with no
+    # manifests at any level still renders via the alphabetic walk. Task 7
+    # removes this behavior.
+    d = tmp_path / "docs-root"
+    d.mkdir(exist_ok=True)
+    (d / "index.md").write_text("# Home\n", encoding="utf-8")
+    (d / "alpha.md").write_text("# Alpha\n", encoding="utf-8")
+    nav = build_nav(d)
+    assert {e.url for e in nav} == {"/docs/", "/docs/alpha"}

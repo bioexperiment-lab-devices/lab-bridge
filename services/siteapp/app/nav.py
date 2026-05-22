@@ -4,6 +4,12 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.docs_manifest import (
+    MANIFEST_FILENAME,
+    ManifestEntry,
+    load_dir_manifest,
+)
+
 # Best-effort first-H1 extractor. Intentionally simpler than the markdown
 # parser so this module stays dependency-free; can diverge from the rendered
 # title for setext headings and `#` lines inside fenced code blocks. For
@@ -33,21 +39,84 @@ class NavEntry:
 def build_nav(docs_root: Path) -> list[NavEntry]:
     if not docs_root.is_dir():
         return []
-    return _walk(docs_root, url_prefix="/docs/")
+    return _build_level(docs_root, url_prefix="/docs/", is_root=True)
 
 
-def _walk(directory: Path, url_prefix: str) -> list[NavEntry]:
+def _build_level(directory: Path, url_prefix: str, is_root: bool) -> list[NavEntry]:
+    manifest_path = directory / MANIFEST_FILENAME
+    if manifest_path.is_file():
+        entries = load_dir_manifest(directory)
+        return _from_manifest(directory, entries, url_prefix, is_root)
+    # Fallback: no manifest in this directory. Used during transition (Task 4)
+    # and by tests written before manifests existed. Task 7 removes this branch
+    # and makes a missing manifest an error.
+    return _from_alphabetic(directory, url_prefix, is_root)
+
+
+def _from_manifest(
+    directory: Path,
+    entries: list[ManifestEntry],
+    url_prefix: str,
+    is_root: bool,
+) -> list[NavEntry]:
+    result: list[NavEntry] = []
+    if is_root:
+        home = _maybe_home(directory, url_prefix)
+        if home is not None:
+            result.append(home)
+    for entry in entries:
+        if entry.hidden:
+            continue
+        result.append(_entry_to_nav(directory, entry, url_prefix))
+    return result
+
+
+def _entry_to_nav(directory: Path, entry: ManifestEntry, url_prefix: str) -> NavEntry:
+    file_path = directory / f"{entry.name}.md"
+    if file_path.is_file():
+        title_en, title_ru = _read_titles(
+            file_path, file_path.with_name(f"{entry.name}.ru.md"), entry.name
+        )
+        return NavEntry(
+            title_en=entry.title or title_en,
+            title_ru=title_ru,
+            url=url_prefix + entry.name,
+        )
+    sub = directory / entry.name
+    index = sub / "index.md"
+    title_en, title_ru = _read_titles(index, sub / "index.ru.md", entry.name)
+    children = _build_level(sub, url_prefix + entry.name + "/", is_root=False)
+    return NavEntry(
+        title_en=entry.title or title_en,
+        title_ru=title_ru,
+        url=url_prefix + entry.name + "/",
+        children=tuple(children),
+    )
+
+
+def _maybe_home(directory: Path, url_prefix: str) -> NavEntry | None:
+    index = directory / "index.md"
+    if not index.is_file():
+        return None
+    title_en, title_ru = _read_titles(index, directory / "index.ru.md", "Home")
+    return NavEntry(title_en=title_en, title_ru=title_ru, url=url_prefix)
+
+
+def _from_alphabetic(directory: Path, url_prefix: str, is_root: bool) -> list[NavEntry]:
+    """Pre-manifest behavior. Removed in Task 7."""
     dirs: list[NavEntry] = []
     files: list[NavEntry] = []
-    home_entry: NavEntry | None = None
+    home_entry: NavEntry | None = _maybe_home(directory, url_prefix) if is_root else None
+
     for child in sorted(directory.iterdir(), key=lambda p: p.name.lower()):
         if child.name.startswith("."):
             continue
+        if child.name == MANIFEST_FILENAME:
+            continue
         if child.is_dir():
             index = child / "index.md"
-            children = _walk(child, url_prefix + child.name + "/")
+            children = _build_level(child, url_prefix + child.name + "/", is_root=False)
             if not index.is_file():
-                # Directory with no index.md — still walk it. Title falls back to dir name.
                 if children:
                     dirs.append(
                         NavEntry(
@@ -67,28 +136,16 @@ def _walk(directory: Path, url_prefix: str) -> list[NavEntry]:
                     children=tuple(children),
                 )
             )
-        elif child.is_file() and child.suffix == ".md" and not child.name.endswith(".ru.md"):
+        elif (
+            child.is_file()
+            and child.suffix == ".md"
+            and not child.name.endswith(".ru.md")
+            and child.stem != "index"
+        ):
             stem = child.stem
-            if stem == "index":
-                # The root-level index.md is exposed as a sidebar entry pointing at /docs/.
-                # For sub-directory index.md files, the section's NavEntry already represents
-                # the index — don't duplicate it here.
-                if url_prefix == "/docs/":
-                    title_en, title_ru = _read_titles(child, child.with_name("index.ru.md"), "Home")
-                    home_entry = NavEntry(title_en=title_en, title_ru=title_ru, url=url_prefix)
-                continue
             title_en, title_ru = _read_titles(child, child.with_name(stem + ".ru.md"), stem)
-            files.append(
-                NavEntry(
-                    title_en=title_en,
-                    title_ru=title_ru,
-                    url=url_prefix + stem,
-                )
-            )
-    # Order at every level: Home (the root index.md, only at /docs/) → directory
-    # sections → other root-level files. Putting the welcome page first matches
-    # the docs design, where the index lives above the section group headers
-    # rather than between them and the trailing root-level files.
+            files.append(NavEntry(title_en=title_en, title_ru=title_ru, url=url_prefix + stem))
+
     result: list[NavEntry] = []
     if home_entry is not None:
         result.append(home_entry)
