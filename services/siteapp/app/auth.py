@@ -176,13 +176,19 @@ def make_router(settings: Settings) -> APIRouter:
     @router.get("/_errors/403", response_class=HTMLResponse, include_in_schema=False)
     async def error_403(request: Request) -> HTMLResponse:
         return templates.TemplateResponse(
-            request, "error_403.html", {"attempted_path": _attempted_path(request)}
+            request,
+            "error_403.html",
+            {"attempted_path": _attempted_path(request)},
+            status_code=403,
         )
 
     @router.get("/_errors/404", response_class=HTMLResponse, include_in_schema=False)
     async def error_404(request: Request) -> HTMLResponse:
         return templates.TemplateResponse(
-            request, "error_404.html", {"attempted_path": _attempted_path(request)}
+            request,
+            "error_404.html",
+            {"attempted_path": _attempted_path(request)},
+            status_code=404,
         )
 
     return router
