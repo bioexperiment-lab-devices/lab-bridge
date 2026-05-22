@@ -57,6 +57,18 @@ https://__VPS_HOST__ {
         }
     }
 
+    # ─── Global security headers ─────────────────────────────────────────
+    # Applied to every response except where a child `handle` block sets
+    # its own Content-Security-Policy (Grafana / Jupyter override below).
+    # Audit finding 5.1.
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options    "nosniff"
+        Referrer-Policy           "strict-origin-when-cross-origin"
+        Content-Security-Policy   "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'"
+        -Server
+    }
+
     # ─── Platform shell assets ───────────────────────────────────────────
     handle /_shared/* {
         uri strip_prefix /_shared
