@@ -18,12 +18,10 @@ from pygments.token import Comment, Keyword, Name, Number, Operator, Punctuation
 from pygments.util import ClassNotFound
 
 
-class _CodeStyle(Style):
-    """Code-block token palette.
+class _CodeStyleDark(Style):
+    """Code-block token palette tuned for the dark surface.
 
-    The code-block surface is always dark (see `.lb-code` in `site.css`),
-    so we only ship one palette tuned for the dark background — the same
-    colors the design uses for its `.lb-tok-*` classes.
+    The same colors the design uses for its `.lb-tok-*` classes.
     """
 
     default_style = ""
@@ -39,6 +37,29 @@ class _CodeStyle(Style):
         Comment: "italic #6B6759",  # gray
         Operator: "#8FB3E8",  # blue
         Punctuation: "#8FB3E8",  # blue
+    }
+
+
+class _CodeStyleLight(Style):
+    """Code-block token palette tuned for the light surface.
+
+    Same semantic role per token as the dark palette, but with hues that
+    keep contrast on the cream `--surface-sunken` background.
+    """
+
+    default_style = ""
+    background_color = "transparent"
+    styles = {
+        Token: "#1A1916",  # plain
+        Keyword: "#6F2DA8",  # purple
+        Name.Function: "#1F4E79",
+        Name.Class: "#1F4E79",
+        Name.Builtin: "#1F4E79",
+        String: "#2F7D3F",  # green
+        Number: "#946A00",  # amber
+        Comment: "italic #8A8678",  # gray
+        Operator: "#1F4E79",  # blue
+        Punctuation: "#1F4E79",  # blue
     }
 
 
@@ -160,7 +181,9 @@ def _highlight(code: str, name: str | None, attrs: object) -> str:
         lexer = get_lexer_by_name(name)
     except ClassNotFound:
         return ""
-    formatter = HtmlFormatter(style=_CodeStyle, nowrap=True)
+    # Either palette works: pygments emits class names from the Token type,
+    # not from the style's colors, and both palettes style the same tokens.
+    formatter = HtmlFormatter(style=_CodeStyleDark, nowrap=True)
     inner = highlight(code, lexer, formatter).rstrip("\n")
     safe_lang = re.sub(r"[^a-zA-Z0-9_-]", "", name)
     title = _parse_title(attrs)
@@ -400,18 +423,22 @@ def render_markdown(text: str) -> Rendered:
     return Rendered(html=_sanitize(raw_html), title=title, needs_mermaid=needs_mermaid)
 
 
-_PYGMENTS_BG_RE = re.compile(r"^\.highlight\s*\{[^}]*\}\s*$", re.MULTILINE)
-
-
-def _theme_css(style: type[Style]) -> str:
-    """Pygments style defs minus the embedded `.highlight { background: ... }`
-    rule, which would otherwise override the page's own --code-bg variable."""
-    css = HtmlFormatter(style=style, cssclass="highlight").get_style_defs(".highlight")
-    return _PYGMENTS_BG_RE.sub("", css).strip()
+def _theme_css(style: type[Style], selector: str = ".highlight") -> str:
+    """Pygments style defs minus the embedded `{selector} { background: ... }`
+    rule, which would otherwise override the page's own surface color."""
+    css = HtmlFormatter(style=style, cssclass="highlight").get_style_defs(selector)
+    bg_re = re.compile(r"^" + re.escape(selector) + r"\s*\{[^}]*\}\s*$", re.MULTILINE)
+    return bg_re.sub("", css).strip()
 
 
 def pygments_css() -> str:
-    """Code-highlighting CSS. Code blocks live on a permanent dark surface
-    (see `.lb-code` in `site.css`), so we ship a single dark palette rather
-    than gating one variant behind `[data-theme="dark"]`."""
-    return _theme_css(_CodeStyle) + "\n"
+    """Code-highlighting CSS for both themes.
+
+    Light palette applies by default; dark palette is scoped under
+    `[data-theme="dark"]` so it activates only when the site is in dark mode.
+    Order matters: dark must follow light to win the cascade with equal
+    selector specificity inside the dark theme.
+    """
+    light = _theme_css(_CodeStyleLight)
+    dark = _theme_css(_CodeStyleDark, '[data-theme="dark"] .highlight')
+    return light + "\n" + dark + "\n"

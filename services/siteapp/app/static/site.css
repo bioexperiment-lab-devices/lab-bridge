@@ -1734,14 +1734,15 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
 }
 
 /* ============================================================
-   Code blocks — always dark surface, mono caption + Copy button
+   Code blocks — theme-aware surface, mono caption + Copy button
    Emitted by markdown.py as <figure class="lb-code">…
+   Defaults below target the light theme; dark overrides follow.
    ============================================================ */
 .lb-docs-article__body .lb-code {
   position: relative;
-  background: #1A1916;
-  color: #E7E3D6;
-  border: 1px solid #34322D;
+  background: var(--surface-sunken);
+  color: var(--text);
+  border: 1px solid var(--border);
   border-radius: 6px;
   margin: 6px 0 18px;
   overflow: hidden;
@@ -1751,17 +1752,17 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   align-items: center;
   gap: 8px;
   padding: 7px 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(26, 25, 22, 0.04);
+  border-bottom: 1px solid var(--border);
   font-family: var(--font-mono);
   font-size: 10.5px;
-  color: #9C988A;
+  color: var(--text-muted);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.lb-code__lang { color: #C7C3B5; }
+.lb-code__lang { color: var(--text-secondary); }
 .lb-code__file {
-  color: #6B6759;
+  color: var(--text-muted);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -1769,9 +1770,9 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
 .lb-code__copy {
   margin-left: auto;
   appearance: none;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #C7C3B5;
+  background: rgba(26, 25, 22, 0.05);
+  border: 1px solid rgba(26, 25, 22, 0.12);
+  color: var(--text-secondary);
   font: inherit;
   font-family: var(--font-mono);
   font-size: 11px;
@@ -1784,9 +1785,9 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   align-items: center;
   gap: 5px;
 }
-.lb-code__copy:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.lb-code__copy:hover { background: rgba(26, 25, 22, 0.09); color: var(--text); }
 .lb-code__copy.is-copied,
-.lb-code__copy[data-copied="true"] { color: #93D29D; }
+.lb-code__copy[data-copied="true"] { color: #2F7D3F; }
 .lb-code__copy.is-copied::before,
 .lb-code__copy[data-copied="true"]::before { content: "✓ "; }
 
@@ -1804,11 +1805,32 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   background: transparent;
   border: 0;
   padding: 0;
-  color: #E7E3D6;
+  color: inherit;
   font-family: var(--font-mono);
   font-size: 12.5px;
   white-space: pre;
 }
+
+/* Dark theme: keep the saturated dark surface the design uses and flip
+   the alpha overlays from black-on-light to white-on-dark. */
+[data-theme="dark"] .lb-docs-article__body .lb-code {
+  background: #1A1916;
+  border-color: #34322D;
+}
+[data-theme="dark"] .lb-code__head {
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .lb-code__copy {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+[data-theme="dark"] .lb-code__copy:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+[data-theme="dark"] .lb-code__copy.is-copied,
+[data-theme="dark"] .lb-code__copy[data-copied="true"] { color: #93D29D; }
 
 
 /* ============================================================

@@ -239,10 +239,15 @@ def test_h2_gets_permalink_anchor():
     assert 'class="lb-anchor"' in out
 
 
-def test_pygments_css_emits_single_palette():
+def test_pygments_css_emits_both_palettes():
     css = pygments_css()
-    # Code blocks live on a permanent dark surface (`.lb-code`), so the
-    # highlighter ships ONE palette — no media-query or data-theme gating.
+    # Light palette applies by default; dark palette is scoped under
+    # [data-theme="dark"] so it activates only when the site is in dark mode.
     assert ".highlight" in css
-    assert '[data-theme="dark"]' not in css
+    assert '[data-theme="dark"] .highlight' in css
+    # We rely on data-theme (driven by the site's own toggle), not OS pref.
     assert "@media (prefers-color-scheme: dark)" not in css
+    # The embedded `{selector} { background: ... }` rule pygments injects
+    # must be stripped for both scopes, otherwise it overrides .lb-code.
+    assert ".highlight { background:" not in css
+    assert '[data-theme="dark"] .highlight { background:' not in css
