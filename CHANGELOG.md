@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.4](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.16.3...v0.16.4) (2026-05-22)
+
+
+### Bug Fixes
+
+* **security:** remediate 2026-05-22 audit — critical + high + medium + low vulnerable findings ([#125](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/125)) ([1513af7](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/1513af7520aefdee3a9aca4d2ae9284b5c9c5eac))
+
 ## [0.16.3](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.16.2...v0.16.3) (2026-05-22)
 
 
