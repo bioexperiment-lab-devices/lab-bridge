@@ -3,7 +3,7 @@
 lab-bridge is a single platform for running and managing remote lab
 experiments. Researchers drive bench instruments from a shared JupyterLab;
 operators install a small Windows agent (SerialHop) on each lab PC; admins
-run the whole thing from one VPS. Use the table below to find your section.
+run the whole thing from one server. Use the table below to find your section.
 
 ## Find your section
 
@@ -25,7 +25,7 @@ flowchart LR
         Instrument <--> Agent
     end
 
-    subgraph VPSbox["VPS · single TLS endpoint"]
+    subgraph ServerBox["Lab-bridge server · single TLS endpoint"]
         JupyterLab
         Loki
         Grafana
@@ -39,6 +39,6 @@ flowchart LR
     Operator(((Operator))) --> Grafana
 ```
 
-Three pieces — JupyterLab on the VPS (researcher workspace), SerialHop on
-each lab PC (Windows agent), Grafana + Loki (observability). The
-[Architecture section](/docs/architecture/) goes deep on each.
+Three pieces — JupyterLab on the lab-bridge server (researcher workspace),
+SerialHop on each lab PC (Windows agent), Grafana + Loki (observability).
+The [Architecture section](/docs/architecture/) goes deep on each.
