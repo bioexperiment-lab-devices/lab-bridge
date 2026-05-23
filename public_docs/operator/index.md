@@ -11,8 +11,9 @@ As a lab operator you install SerialHop on the Windows PC that has the instrumen
 ## Ongoing tasks
 
 - Keep instruments plugged into the lab PC.
-- Check the lab-bridge home page roster periodically — if your lab shows OFFLINE, open the SerialHop control panel (double-click `SerialHop.exe`) and click **Restart** on the Status tab.
-- Watch `/grafana/d/lab-bridge-client-logs/lab-client-logs?var-client=<your-lab>` if a researcher reports a problem. The same stream is available locally in the panel's Logs tab, newest first, with level + free-text filtering.
+- When you're at the lab PC, open SerialHop from the desktop shortcut and check the **Status** tab — the **Reverse tunnel** lamp is the source of truth for whether the lab is connected. If it's not connected, click **Restart**.
+- Remotely, [the lab-bridge home page](/) roster is a convenient glance: your lab shows ONLINE while the tunnel is up. Don't rely on it for diagnosis — use the Status tab on the lab PC for that.
+- Watch `/grafana/d/lab-bridge-client-logs/lab-client-logs?var-client=<your-lab>` if a researcher reports a problem. The same stream is available locally in the panel's **Logs** tab, newest first, with level + free-text filtering.
 
 ## Reading order
 

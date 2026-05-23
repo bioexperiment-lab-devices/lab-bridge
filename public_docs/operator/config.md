@@ -11,9 +11,10 @@ The rest of this page is organised around the panel. The [Field reference](#fiel
 
 ## Editing through the panel
 
-Open `SerialHop.exe` (or the Start Menu shortcut) and switch to the **Config** tab. Fields are grouped by section: **lab-bridge**, **REST**, **discovery**, **log**, **raw serial**, **auto-update**, **firmware flashing**.
+Open SerialHop from the desktop shortcut (or the Start Menu entry) and switch to the **Config** tab. Fields are grouped by section: **lab-bridge**, **REST**, **discovery**, **log**, **raw serial**, **auto-update**, **firmware flashing**. Each field has an inline help blurb in the panel — that's where the authoritative per-field documentation lives.
 
 - **Validation is per field.** The lab-bridge host must be an IPv4 address or RFC 1123 hostname (IPv6 is not supported). Integer fields can be cleared. Bad values are flagged inline; you can't save until they're fixed.
+- **Lab-bridge credentials are validated against the server at save time.** If the username/password are rejected by the lab-bridge VPS, the save doesn't go through. The one exception is when the **Host** is unreachable: the panel surfaces a warning dialog and lets you save anyway (use this only if you know the host is right and connectivity is temporarily down).
 - **Switching tabs with unsaved edits** opens a confirmation modal that lists exactly which fields are dirty, so you don't lose work by accident.
 - **The default save action is Save & restart.** SerialHop reads config only at service startup, so restarting the service is how new values take effect. The button does both for you.
 - **Open config file** reveals `SerialHop_config.yaml` in Windows Explorer, in case you want to look at the file directly or copy it elsewhere.
@@ -26,7 +27,7 @@ The service reads the YAML only at startup, so the safe edit flow is:
 2. Make your edit and save.
 3. Click **Restart** on the panel's Status tab. From an elevated terminal, `sc stop SerialHop && sc start SerialHop` does the same thing.
 
-A first install writes a scaffold file with inline comments describing every field, so you're editing against a working example.
+Direct edits bypass the panel's per-field validation and the server-side credential check, so it's easy to write a YAML the service refuses to load. The [Field reference](#field-reference) below names every key and lists what's valid. If you need free-form per-field guidance, the panel's Config tab is the canonical source — the inline help next to each field stays in sync with the running version.
 
 If the YAML fails validation on next service start, the service won't come up and the panel's **Local-service** lamp stays red. Open the Logs tab — the validation error is logged with the offending field.
 
@@ -40,7 +41,7 @@ Change **lab-bridge → Host** (`lab_bridge.host`). Accepts an IPv4 address or h
 
 Change **lab-bridge → Username** and **Password** (`lab_bridge.user`, `lab_bridge.pass`). Both are required — the service will not start with either empty. They're used both for the chisel reverse-tunnel auth and as the Bearer-token identity on the lab-bridge public API.
 
-The initial values are set during install (or via the panel's first-run dialog). Rotating them later is a normal Config-tab edit. When the admin rotates on the VPS side (see [registering a new lab → rotating credentials](/docs/admin/labs#rotating-credentials)), update the password here and Save & restart.
+The initial values are entered after install (see [set up a new lab PC, step 2](/docs/operator/setup-lab-pc#2-enter-the-lab-bridge-credentials-in-the-config-tab)). Rotating them later is a normal Config-tab edit. When the admin rotates on the VPS side (see [registering a new lab → rotating credentials](/docs/admin/labs#rotating-credentials)), update the password here and Save & restart. The panel validates the new credentials against the server before writing them — if the admin gave you the wrong value, the save fails immediately rather than leaving you with a silently broken lab.
 
 ### Restrict discovery to specific COM ports
 
@@ -70,7 +71,7 @@ This unlocks the panel's Ports-tab command box and the `GET /serial/ports` and `
 
 ### Enable firmware flashing
 
-To allow SerialHop to flash a new Intel-HEX firmware to a connected AVR / optiboot board (Arduino Uno R3 today), turn on **firmware flashing → Enabled** (`flashing.enabled`). This unlocks the `POST /flash/{port}` REST endpoint. The panel does not expose a flash button today; flashing is initiated by the lab-bridge UI (see [the admin flashing guide](/docs/admin/flashing)).
+To allow SerialHop to flash a new Intel-HEX firmware to a connected AVR / optiboot board, turn on **firmware flashing → Enabled** (`flashing.enabled`). This unlocks the `POST /flash/{port}` REST endpoint. The panel itself never initiates a flash — flashing is driven from the [Flasher](/docs/admin/flashing) service on the VPS, which is admin-only.
 
 Two related fields:
 
@@ -78,7 +79,7 @@ Two related fields:
 - **Keep N backups** (`flashing.keep_n`) — how many backups to retain per COM port. Older backups are pruned after each completed flash. Default `10`. Set to `0` to keep all backups indefinitely.
 
 > [!WARNING]
-> Firmware flashing is materially riskier than raw serial: a bad HEX file can leave a board unresponsive ("bricked") until it's recovered with an ISP programmer. SerialHop's byte-verify and auto-rollback flow cover the common failure modes, but they can't cover everything. Only enable flashing on machines where the operators are aware that researchers can re-flash firmware remotely.
+> Firmware flashing is materially riskier than raw serial: a bad HEX file can leave a board unresponsive ("bricked") until it's recovered with an ISP programmer. SerialHop's byte-verify and auto-rollback flow cover the common failure modes, but they can't cover everything. Only enable flashing on labs where you're comfortable with the lab-bridge admin re-flashing firmware remotely via Flasher.
 
 ## Field reference
 
@@ -128,15 +129,15 @@ Every field in `SerialHop_config.yaml`. Defaults are what a fresh install writes
 
 | Field | Type | Default | Validation | Effect |
 |---|---|---|---|---|
-| `enabled` | bool | `false` | — | When `true`, unlocks `POST /flash/{port}`. AVR / optiboot only. |
+| `enabled` | bool | `false` | — | When `true`, unlocks `POST /flash/{port}`. AVR / optiboot-class boards only. |
 | `backup_dir` | string | `""` | absolute path when `enabled: true`; ignored otherwise | Where pre-flash backups are written. Empty falls back to `%ProgramData%\SerialHop\backups`. |
 | `keep_n` | integer | `10` | `>= 0` | How many backups per port to retain. `0` keeps all. |
 
 ## When something looks wrong
 
-Start in the panel's **Logs** tab. It tails the same structured logs the service writes, newest first, with a level + free-text filter and an inline detail view for structured fields. If the service failed to come up after a config change, the validation error is right there with the offending field name.
+Use the panel's **Logs** tab. It tails the same structured logs the service writes, newest first, with a level + free-text filter and an inline detail view for structured fields. If the service failed to come up after a config change, the validation error is right there with the offending field name — fix it in the Config tab and Save.
 
-If the panel itself won't open or the Logs tab is empty, the on-disk log is the fallback: `%ProgramData%\SerialHop\logs\SerialHop.log` (slog JSON; rotated at 10 MB × 3 backups). `SerialHop_stderr.log` in the same folder captures chisel output and any panics.
+Raw on-disk logs at `%ProgramData%\SerialHop\logs\SerialHop.log` (slog JSON, rotated at 10 MB × 3 backups) and `SerialHop_stderr.log` exist only as a deep fallback for the rare case where the panel itself won't open. Day-to-day, stay in the Logs tab.
 
 ## What's out of scope here
 
