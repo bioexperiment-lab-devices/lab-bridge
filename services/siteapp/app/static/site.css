@@ -1456,7 +1456,8 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   letter-spacing: 0.12em;
   color: var(--text-muted);
 }
-.lb-docs-side__item--folder[data-top-section="true"]:hover { color: var(--text); }
+.lb-docs-side__item--folder[data-top-section="true"]:hover,
+.lb-docs-side__item--folder[data-top-section="true"][data-active="true"] { color: var(--text); }
 
 /* Hover-state highlight: paint the hover backdrop across the entire folder
    row (label + toggle button) instead of stopping at the label's right edge.
