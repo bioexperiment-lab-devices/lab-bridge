@@ -21,7 +21,7 @@ Run the installer and follow the prompts. It places the binary, creates a Start 
 
 Open SerialHop from the desktop shortcut. The panel opens. Switch to the **Config** tab and fill in **lab-bridge**:
 
-- **Host** — the lab-bridge VPS hostname or IP the admin gave you (e.g. `111.88.145.138`).
+- **Host** — the lab-bridge host or IP address the admin gave you (e.g. `111.88.145.138`).
 - **Username** — your lab name. This is the identifier researchers pass to `LabDevicesClient(user=…)` in notebooks.
 - **Password** — the random secret the admin generated.
 
@@ -49,7 +49,7 @@ sequenceDiagram
     autonumber
     participant W as Windows boot
     participant S as SerialHop
-    participant V as VPS lab-bridge
+    participant V as Lab-bridge server
     participant P as Status tab
 
     W->>S: Start service (LocalSystem)
@@ -64,6 +64,6 @@ sequenceDiagram
 
 Always start in the panel — the **Status** tab tells you which subsystem is failing, the **Logs** tab tells you why.
 
-- **Reverse tunnel lamp not connected** — check the **Logs** tab for auth failures or YAML validation errors, then double-check the lab-bridge fields in the Config tab against the credentials your admin gave you (see [SerialHop config reference](/docs/operator/config)). If the credentials were valid when you saved them, the most common cause is the VPS being unreachable from the lab PC's network.
+- **Reverse tunnel lamp not connected** — check the **Logs** tab for auth failures or YAML validation errors, then double-check the lab-bridge fields in the Config tab against the credentials your admin gave you (see [SerialHop config reference](/docs/operator/config)). If the credentials were valid when you saved them, the most common cause is the configured host being unreachable from the lab PC's network.
 - **Local-service lamp red** — open the **Logs** tab; a YAML validation error names the offending field. Fix it in the Config tab and Save.
 - **Devices not detected** — click **Rediscover** on the Status tab. SerialHop re-scans serial ports and picks up any newly plugged-in device without restarting the service. If some boards consistently miss discovery, raise **discovery → Post-open settle** in the Config tab; see [the config reference](/docs/operator/config#discovery).

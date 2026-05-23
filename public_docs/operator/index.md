@@ -1,6 +1,6 @@
 # Lab operator guide
 
-As a lab operator you install SerialHop on the Windows PC that has the instruments physically connected, give it the lab-bridge credentials your server admin issued, and keep it running. SerialHop runs as a Windows service that survives reboots, so once it's installed and configured, the lab stays connected to the VPS without further babysitting.
+As a lab operator you install SerialHop on the Windows PC that has the instruments physically connected, give it the lab-bridge credentials your server admin issued, and keep it running. SerialHop runs as a Windows service that survives reboots, so once it's installed and configured, the lab stays connected to the lab-bridge server without further babysitting.
 
 ## One-time tasks
 

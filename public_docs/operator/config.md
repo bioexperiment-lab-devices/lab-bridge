@@ -14,7 +14,7 @@ The rest of this page is organised around the panel. The [Field reference](#fiel
 Open SerialHop from the desktop shortcut (or the Start Menu entry) and switch to the **Config** tab. Fields are grouped by section: **lab-bridge**, **REST**, **discovery**, **log**, **raw serial**, **auto-update**, **firmware flashing**. Each field has an inline help blurb in the panel — that's where the authoritative per-field documentation lives.
 
 - **Validation is per field.** The lab-bridge host must be an IPv4 address or RFC 1123 hostname (IPv6 is not supported). Integer fields can be cleared. Bad values are flagged inline; you can't save until they're fixed.
-- **Lab-bridge credentials are validated against the server at save time.** If the username/password are rejected by the lab-bridge VPS, the save doesn't go through. The one exception is when the **Host** is unreachable: the panel surfaces a warning dialog and lets you save anyway (use this only if you know the host is right and connectivity is temporarily down).
+- **Lab-bridge credentials are validated against the server at save time.** If the username/password are rejected by the lab-bridge server, the save doesn't go through. The one exception is when the **Host** is unreachable: the panel surfaces a warning dialog and lets you save anyway (use this only if you know the host is right and connectivity is temporarily down).
 - **Switching tabs with unsaved edits** opens a confirmation modal that lists exactly which fields are dirty, so you don't lose work by accident.
 - **The default save action is Save & restart.** SerialHop reads config only at service startup, so restarting the service is how new values take effect. The button does both for you.
 - **Open config file** reveals `SerialHop_config.yaml` in Windows Explorer, in case you want to look at the file directly or copy it elsewhere.
@@ -33,7 +33,7 @@ If the YAML fails validation on next service start, the service won't come up an
 
 ## Common tasks
 
-### Point SerialHop at a different lab-bridge VPS
+### Point SerialHop at a different lab-bridge server
 
 Change **lab-bridge → Host** (`lab_bridge.host`). Accepts an IPv4 address or hostname. Save & restart.
 
@@ -41,7 +41,7 @@ Change **lab-bridge → Host** (`lab_bridge.host`). Accepts an IPv4 address or h
 
 Change **lab-bridge → Username** and **Password** (`lab_bridge.user`, `lab_bridge.pass`). Both are required — the service will not start with either empty. They're used both for the chisel reverse-tunnel auth and as the Bearer-token identity on the lab-bridge public API.
 
-The initial values are entered after install (see [set up a new lab PC, step 2](/docs/operator/setup-lab-pc#2-enter-the-lab-bridge-credentials-in-the-config-tab)). Rotating them later is a normal Config-tab edit. When the admin rotates on the VPS side (see [registering a new lab → rotating credentials](/docs/admin/labs#rotating-credentials)), update the password here and Save & restart. The panel validates the new credentials against the server before writing them — if the admin gave you the wrong value, the save fails immediately rather than leaving you with a silently broken lab.
+The initial values are entered after install (see [set up a new lab PC, step 2](/docs/operator/setup-lab-pc#2-enter-the-lab-bridge-credentials-in-the-config-tab)). Rotating them later is a normal Config-tab edit. When the admin rotates on the server side (see [registering a new lab → rotating credentials](/docs/admin/labs#rotating-credentials)), update the password here and Save & restart. The panel validates the new credentials against the server before writing them — if the admin gave you the wrong value, the save fails immediately rather than leaving you with a silently broken lab.
 
 ### Restrict discovery to specific COM ports
 
@@ -71,7 +71,7 @@ This unlocks the panel's Ports-tab command box and the `GET /serial/ports` and `
 
 ### Enable firmware flashing
 
-To allow SerialHop to flash a new Intel-HEX firmware to a connected AVR / optiboot board, turn on **firmware flashing → Enabled** (`flashing.enabled`). This unlocks the `POST /flash/{port}` REST endpoint. The panel itself never initiates a flash — flashing is driven from the [Flasher](/docs/admin/flashing) service on the VPS, which is admin-only.
+To allow SerialHop to flash a new Intel-HEX firmware to a connected AVR / optiboot board, turn on **firmware flashing → Enabled** (`flashing.enabled`). This unlocks the `POST /flash/{port}` REST endpoint. The panel itself never initiates a flash — flashing is driven from the [Flasher](/docs/admin/flashing) service, which is admin-only.
 
 Two related fields:
 
@@ -89,7 +89,7 @@ Every field in `SerialHop_config.yaml`. Defaults are what a fresh install writes
 
 | Field | Type | Default | Validation | Effect |
 |---|---|---|---|---|
-| `host` | string | _(set at install)_ | IPv4 address or RFC 1123 hostname; IPv6 rejected | The lab-bridge VPS that SerialHop connects to (chisel reverse tunnel + public HTTPS API). |
+| `host` | string | _(set at install)_ | IPv4 address or RFC 1123 hostname; IPv6 rejected | The lab-bridge server that SerialHop connects to (chisel reverse tunnel + public HTTPS API). |
 | `user` | string | _(required)_ | non-empty | Chisel auth user; also the Bearer-token identity on `/api/public/clients/{user}`. Doubles as the lab name researchers use. |
 | `pass` | string | _(required)_ | non-empty | Chisel password; also the Bearer token. Never logged. |
 

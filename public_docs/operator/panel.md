@@ -12,8 +12,8 @@ What's on it:
 
 - **Three lamps** that summarize the state of each layer:
   - **Local service** — is the Windows service running? Red here means SerialHop isn't up locally; check the **Logs** tab for the reason (usually a YAML validation error).
-  - **Lab-bridge server** — can SerialHop reach the configured VPS, and does its health probe respond? Red here means the VPS is unreachable from this PC's network, or the host in the Config tab is wrong.
-  - **Reverse tunnel** — is the chisel reverse tunnel up against the VPS? **This is the source of truth for "is the lab connected".** Green here means researchers can reach this lab; anything else and you're offline regardless of what the lab-bridge home page says.
+  - **Lab-bridge server** — can SerialHop reach the configured host, and does its health probe respond? Red here means the host is unreachable from this PC's network, or the host in the Config tab is wrong.
+  - **Reverse tunnel** — is the chisel reverse tunnel up against the lab-bridge server? **This is the source of truth for "is the lab connected".** Green here means researchers can reach this lab; anything else and you're offline regardless of what the lab-bridge home page says.
 - **Service control buttons** — **Install**, **Uninstall**, and **Restart**. All require admin (UAC). Install is what you click after entering credentials on a fresh PC; Restart is what you click when something looks stuck.
 - **Rediscover** — re-scan serial ports without restarting the service. Use this after plugging in a new device.
 - **Keep-awake toggle** — prevents Windows from sleeping or shutting down while SerialHop is running. Useful for shared lab PCs that researchers expect to be reachable around the clock. The state is visible in `powercfg /requests` if you want to verify.
