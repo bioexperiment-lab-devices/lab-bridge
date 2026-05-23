@@ -12,6 +12,9 @@
                              Depth-0 sections additionally get
                              `data-top-section="true"` so CSS can style them
                              as uppercase mono section headings.
+    childless top section →  same folder row WITHOUT the chevron toggle (no
+                             children to expand) so it still reads as a
+                             section heading alongside its siblings.
     leaf                  →  plain `<a class="lb-docs-side__item">` link,
                              indented per its depth via `data-level`.
 
@@ -24,29 +27,34 @@
   {%- set has_children = entry.children | length > 0 -%}
   {%- set is_section = entry.url.endswith('/') and entry.url != '/docs/' -%}
   {%- set is_top_section = (depth == 0 and is_section) -%}
+  {%- set as_folder = has_children or is_top_section -%}
   {%- set href = entry.url + ('?lang=ru' if lang == 'ru' else '') -%}
-  {%- if has_children -%}
+  {%- if as_folder -%}
     <div class="lb-docs-side__folder" data-level="{{ depth }}"{% if is_top_section %} data-top-section="true"{% endif %}>
       <a class="lb-docs-side__item lb-docs-side__item--folder"
          data-level="{{ depth }}"
          {% if is_top_section %}data-top-section="true"{% endif %}
          {% if is_active %}data-active="true"{% endif %}
          href="{{ href }}">{{ title }}{% if entry.title_ru %}<span class="lb-docs-side__ru">RU</span>{% endif %}</a>
-      <button class="lb-docs-side__toggle"
-              type="button"
-              data-section-key="{{ entry.url }}"
-              data-folder="closed"
-              aria-expanded="false"
-              aria-label="Toggle {{ title }}">
-        {#- lucide chevron-right (https://lucide.dev/icons/chevron-right); rotates 90° via CSS when open -#}
-        <svg class="lb-docs-side__chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
-      </button>
+      {%- if has_children -%}
+        <button class="lb-docs-side__toggle"
+                type="button"
+                data-section-key="{{ entry.url }}"
+                data-folder="closed"
+                aria-expanded="false"
+                aria-label="Toggle {{ title }}">
+          {#- lucide chevron-right (https://lucide.dev/icons/chevron-right); rotates 90° via CSS when open -#}
+          <svg class="lb-docs-side__chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      {%- endif -%}
     </div>
-    <div class="lb-docs-side__children" data-section-key="{{ entry.url }}" hidden>
-      {% for child in entry.children -%}
-        {{ render_entry(child, lang, current_url, depth + 1) }}
-      {%- endfor %}
-    </div>
+    {%- if has_children -%}
+      <div class="lb-docs-side__children" data-section-key="{{ entry.url }}" hidden>
+        {% for child in entry.children -%}
+          {{ render_entry(child, lang, current_url, depth + 1) }}
+        {%- endfor %}
+      </div>
+    {%- endif -%}
   {%- else -%}
     <a class="lb-docs-side__item"
        data-level="{{ depth }}"

@@ -85,6 +85,55 @@ def test_missing_returns_404(client: TestClient) -> None:
     assert client.get("/docs/nope").status_code == 404
 
 
+def test_childless_top_section_renders_as_section_folder_without_chevron(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """A top-level section with only an index.md should still render as a
+    section header (data-top-section folder row), but with no chevron toggle
+    button (nothing to expand)."""
+    docs = tmp_path / "docs-root"
+    solo = docs / "solo"
+    solo.mkdir()
+    (solo / "index.md").write_text("# Solo Section\n", encoding="utf-8")
+    (docs / "_nav.yaml").write_text(
+        "- name: solo\n- name: intro\n- name: diagram\n- name: section\n",
+        encoding="utf-8",
+    )
+    r = client.get("/docs/intro")
+    assert r.status_code == 200
+    body = r.text
+    # /docs/solo/ entry exists as a folder row with data-top-section,
+    # but has no toggle button (no children) and no children container.
+    assert 'class="lb-docs-side__folder" data-level="0" data-top-section="true"' in body
+    assert 'href="/docs/solo/"' in body
+    # The chevron toggle for /docs/solo/ must NOT be emitted.
+    assert 'data-section-key="/docs/solo/"' not in body
+
+
+def test_active_top_section_label_marks_data_active(client: TestClient, tmp_path: Path) -> None:
+    """When the user is ON a top section's index page, the section's label
+    carries data-active so CSS can color it black (not muted)."""
+    docs = tmp_path / "docs-root"
+    solo = docs / "solo"
+    solo.mkdir()
+    (solo / "index.md").write_text("# Solo Section\n", encoding="utf-8")
+    (docs / "_nav.yaml").write_text(
+        "- name: solo\n- name: intro\n- name: diagram\n- name: section\n",
+        encoding="utf-8",
+    )
+    r = client.get("/docs/solo/")
+    assert r.status_code == 200
+    body = r.text
+    # Active state on the top-section folder label so the CSS rule
+    # `[data-top-section="true"][data-active="true"]` kicks in.
+    assert (
+        'class="lb-docs-side__item lb-docs-side__item--folder"\n'
+        '         data-level="0"\n'
+        '         data-top-section="true"\n'
+        '         data-active="true"' in body
+    )
+
+
 def test_docs_root_without_index_redirects_to_first_nav(client: TestClient, tmp_path: Path) -> None:
     """When the root has no index.md, /docs/ should redirect to the first
     sidebar entry instead of 404'ing."""
