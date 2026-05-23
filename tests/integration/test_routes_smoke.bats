@@ -65,9 +65,9 @@ _through_caddy() {
     "
 }
 
-@test "/docs/ routes to siteapp (200)" {
+@test "/docs/ routes to siteapp (200 or 308 to first nav entry)" {
     code="$(_through_caddy 'https://127.0.0.1/docs/')"
-    [[ "$code" == "200" ]] || { echo "got: $code"; false; }
+    [[ "$code" == "200" || "$code" == "308" ]] || { echo "got: $code"; false; }
 }
 
 @test "/download/agent routes to siteapp (200)" {
