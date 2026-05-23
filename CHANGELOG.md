@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.19.0...v0.19.1) (2026-05-23)
+
+
+### Bug Fixes
+
+* **deploy:** accept 200 or 308 for /docs/ in CI health check ([#142](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/142)) ([a93b880](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/a93b88033842b07ab14461a617015ecd5894ccb2))
+
 ## [0.19.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.18.0...v0.19.0) (2026-05-23)
 
 
