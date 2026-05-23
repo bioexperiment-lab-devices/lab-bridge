@@ -1,0 +1,73 @@
+name: 'Build & push image with retry'
+description: 'docker buildx build --push wrapped in a 3-attempt retry to tolerate transient GHCR OAuth token "denied" flakes.'
+
+inputs:
+  context:
+    required: true
+  tags:
+    description: 'Newline-separated image tags.'
+    required: true
+  build-args:
+    description: 'Newline-separated build args (KEY=VAL).'
+    required: false
+    default: ''
+  platforms:
+    required: false
+    default: 'linux/amd64'
+  max-attempts:
+    required: false
+    default: '3'
+  retry-wait-seconds:
+    required: false
+    default: '30'
+
+outputs:
+  digest:
+    description: 'sha256 image digest of the pushed manifest.'
+    value: ${{ steps.run.outputs.digest }}
+
+runs:
+  using: composite
+  steps:
+    - id: run
+      shell: bash
+      env:
+        CTX: ${{ inputs.context }}
+        TAGS: ${{ inputs.tags }}
+        BUILD_ARGS: ${{ inputs.build-args }}
+        PLATFORMS: ${{ inputs.platforms }}
+        MAX_ATTEMPTS: ${{ inputs.max-attempts }}
+        RETRY_WAIT: ${{ inputs.retry-wait-seconds }}
+      run: |
+        set -euo pipefail
+        meta=$(mktemp /tmp/buildx-metadata.XXXX.json)
+        args=(--push --provenance=false --platform "$PLATFORMS" --metadata-file "$meta")
+        while IFS= read -r tag; do
+          [[ -z "$tag" ]] && continue
+          args+=(--tag "$tag")
+        done <<<"$TAGS"
+        while IFS= read -r ba; do
+          [[ -z "$ba" ]] && continue
+          args+=(--build-arg "$ba")
+        done <<<"$BUILD_ARGS"
+        args+=("$CTX")
+
+        attempt=0
+        while (( attempt < MAX_ATTEMPTS )); do
+          attempt=$((attempt + 1))
+          echo "::group::buildx attempt $attempt of $MAX_ATTEMPTS"
+          if docker buildx build "${args[@]}"; then
+            echo "::endgroup::"
+            digest=$(jq -r '."containerimage.digest"' "$meta")
+            [[ -n "$digest" && "$digest" != "null" ]] || { echo "::error::no digest in metadata file"; exit 1; }
+            echo "digest=$digest" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::endgroup::"
+          if (( attempt < MAX_ATTEMPTS )); then
+            echo "::warning::buildx attempt $attempt failed; retrying in ${RETRY_WAIT}s"
+            sleep "$RETRY_WAIT"
+          fi
+        done
+        echo "::error::buildx failed after $MAX_ATTEMPTS attempts"
+        exit 1

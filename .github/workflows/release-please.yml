@@ -111,15 +111,16 @@ jobs:
         if: steps.ref.outputs.mode == 'release'
         uses: docker/setup-buildx-action@v3
 
+      # Each push uses a 3-attempt retry to absorb transient GHCR OAuth
+      # token "denied: denied" flakes seen across the four-image-per-release
+      # sequence (e.g. v0.18.0: attempts 1+2 both failed on different images,
+      # attempt 3 passed cleanly with no code change).
       - name: build & push siteapp image
         if: steps.ref.outputs.mode == 'release'
         id: build-siteapp
-        uses: docker/build-push-action@v6
+        uses: ./.github/actions/build-push-retry
         with:
           context: services/siteapp
-          platforms: linux/amd64
-          push: true
-          provenance: false
           tags: |
             ghcr.io/${{ github.repository_owner }}/lab-bridge-siteapp:${{ steps.ref.outputs.version }}
             ghcr.io/${{ github.repository_owner }}/lab-bridge-siteapp:latest
@@ -130,12 +131,9 @@ jobs:
       - name: build & push flasher image
         if: steps.ref.outputs.mode == 'release'
         id: build-flasher
-        uses: docker/build-push-action@v6
+        uses: ./.github/actions/build-push-retry
         with:
           context: services/flasher
-          platforms: linux/amd64
-          push: true
-          provenance: false
           tags: |
             ghcr.io/${{ github.repository_owner }}/lab-bridge-flasher:${{ steps.ref.outputs.version }}
             ghcr.io/${{ github.repository_owner }}/lab-bridge-flasher:latest
@@ -146,12 +144,9 @@ jobs:
       - name: build & push caddy image
         if: steps.ref.outputs.mode == 'release'
         id: build-caddy
-        uses: docker/build-push-action@v6
+        uses: ./.github/actions/build-push-retry
         with:
           context: services/caddy
-          platforms: linux/amd64
-          push: true
-          provenance: false
           tags: |
             ghcr.io/${{ github.repository_owner }}/lab-bridge-caddy:${{ steps.ref.outputs.version }}
             ghcr.io/${{ github.repository_owner }}/lab-bridge-caddy:latest
@@ -175,12 +170,9 @@ jobs:
       - name: build & push authelia image
         if: steps.ref.outputs.mode == 'release'
         id: build-authelia
-        uses: docker/build-push-action@v6
+        uses: ./.github/actions/build-push-retry
         with:
           context: services/authelia
-          platforms: linux/amd64
-          push: true
-          provenance: false
           tags: |
             ghcr.io/${{ github.repository_owner }}/lab-bridge-authelia:${{ steps.ref.outputs.version }}
             ghcr.io/${{ github.repository_owner }}/lab-bridge-authelia:latest
