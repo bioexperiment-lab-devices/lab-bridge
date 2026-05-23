@@ -15,7 +15,6 @@ What's on it:
   - **Lab-bridge server** — can SerialHop reach the configured host, and does its health probe respond? Red here means the host is unreachable from this PC's network, or the host in the Config tab is wrong.
   - **Reverse tunnel** — is the chisel reverse tunnel up against the lab-bridge server? **This is the source of truth for "is the lab connected".** Green here means researchers can reach this lab; anything else and you're offline regardless of what the lab-bridge home page says.
 - **Service control buttons** — **Install**, **Uninstall**, and **Restart**. All require admin (UAC). Install is what you click after entering credentials on a fresh PC; Restart is what you click when something looks stuck.
-- **Rediscover** — re-scan serial ports without restarting the service. Use this after plugging in a new device.
 - **Keep-awake toggle** — prevents Windows from sleeping or shutting down while SerialHop is running. Useful for shared lab PCs that researchers expect to be reachable around the clock. The state is visible in `powercfg /requests` if you want to verify.
 - **Update row** — appears when a newer SerialHop release is available. Clicking through handles the download, SHA-256 verification, install, and automatic rollback if the new version fails to come up. See **Config → auto_update** to disable this if you want to pin a version.
 - **Crash report** — shows up if the panel itself crashed on a previous run, so you can ship the trace to the SerialHop maintainers.
@@ -34,17 +33,16 @@ What's on it:
 
 For the full field list and common-task recipes, see the [config reference](/docs/operator/config).
 
-## Devices tab — what SerialHop has positively identified
+## Devices tab — ports SerialHop is considering, with discovery results
 
-Open it: to confirm that a specific instrument is recognized, or to send a single raw command to a discovered device for diagnosis.
+Open it: after plugging in a new instrument, or to confirm that a specific instrument was recognized.
 
 What's on it:
 
-- One row per device SerialHop discovered: **type** (`pump` / `valve` / `densitometer` / …), **type code**, and the **COM port** it's bound to.
-- A **raw command** box per row for submitting a single byte sequence to that device. Handy for confirming a board is responsive without running a full notebook workflow.
-- A **Disconnect** button per row to release a single port without restarting the service. Useful when an instrument is misbehaving and you want to free it before re-scanning.
+- The list of COM ports SerialHop is considering — the system's available ports filtered by **Config → discovery → Include / Exclude**. For ports SerialHop classified, the row also shows the device **type** (`pump` / `valve` / `densitometer` / …) and **type code**; unclassified ports appear here too but without a device tag.
+- **Rediscover** — re-scan all considered ports without restarting the service. This is what you click after plugging in a new instrument.
 
-If an instrument you expect to see isn't in this list, the device wasn't classified. Common causes: it's plugged in but on an excluded port (check **Config → discovery → Exclude**), it needs more time to settle after open (raise **post_open_settle_ms**), or it's a board SerialHop doesn't know how to identify (check the **Ports** tab to confirm it enumerated at the USB layer at all).
+If an instrument you expect to see isn't in this list at all, it's being filtered out at the OS layer or by your include/exclude rules — check the **Ports** tab to confirm Windows enumerated it, and check **Config → discovery** for include/exclude entries. If the port appears here but without a device type, classification failed: it probably needs more time to settle after open (raise **discovery → post_open_settle_ms** in Config), or it's a board SerialHop doesn't know how to identify.
 
 ## Ports tab — raw view of every enumerated COM port
 
@@ -65,7 +63,10 @@ Open it: any time something is wrong. This is where SerialHop tells you why a sa
 What's on it:
 
 - Newest-first tail of the structured logs SerialHop writes to `%ProgramData%\SerialHop\logs\`.
-- A sticky filter bar at the top: filter by **level** (debug / info / warn / error) and by **free-text** match across the message.
+- A sticky filter bar at the top with three dimensions:
+  - **Stream** — which log stream to show: **service log** (the structured slog stream from the Windows service — your default), **stderr** (chisel output and any panic traces), or **panel errors** (errors from the desktop panel itself, separate from the service). When something looks wrong, glance at all three: a service issue won't show in the panel-errors stream, and vice versa.
+  - **Level** — debug / info / warn / error. Applies to the service-log stream.
+  - **Free text** — substring match across the message.
 - Inline detail view for each entry — click a row to expand its structured fields (port, device type, request bytes, response bytes, etc.) without leaving the tab.
 - **Open logs folder** — reveals the log directory in Windows Explorer, in case you need to copy a file off the PC to share with the SerialHop maintainers.
 
@@ -77,7 +78,7 @@ Raise the verbosity on this tab by setting **Config → log → Level** to `debu
 |---|---|---|
 | Researcher reports lab is offline | **Status** — check Reverse-tunnel lamp | If red, **Logs** for the reason |
 | Just edited config, want to confirm it stuck | **Status** — all three lamps green? | If Local-service red, **Logs** for validation error |
-| New instrument plugged in but not appearing | **Status** — click **Rediscover** | If still missing, **Devices** then **Ports** to see how far it got |
-| Instrument acting wrong | **Devices** — try a raw command on the row | If unresponsive, **Logs** with `level: debug` to see request/response bytes |
-| Adding a brand-new board SerialHop doesn't yet support | **Ports** — confirm it enumerated, find its VID/PID | Enable **raw serial** in Config to send commands directly |
+| New instrument plugged in but not appearing | **Devices** — click **Rediscover** | If still missing, check the **Ports** tab to see if Windows enumerated it at all |
+| Instrument acting wrong | **Logs** — set **Config → log → Level** to `debug`, Save & restart, then watch request/response bytes here | Once diagnosed, return level to `info` |
+| Adding a brand-new board SerialHop doesn't yet support | **Ports** — confirm it enumerated, find its VID/PID | Enable **raw serial** in Config to send commands directly from this tab |
 | Update prompt showed up | **Status** — Update row | Read the release notes, then accept (auto-rollback covers a bad install) |
