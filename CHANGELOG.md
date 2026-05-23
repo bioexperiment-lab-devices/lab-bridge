@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.17.0...v0.18.0) (2026-05-23)
+
+
+### Features
+
+* **siteapp:** collapsible, clickable docs sidebar sections ([#135](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/135)) ([cb196f9](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/cb196f97716308900fd003a90dcfaac099f5ede0))
+
 ## [0.17.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.16.4...v0.17.0) (2026-05-22)
 
 
