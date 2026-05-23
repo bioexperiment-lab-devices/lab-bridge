@@ -249,7 +249,7 @@ main() {
                 && [[ "$authelia_status" == "200" ]] \
                 && [[ "$jupyter_status" =~ ^[23][0-9][0-9]$ ]] \
                 && [[ "$grafana_status" == "200" ]] \
-                && [[ "$docs_status" == "200" ]] \
+                && [[ "$docs_status" == "200" || "$docs_status" == "308" ]] \
                 && [[ "$download_status" == "200" ]] \
                 && [[ "$flash_status" == "302" ]] \
                 && [[ "$static_status" == "200" ]] \
@@ -260,7 +260,7 @@ main() {
             fi
             sleep 1
         done
-        warn "health check timed out (home:$home_status authelia:$authelia_status jupyter:$jupyter_status grafana:$grafana_status docs:$docs_status download:$download_status flash:${flash_status}[want 302] static:$static_status public:$public_status server_info:$server_info_status). Check: task logs"
+        warn "health check timed out (home:$home_status authelia:$authelia_status jupyter:$jupyter_status grafana:$grafana_status docs:${docs_status}[want 200 or 308] download:$download_status flash:${flash_status}[want 302] static:$static_status public:$public_status server_info:$server_info_status). Check: task logs"
         if [[ "$authelia_status" != "200" ]]; then
             warn "Authelia is not reachable (/auth/api/health = $authelia_status). If this is the first deploy, run from your laptop: task secrets:bootstrap-authelia && task users:add -- <name> admins && task deploy"
         fi
