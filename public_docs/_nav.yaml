@@ -1,4 +1,5 @@
-# Sidebar order for /docs/. Home (index.md) is pinned at the top automatically.
+# Sidebar order for /docs/. Visiting /docs/ redirects to the first entry.
+- name: overview
 - name: researcher
 - name: operator
 - name: admin

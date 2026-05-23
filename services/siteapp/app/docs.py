@@ -137,6 +137,12 @@ def make_router(settings: Settings) -> APIRouter:
 
         doc = find_doc(settings.docs_root, path)
         if doc is None:
+            # No root index.md? Redirect /docs/ to the first sidebar entry so
+            # users land on real content instead of a 404.
+            if path == "":
+                nav = build_nav(settings.docs_root)
+                if nav:
+                    return RedirectResponse(url=nav[0].url, status_code=HTTP_308_PERMANENT_REDIRECT)
             raise HTTPException(status_code=404)
 
         chosen = _pick_lang(lang, request.cookies.get("lang"))
