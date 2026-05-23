@@ -85,6 +85,15 @@ def test_missing_returns_404(client: TestClient) -> None:
     assert client.get("/docs/nope").status_code == 404
 
 
+def test_docs_root_without_index_redirects_to_first_nav(client: TestClient, tmp_path: Path) -> None:
+    """When the root has no index.md, /docs/ should redirect to the first
+    sidebar entry instead of 404'ing."""
+    (tmp_path / "docs-root" / "index.md").unlink()
+    r = client.get("/docs/", follow_redirects=False)
+    assert r.status_code == 308
+    assert r.headers["location"] == "/docs/intro"
+
+
 def test_orphan_ru_only_returns_404(client: TestClient, tmp_path: Path) -> None:
     (tmp_path / "docs-root" / "only.ru.md").write_text("# Только\n", encoding="utf-8")
     assert client.get("/docs/only").status_code == 404

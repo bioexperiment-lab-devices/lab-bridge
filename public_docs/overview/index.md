@@ -1,4 +1,4 @@
-# lab-bridge docs
+# Overview
 
 lab-bridge is a single platform for running and managing remote lab
 experiments. Researchers drive bench instruments from a shared JupyterLab;
