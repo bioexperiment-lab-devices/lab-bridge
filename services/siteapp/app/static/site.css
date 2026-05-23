@@ -1393,20 +1393,20 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
 /* ---- Folder rows ------------------------------------------------
    A folder = label link (left, flex-grow) + chevron toggle button
    (right, fixed). The link navigates to the section's index; the
-   button toggles the children container below. */
+   button toggles the children container below.
+
+   `position: relative` anchors the active-state accent stripe
+   (rendered as `::before`) to the folder so it spans the full padded
+   height — see the `:has(...)` rule farther down. Folders use vertical
+   *padding* instead of margin so adjacent sections touch directly and
+   the active/hover backdrop stays continuous across the whole stack
+   (no uncolored strips between siblings). */
 .lb-docs-side__folder {
   display: flex;
   align-items: center;
-  margin-top: 2px;
-}
-/* Top-level section rows touch each other (no margin) and use vertical
-   padding for breathing room. This keeps the active/hover backdrop
-   continuous across the entire stack instead of leaving uncolored
-   strips between sibling sections. */
-.lb-docs-side__folder[data-level="0"] {
-  margin-top: 0;
-  padding-top: 8px;
-  padding-bottom: 8px;
+  position: relative;
+  margin: 0;
+  padding: 4px 0;
 }
 
 /* Folder label: takes the row's full width up to the toggle. Indent
@@ -1469,18 +1469,29 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
 /* Active-state highlight: when the folder's own label is the current page,
    paint the accent backdrop across the entire row (label + toggle button)
    instead of stopping at the label's right edge. The label's own
-   `data-active` background is suppressed so the colors don't double up;
-   the left-edge accent border on the label remains as the rail indicator.
+   background AND left border are suppressed so the colors don't double
+   up — the folder's `::before` pseudo-element draws the accent rail
+   spanning the full padded height (taller than the label alone).
    The active rule sits below the hover rule on purpose: it wins on
-   specificity (`:has(...)`) so hovering an active folder keeps the accent
-   tint instead of switching to the gray hover. */
+   specificity (`:has(...)`) so hovering an active folder keeps the
+   accent tint instead of switching to the gray hover. */
 .lb-docs-side__folder:has(.lb-docs-side__item--folder[data-active="true"]),
 .lb-docs-side__folder:has(.lb-docs-side__item--folder[data-active="true"]):hover {
   background: var(--accent-soft);
 }
+.lb-docs-side__folder:has(.lb-docs-side__item--folder[data-active="true"])::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+}
 .lb-docs-side__folder:has(.lb-docs-side__item--folder[data-active="true"]) .lb-docs-side__item--folder[data-active="true"],
 .lb-docs-side__folder:has(.lb-docs-side__item--folder[data-active="true"]) .lb-docs-side__item--folder[data-active="true"]:hover {
   background: transparent;
+  border-left-color: transparent;
 }
 
 .lb-docs-side__children[hidden] { display: none; }
