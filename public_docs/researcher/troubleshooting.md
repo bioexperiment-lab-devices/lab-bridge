@@ -28,4 +28,4 @@ Every exception is a subclass of `LabDevicesError` and carries `status`, `code`,
 
 - Lab status on `/` (home page roster).
 - Live log tail at `/grafana/d/lab-bridge-client-logs/lab-client-logs?var-client=<your-lab>`.
-- If you've ruled out lab/network, ping the server admin — the issue may be on the VPS.
+- If you've ruled out lab/network, ping the server admin — the issue may be on the lab-bridge server.
