@@ -1,0 +1,71 @@
+# Working with devices
+
+This page is a cookbook — one recipe per common task per device type. Each recipe is the smallest Python snippet that makes the device do the thing. Drop a snippet into a notebook cell, swap `<your-lab>` for your lab name, and adapt the numbers to your protocol.
+
+## Setup (shared by every recipe)
+
+```python
+from bioexperiment_suite.interfaces import LabDevicesClient
+
+client = LabDevicesClient(user="<your-lab>")
+devices = client.discover()
+```
+
+Every recipe below assumes you've run this once at the top of the notebook.
+
+## Pumps
+
+### Set the default flow rate
+
+```python
+pump = devices.pumps[0]
+pump.set_default_flow_rate(1.0)   # ml/min
+```
+
+Subsequent volume-based commands use this rate unless you override it.
+
+### Pour a fixed volume
+
+```python
+pump.pour_in_volume(5.0)          # ml; uses the default flow rate
+```
+
+Blocks until the pump has dispensed the requested volume.
+
+### Continuous rotation
+
+```python
+pump.start_continuous_rotation(1)  # direction
+# ... wait, do other things ...
+pump.stop_continuous_rotation()
+```
+
+Useful when you want the pump running while another cell measures something downstream.
+
+## Densitometers
+
+### Read temperature
+
+```python
+densitometer = devices.densitometers[0]
+densitometer.get_temperature()
+# 22.4  -> degrees Celsius
+```
+
+Returns immediately; cheap to poll.
+
+### Measure optical density
+
+```python
+od = densitometer.measure_optical_density()
+```
+
+Expect the call to block for ~3 seconds.
+
+## Valves
+
+The `Valve` class is currently a placeholder — the lab-bridge serial vocabulary for valves is being added. High-level methods (set position, query state) will land here as the library exposes them; check the latest `bioexperiment_suite` release notes.
+
+## Picking by position
+
+`devices.pumps[0]` picks the first pump SerialHop returned. The order is stable across calls for a given lab unless the operator re-runs discovery or unplugs hardware. When you have multiple devices of the same type and want determinism, address them by position and document which is which in your notebook — future-you will thank you.

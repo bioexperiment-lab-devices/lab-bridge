@@ -1,32 +1,19 @@
-# Welcome to lab-bridge 🧪
+# lab-bridge docs
 
-lab-bridge is the team's private workspace for running bio-experiments and
-analyzing results. Open the shared JupyterLab in your browser, drive any
-instrument connected through a SerialHop agent on a lab PC, and work in the
-same Python environment as the rest of the team.
+lab-bridge is a single platform for running and managing remote lab
+experiments. Researchers drive bench instruments from a shared JupyterLab;
+operators install a small Windows agent (SerialHop) on each lab PC; admins
+run the whole thing from one VPS. Use the table below to find your section.
 
-## Get started
+## Find your section
 
-### <img src="icons/jupyter.svg" alt="" width="28"> [Open JupyterLab →](/lab)
-
-Shared notebooks for analysis and instrument control — the team's main
-workspace. Log in with the shared password and pick up where someone else
-left off.
-
-> [!NOTE]
-> Notebooks drive instruments through
-> [`bioexperiment_suite`](https://github.com/khamitovdr/bio_tools), the Python
-> library pre-installed in this JupyterLab. Import it from any notebook;
-> no extra setup.
-
-### <img src="icons/windows.svg" alt="" width="28"> [Download the SerialHop agent →](/download/agent)
-
-Install on a lab PC to expose its instruments through lab-bridge. Once the
-agent is running, the PC's serial/TCP ports become reachable from any
-notebook on the team JupyterLab.
-
-Source, releases, and protocol notes on GitHub:
-[bioexperiment-lab-devices/serialhop](https://github.com/bioexperiment-lab-devices/serialhop).
+| If you … | Start here |
+|---|---|
+| just got credentials and want to run an experiment | [Researcher guide](/docs/researcher/) |
+| run a lab and want to connect a new lab PC | [Lab operator guide](/docs/operator/) |
+| run the lab-bridge server (deploy, users, dashboards, firmware) | [Administrator guide](/docs/admin/) |
+| want to understand the network, auth, and security model | [Architecture](/docs/architecture/) |
+| are evaluating lab-bridge for an organization | [Architecture](/docs/architecture/) + [Deploying lab-bridge](/docs/admin/deploy) |
 
 ## How it fits together
 
@@ -34,7 +21,7 @@ Source, releases, and protocol notes on GitHub:
 flowchart LR
     subgraph LabPC["Lab PC · Windows"]
         Instrument
-        Agent
+        Agent[SerialHop]
         Instrument <--> Agent
     end
 
@@ -48,28 +35,10 @@ flowchart LR
     Agent <==>|reverse tunnel| JupyterLab
     Agent -->|logs| Loki
 
-    Team(((Team))) --> JupyterLab
-    Team --> Grafana
+    Researcher(((Researcher))) --> JupyterLab
+    Operator(((Operator))) --> Grafana
 ```
 
-Three pieces, one stack:
-
-- **JupyterLab on the VPS** — the team writes analysis notebooks, hosted
-  centrally so everyone shares the same Python environment.
-- **The SerialHop agent on each lab PC** — runs on Windows, opens a reverse
-  tunnel back to the VPS, and exposes the local instrument's TCP port to the
-  notebook network. Notebooks reach instruments as if they were local
-  services.
-- **Grafana + Loki** — the agent ships its logs through the same tunnel
-  into Loki; Grafana renders a per-client dashboard so the operator can
-  diagnose remote misbehaviour without needing lab access.
-
-## Need help?
-
-For everyday questions, reach out to the lab-bridge operator
-[@khamitov_denis](https://t.me/khamitov_denis).
-
-For operators and tech users: the
-<img src="icons/grafana.svg" alt="" width="16"> [device logs dashboard](/grafana/d/lab-bridge-client-logs/lab-client-logs?from=now-12h&to=now&var-client=$__all&var-stream=$__all&var-version=$__all&refresh=10s&viewPanel=panel-1)
-shows a live tail of every connected agent (errors, versions, traffic) —
-filter by client name to see what a specific agent is doing.
+Three pieces — JupyterLab on the VPS (researcher workspace), SerialHop on
+each lab PC (Windows agent), Grafana + Loki (observability). The
+[Architecture section](/docs/architecture/) goes deep on each.

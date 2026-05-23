@@ -306,7 +306,7 @@ This task lands the longest-living, most-cross-referenced section first, so subs
   - **H1:** `# Security model`
   - **Intro paragraph:** a short orientation for an auditor — what the boundaries are, where the trust assumptions live.
   - **H2:** `## No inbound ports on the lab network` — one paragraph: the lab PC initiates the outbound chisel session. Institutional firewalls don't need a hole punched; port-forwarding is unnecessary. Trust assumption: outbound TCP to the VPS chisel port is allowed.
-  - **H2:** `## Chisel auth` — one paragraph: per-client `user`/`pass` allowlist on the VPS in `compose/chisel/users.json`. Each lab gets its own credentials, set with `task secrets:add-client`. Rotating: re-issue with `task secrets:add-client` and update the operator's `SerialHop_config.yaml`.
+  - **H2:** `## Chisel auth` — one paragraph: per-client `user`/`pass` allowlist rendered from `chisel_clients` in `config.yaml` via `compose/chisel-users.json.tmpl`; the rendered file lives at `<stack-root>/chisel/users.json` on the VPS and is mounted into the chisel container read-only. Per-lab credentials are minted with `task secrets:add-client`, which appends the entry to `chisel_clients` and prints the `chisel client` invocation for the operator. Rotation: delete the old entry from `config.yaml` first (no `task secrets:rm-client` today), re-run `task secrets:add-client`, then `task deploy`.
   - **H2:** `## Bearer tokens` — bullets:
     - **Agent upload token** — protects `/api/agent/upload`. Rotated with `task secrets:rotate-agent-upload-token`. Consumed by the SerialHop release CI.
     - **Flasher upload token** — protects firmware upload to `/flash/`. Rotated with `task secrets:rotate-flasher-upload-token`. Consumed by device-firmware CI / manufacturers.
@@ -726,28 +726,30 @@ This task ships the longest section (six pages) and replaces the placeholder `ad
     task secrets:add-client -- <lab-name> <remote-port>
     ```
 
-    Arguments:
+    Arguments (mirroring `scripts/secrets.sh:126-128`):
     - `<lab-name>` — short identifier, used as the chisel `user` and as the lab name researchers pass to `LabDevicesClient(user=…)`. Lowercase, no spaces. Examples: `khamit_desktop`, `lab1_pc`, `microscope_1`.
-    - `<remote-port>` — the port on `chisel` (inside the VPS) where this lab's API gets published. Use the next unused port (the task validates against `compose/pins.yaml`).
+    - `<reverse-port>` — the port on the VPS chisel server where this lab's local HTTP API is published into `labnet`. Pick the next unused port; the task validates against existing entries in `chisel_clients` in `config.yaml` and refuses to clobber.
 
-    Show example output:
+    Show example output (matches `scripts/secrets.sh:148-156`):
 
     ```text
-    Created client 'lab1_pc' on remote port 9001.
-    chisel.user: lab1_pc
-    chisel.pass: <random-32-char-secret>
-    chisel.host: <vps-host>
-    chisel.port: 8080
-    chisel.remote_port: 9001
+    added client lab1_pc (port 9001)
+
+    Run on the device:
+      chisel client https://<vps-host>:<chisel-listen-port> \
+        lab1_pc:<random-password> \
+        R:0.0.0.0:9001:localhost:80
     ```
+
+    The output is the `chisel client` command the operator runs on the lab PC (or the equivalent block the operator pastes into `SerialHop_config.yaml`).
 
   - **H2:** `## Handing creds to the operator`. One paragraph: give the operator these five values out-of-band (1Password / Signal / encrypted email — not Slack/email plaintext). They paste them into `SerialHop_config.yaml` on the lab PC; see `/docs/operator/setup-lab-pc`.
   - **H2:** `## Verifying the lab is online`. Bullets:
     - Visit `/` — the new lab should show in the "Registered labs" panel once the operator installs SerialHop. ONLINE pill means the chisel session is up.
     - Open `/grafana/d/lab-bridge-client-logs/lab-client-logs` filtered by the new lab name to see live logs.
     - From a notebook: `LabDevicesClient.list_active_users()` should include the new name.
-  - **H2:** `## Rotating credentials`. One paragraph: re-run `task secrets:add-client -- <lab-name> <remote-port>` (same args) to mint a fresh password. Coordinate with the operator — the lab goes offline until the new password reaches `SerialHop_config.yaml`.
-  - **H2:** `## Removing a lab`. One paragraph: there is no `task secrets:rm-client` today. To remove a lab, edit `compose/chisel/users.json` (locally, then commit-as-deploy) and rerun `task deploy`. The lab's name will continue to show in the roster until removed from `config.yaml`.
+  - **H2:** `## Rotating credentials`. One paragraph: `task secrets:add-client` refuses to clobber an existing entry (`scripts/secrets.sh:134-135`), so to rotate you delete the lab's entry from `chisel_clients` in `config.yaml` first, then re-run `task secrets:add-client -- <lab-name> <reverse-port>` (same args) to mint a fresh password, then `task deploy`. Coordinate with the operator — the lab goes offline until the new password reaches `SerialHop_config.yaml`.
+  - **H2:** `## Removing a lab`. One paragraph: there is no `task secrets:rm-client` today. To remove a lab, delete its entry from the `chisel_clients` array in `config.yaml` and run `task deploy` — `render_chisel_users` (`scripts/lib/render.sh:97`) re-emits the allowlist without the lab.
 
 - [ ] Length: ~500 words.
 

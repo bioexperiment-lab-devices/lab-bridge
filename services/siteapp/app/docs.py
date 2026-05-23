@@ -124,7 +124,7 @@ def make_router(settings: Settings) -> APIRouter:
         if path and not path.endswith("/") and candidate is not None and candidate.is_dir():
             return RedirectResponse(url=f"/docs/{path}/", status_code=HTTP_308_PERMANENT_REDIRECT)
 
-        # Doc-relative static asset (e.g., icons/jupyter.svg next to a .md):
+        # Doc-relative static asset (e.g., diagrams/topology.svg next to a .md):
         # serve the file directly when its extension is in the allow-list.
         # Anything outside the allow-list 404s — including .md files, which
         # belong to the markdown render path below.

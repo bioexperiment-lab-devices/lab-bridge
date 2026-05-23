@@ -105,7 +105,7 @@ def _sample_nav() -> list:
                 ),
             ),
         ),
-        NavEntry(title_en="System overview", title_ru=None, url="/docs/system-overview"),
+        NavEntry(title_en="Architecture", title_ru=None, url="/docs/architecture/"),
     ]
 
 
@@ -115,8 +115,8 @@ def test_breadcrumb_for_nested_doc():
 
 
 def test_breadcrumb_for_root_doc():
-    crumbs = build_breadcrumb(_sample_nav(), "/docs/system-overview")
-    assert [c["title"] for c in crumbs] == ["Docs", "System overview"]
+    crumbs = build_breadcrumb(_sample_nav(), "/docs/architecture/")
+    assert [c["title"] for c in crumbs] == ["Docs", "Architecture"]
 
 
 def test_prev_next_in_section():
@@ -127,8 +127,8 @@ def test_prev_next_in_section():
 
 def test_prev_next_across_top_level():
     nav = _sample_nav()
-    prev, nxt = prev_next(nav, "/docs/system-overview")
-    # System-overview comes after Researchers section (top-level order is dirs then files).
+    prev, nxt = prev_next(nav, "/docs/architecture/")
+    # Architecture comes after Researchers section in the sample manifest order.
     assert prev is not None and prev.title_en == "Researchers"
     assert nxt is None
 
