@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.19.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.18.0...v0.19.0) (2026-05-23)
+
+
+### Features
+
+* **siteapp:** convert docs home into Overview section, polish sidebar titles ([#138](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/138)) ([f5d5bf2](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/f5d5bf2cb119e846c56d0bac6515f28246fd5d0b))
+
+
+### Bug Fixes
+
+* **siteapp:** render childless top sections as folders + black active section label ([#141](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/141)) ([57530a1](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/57530a145deed63f320061c2fe42fab9c72d2c27))
+
 ## [0.18.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.17.0...v0.18.0) (2026-05-23)
 
 
