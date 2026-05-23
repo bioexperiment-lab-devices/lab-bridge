@@ -18,6 +18,7 @@ As a lab operator you install SerialHop on the Windows PC that has the instrumen
 ## Reading order
 
 - [Set up a new lab PC](/docs/operator/setup-lab-pc) — install walkthrough.
+- [Panel tour](/docs/operator/panel) — what each tab in the SerialHop window is for, and when to open it.
 - [SerialHop config reference](/docs/operator/config) — every setting the panel exposes and the YAML key behind it.
 
 ## More about SerialHop

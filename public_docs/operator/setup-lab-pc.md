@@ -40,6 +40,8 @@ Cross-checks (optional, useful when you're away from the lab PC):
 - [The lab-bridge home page](/) lists your lab in the "Registered labs" panel with an ONLINE pill once the tunnel is up. Treat this as a glance, not a diagnosis tool.
 - `/grafana/d/lab-bridge-client-logs/lab-client-logs?var-client=<your-lab>` shows the agent's log stream live. The same stream is in the panel's **Logs** tab.
 
+Now is a good time to read the [panel tour](/docs/operator/panel) — it walks through every tab so you know where to look when something needs attention.
+
 ## Boot-time handshake
 
 ```mermaid

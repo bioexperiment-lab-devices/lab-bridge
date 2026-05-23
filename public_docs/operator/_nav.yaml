@@ -1,3 +1,5 @@
 - name: setup-lab-pc
+- name: panel
+  title: Panel tour
 - name: config
   title: Config reference
