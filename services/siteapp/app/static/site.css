@@ -1349,22 +1349,18 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   height: 56px;
   padding: 0 18px;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
   margin-bottom: 10px;
+  text-decoration: none;
 }
-.lb-docs-side__group {
-  padding: 16px 18px 4px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-muted);
+.lb-docs-side__brand:hover {
+  color: var(--text);
+  text-decoration: none;
 }
 .lb-docs-side__item {
   display: flex;
@@ -1394,28 +1390,110 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
 }
 .lb-docs-side__item[data-active="true"]:hover { background: var(--accent-soft); }
 
-/* Folder rows (nested sections, depth ≥ 1): chevron glyph before label. */
-.lb-docs-side__item[data-folder] {
+/* ---- Folder rows ------------------------------------------------
+   A folder = label link (left, flex-grow) + chevron toggle button
+   (right, fixed). The link navigates to the section's index; the
+   button toggles the children container below.
+
+   `position: relative` anchors the active-state accent stripe
+   (rendered as `::before`) to the folder so it spans the full padded
+   height — see the `:has(...)` rule farther down. Folders use vertical
+   *padding* instead of margin so adjacent sections touch directly and
+   the active/hover backdrop stays continuous across the whole stack
+   (no uncolored strips between siblings). */
+.lb-docs-side__folder {
+  display: flex;
+  align-items: center;
+  position: relative;
+  margin: 0;
+  padding: 4px 0;
+}
+
+/* Folder label: takes the row's full width up to the toggle. Indent
+   already handled by the shared `[data-level]` rules on `__item`. */
+.lb-docs-side__item--folder {
+  flex: 1 1 auto;
+  min-width: 0;
   color: var(--text);
   font-weight: 500;
-  padding-left: 18px;
-  margin-top: 2px;
 }
-.lb-docs-side__item[data-folder]::before {
-  content: "›";
+
+.lb-docs-side__toggle {
+  flex: 0 0 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin-right: 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
   color: var(--text-muted);
-  font-family: var(--font-mono);
-  width: 10px;
-  font-size: 14px;
-  line-height: 1;
-  display: inline-block;
-  text-align: center;
+  border-radius: 3px;
+}
+.lb-docs-side__toggle:hover { color: var(--text); background: rgba(0, 0, 0, 0.04); }
+[data-theme="dark"] .lb-docs-side__toggle:hover { background: rgba(255, 255, 255, 0.05); }
+.lb-docs-side__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.lb-docs-side__chevron {
+  display: block;
   transition: transform 150ms ease;
 }
-.lb-docs-side__item[data-folder="open"]::before {
-  content: "⌄";
-  font-size: 12px;
+.lb-docs-side__toggle[aria-expanded="true"] .lb-docs-side__chevron {
+  transform: rotate(90deg);
 }
+
+/* Depth-0 sections render as uppercase mono section headings. */
+.lb-docs-side__item--folder[data-top-section="true"] {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+.lb-docs-side__item--folder[data-top-section="true"]:hover { color: var(--text); }
+
+/* Hover-state highlight: paint the hover backdrop across the entire folder
+   row (label + toggle button) instead of stopping at the label's right edge.
+   The label's own `:hover` background is suppressed so the tints don't
+   compound. The toggle keeps its own slightly stronger hover for affordance. */
+.lb-docs-side__folder:hover { background: rgba(0, 0, 0, 0.025); }
+[data-theme="dark"] .lb-docs-side__folder:hover { background: rgba(255, 255, 255, 0.035); }
+.lb-docs-side__folder:hover .lb-docs-side__item--folder:hover { background: transparent; }
+
+/* Active-state highlight: when the folder's own label is the current page,
+   paint the accent backdrop across the entire row (label + toggle button)
+   instead of stopping at the label's right edge. The label's own
+   background AND left border are suppressed so the colors don't double
+   up — the folder's `::before` pseudo-element draws the accent rail
+   spanning the full padded height (taller than the label alone).
+   The active rule sits below the hover rule on purpose: it wins on
+   specificity (`:has(...)`) so hovering an active folder keeps the
+   accent tint instead of switching to the gray hover. */
+.lb-docs-side__folder:has(.lb-docs-side__item--folder[data-active="true"]),
+.lb-docs-side__folder:has(.lb-docs-side__item--folder[data-active="true"]):hover {
+  background: var(--accent-soft);
+}
+.lb-docs-side__folder:has(.lb-docs-side__item--folder[data-active="true"])::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+}
+.lb-docs-side__folder:has(.lb-docs-side__item--folder[data-active="true"]) .lb-docs-side__item--folder[data-active="true"],
+.lb-docs-side__folder:has(.lb-docs-side__item--folder[data-active="true"]) .lb-docs-side__item--folder[data-active="true"]:hover {
+  background: transparent;
+  border-left-color: transparent;
+}
+
 .lb-docs-side__children[hidden] { display: none; }
 
 /* RU translation indicator. */
