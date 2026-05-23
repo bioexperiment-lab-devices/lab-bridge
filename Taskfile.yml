@@ -23,7 +23,7 @@ tasks:
     cmd: bash scripts/provision.sh
   deploy:
     desc: Render configs and bring up the stack on the VPS
-    cmd: bash scripts/deploy.sh
+    cmd: LDS_SKIP_PUBLIC_DOCS=1 bash scripts/deploy.sh
   "deploy:rollback":
     desc: Trigger a CI rollback to a prior tag (e.g. task deploy:rollback -- v0.4.1)
     cmd: gh workflow run release-please.yml -f rollback_to={{.CLI_ARGS}}

@@ -113,11 +113,20 @@ main() {
     mkdir -p "$stage/flasher"
     install -m 644 "$flashertokfile" "$stage/flasher/upload_token"
 
-    # Public docs — tracked in git at repo root, copied into the staged
-    # tree so the existing rsync ships them to ~/lab-bridge/siteapp/docs/
-    # on the VPS, where compose mounts them read-only at /srv/docs.
-    mkdir -p "$stage/siteapp/docs"
-    cp -R "$REPO_ROOT/public_docs/." "$stage/siteapp/docs/"
+    # Public docs — opt-out via LDS_SKIP_PUBLIC_DOCS=1 (set by task deploy and
+    # by the CI deploy-stack action). The .github/workflows/deploy-public-docs.yml
+    # CI workflow is the single owner of <remote_root>/siteapp/docs/ on the
+    # real VPS — it rsyncs public_docs/ on every push to main that touches
+    # that path and restarts siteapp so build_nav() picks up _nav.yaml
+    # changes. Letting the laptop also write that path races with CI and
+    # clobbers fresh content when the laptop checkout pre-dates the merge
+    # that triggered the CI run (observed 2026-05-23 with PR #133).
+    # The bats integration tests still stage public_docs here because their
+    # fake-VPS deploy is the only way for siteapp's bind mount to find docs.
+    if [[ "${LDS_SKIP_PUBLIC_DOCS:-0}" != "1" ]]; then
+        mkdir -p "$stage/siteapp/docs"
+        cp -R "$REPO_ROOT/public_docs/." "$stage/siteapp/docs/"
+    fi
 
     # 2. Build SSH/rsync.
     local ssh_base rsync_e target
@@ -141,6 +150,12 @@ main() {
         --exclude='prometheus_data/'
         --exclude='authelia_data/'
     )
+    if [[ "${LDS_SKIP_PUBLIC_DOCS:-0}" == "1" ]]; then
+        # siteapp/docs is owned by deploy-public-docs.yml (see the public-docs
+        # comment in the staging block above). Defensive exclude in case
+        # something else writes into the stage tree.
+        rsync_excludes+=(--exclude='siteapp/docs/')
+    fi
     if [[ "${LDS_STACK_ONLY:-}" == "1" ]]; then
         # Stack-only CI deploys preserve laptop-managed state on the VPS:
         # chisel/siteapp client rosters AND the Authelia config + secrets +
