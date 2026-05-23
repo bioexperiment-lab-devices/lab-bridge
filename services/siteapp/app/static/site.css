@@ -1399,7 +1399,15 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
   align-items: center;
   margin-top: 2px;
 }
-.lb-docs-side__folder[data-level="0"] { margin-top: 12px; }
+/* Top-level section rows touch each other (no margin) and use vertical
+   padding for breathing room. This keeps the active/hover backdrop
+   continuous across the entire stack instead of leaving uncolored
+   strips between sibling sections. */
+.lb-docs-side__folder[data-level="0"] {
+  margin-top: 0;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
 
 /* Folder label: takes the row's full width up to the toggle. Indent
    already handled by the shared `[data-level]` rules on `__item`. */
