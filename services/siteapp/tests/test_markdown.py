@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import re
+
 import pytest
 
-from app.markdown import pygments_css, render_markdown
+from app.markdown import TocEntry, pygments_css, render_markdown
 
 
 def test_returns_html_and_title() -> None:
@@ -251,3 +253,70 @@ def test_pygments_css_emits_both_palettes():
     # must be stripped for both scopes, otherwise it overrides .lb-code.
     assert ".highlight { background:" not in css
     assert '[data-theme="dark"] .highlight { background:' not in css
+
+
+def test_toc_extracts_h2_and_h3_only():
+    src = "# Title\n\n## Alpha\n\nbody\n\n### Sub\n\nbody\n\n#### Deep\n\nbody\n\n## Beta\n\nbody\n"
+    r = render_markdown(src)
+    assert [e.text for e in r.toc] == ["Alpha", "Beta"]
+    assert [c.text for e in r.toc for c in e.children] == ["Sub"]
+
+
+def test_toc_h3_nested_under_preceding_h2():
+    src = "# T\n\n## Outer\n\n### Inner-1\n\n### Inner-2\n\n## Another\n\n### Inner-3\n"
+    r = render_markdown(src)
+    assert len(r.toc) == 2
+    outer, another = r.toc
+    assert [c.text for c in outer.children] == ["Inner-1", "Inner-2"]
+    assert [c.text for c in another.children] == ["Inner-3"]
+
+
+def test_toc_h3_before_any_h2_is_top_level():
+    src = "# T\n\n### Lonely H3\n\n## After H2\n"
+    r = render_markdown(src)
+    assert [e.level for e in r.toc] == [3, 2]
+    assert r.toc[0].children == ()
+
+
+def test_toc_anchor_matches_anchors_plugin_slug():
+    """Source of truth: parse the rendered HTML for <hN id="..."> and assert
+    the TOC anchors match in order. This guards against the TOC and the
+    anchors-plugin drifting if either side's slug logic ever changes."""
+    src = "# T\n\n## Setting Up\n\n### Step One\n\n## Going Further\n"
+    r = render_markdown(src)
+    body_ids = [m.group(2) for m in re.finditer(r'<h([234])[^>]*id="([^"]+)"', r.html)]
+    toc_anchors: list[str] = []
+    for e in r.toc:
+        toc_anchors.append(e.anchor)
+        toc_anchors.extend(c.anchor for c in e.children)
+    assert toc_anchors == body_ids
+
+
+def test_toc_duplicate_headings_get_suffixed_anchors():
+    src = "# T\n\n## Dupe\n\nbody\n\n## Dupe\n"
+    r = render_markdown(src)
+    assert [e.anchor for e in r.toc] == ["dupe", "dupe-1"]
+    # Anchors must also match what the body actually emits.
+    body_ids = re.findall(r'<h2[^>]*id="([^"]+)"', r.html)
+    assert body_ids == ["dupe", "dupe-1"]
+
+
+def test_toc_empty_when_no_h2_or_h3():
+    r = render_markdown("# Title only\n\nplain body\n")
+    assert r.toc == []
+
+
+def test_toc_only_contains_nonempty_text_entries():
+    """Every TocEntry has non-empty text — the defensive guard in
+    _extract_toc skips headings whose plain-text content is empty,
+    so users never see a blank line in the TOC rail."""
+    src = "# T\n\n## Real\n\nbody\n"
+    r = render_markdown(src)
+    assert all(e.text for e in r.toc)
+
+
+def test_toc_entry_is_a_dataclass():
+    """Sanity: the public type is the documented dataclass."""
+    e = TocEntry(level=2, text="x", anchor="x")
+    assert e.children == ()
+    assert e.level == 2

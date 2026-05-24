@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -22,7 +23,8 @@ def client(tmp_path: Path, monkeypatch) -> TestClient:
     section.mkdir()
     (section / "index.md").write_text("# Section\n", encoding="utf-8")
     (section / "page.md").write_text("# Page\n", encoding="utf-8")
-    (section / "_nav.yaml").write_text("- name: page\n", encoding="utf-8")
+    (section / "second.md").write_text("# Second page\n", encoding="utf-8")
+    (section / "_nav.yaml").write_text("- name: page\n- name: second\n", encoding="utf-8")
     (docs / "_nav.yaml").write_text(
         "- name: intro\n- name: diagram\n- name: section\n", encoding="utf-8"
     )
@@ -195,3 +197,182 @@ def test_doc_static_disallowed_extension_is_404(client: TestClient) -> None:
 def test_doc_static_missing_file_is_404(client: TestClient) -> None:
     r = client.get("/docs/icons/nope.svg")
     assert r.status_code == 404
+
+
+def test_prevnext_eyebrow_says_next_for_in_section_page(client: TestClient) -> None:
+    # /docs/section/page → next is /docs/section/second (same section).
+    # Eyebrow should say "Next" (NOT "Next section").
+    r = client.get("/docs/section/page")
+    assert r.status_code == 200
+    body = r.text
+    # Both eyebrows present (in-section transition both directions).
+    assert "lb-docs-article__nav-eyebrow" in body
+    # "Section"-flavoured eyebrows must NOT appear for this in-section transition.
+    assert "Next section" not in body
+    assert "Previous section" not in body
+
+
+def test_prevnext_eyebrow_says_next_section_for_top_section_destination(
+    client: TestClient,
+) -> None:
+    # /docs/diagram → next is /docs/section/ (a top-section index).
+    # Eyebrow should say "Next section".
+    r = client.get("/docs/diagram")
+    assert r.status_code == 200
+    assert "Next section" in r.text
+
+
+def test_prevnext_eyebrow_uses_russian_strings_when_lang_ru(client: TestClient) -> None:
+    # /docs/section/page?lang=ru → in-section transition → eyebrow "Далее".
+    r = client.get("/docs/section/page?lang=ru")
+    assert r.status_code == 200
+    body = r.text
+    assert "Далее" in body
+    assert "Назад" in body  # the prev eyebrow on the same page
+
+
+def test_prevnext_eyebrow_russian_section_label_when_lang_ru(client: TestClient) -> None:
+    # /docs/diagram?lang=ru → next is /docs/section/ → eyebrow "Следующий раздел".
+    r = client.get("/docs/diagram?lang=ru")
+    assert r.status_code == 200
+    assert "Следующий раздел" in r.text
+
+
+def test_prevnext_back_to_own_section_index_says_previous_not_section(
+    client: TestClient,
+) -> None:
+    """On /docs/section/page, the prev link points to /docs/section/ (the
+    page's OWN section index). The eyebrow must read "Previous", not
+    "Previous section" — the user is staying within Section, not crossing
+    into a new top-level chapter. Guards the ancestor-exclusion in
+    _is_top_section."""
+    r = client.get("/docs/section/page")
+    assert r.status_code == 200
+    body = r.text
+    # The prev link target is /docs/section/ (we are the first child).
+    assert 'href="/docs/section/"' in body
+    # But the eyebrow stays "Previous" (no "Previous section").
+    assert "Previous section" not in body
+
+
+def test_prevnext_omitted_on_single_entry_nav(tmp_path: Path, monkeypatch) -> None:
+    """When the nav has exactly one entry (Home), prev = next = None and
+    the footer doesn't render — matches today's `{% if prev or next %}` guard."""
+    docs = tmp_path / "docs-root"
+    # Wipe everything the fixture created; leave only Home.
+    for child in list(docs.iterdir()):
+        if child.is_file():
+            child.unlink()
+        else:
+            shutil.rmtree(child)
+    (docs / "index.md").write_text("# Home\n", encoding="utf-8")
+    # No _nav.yaml needed — Home is the implicit root entry.
+    monkeypatch.setenv("SITE_DATA", str(tmp_path))
+    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
+    from importlib import reload
+
+    import app.main
+
+    reload(app.main)
+    c = TestClient(app.main.app)
+    r = c.get("/docs/")
+    assert r.status_code == 200
+    assert "lb-docs-article__prevnext" not in r.text
+
+
+def test_toc_renders_when_page_has_h2(client: TestClient, tmp_path: Path) -> None:
+    docs = tmp_path / "docs-root"
+    (docs / "with-h2.md").write_text(
+        "# With H2\n\n## First section\n\nbody\n\n## Second section\n\nbody\n",
+        encoding="utf-8",
+    )
+    (docs / "_nav.yaml").write_text(
+        "- name: intro\n- name: diagram\n- name: section\n- name: with-h2\n",
+        encoding="utf-8",
+    )
+    r = client.get("/docs/with-h2")
+    assert r.status_code == 200
+    body = r.text
+    assert 'class="lb-docs-toc"' in body
+    assert 'href="#first-section"' in body
+    assert 'href="#second-section"' in body
+    assert "On this page" in body
+
+
+def test_toc_omitted_when_page_has_no_h2(client: TestClient) -> None:
+    # /docs/intro renders "# Intro" + plain body — no H2 → no TOC.
+    r = client.get("/docs/intro")
+    assert r.status_code == 200
+    assert "lb-docs-toc" not in r.text
+
+
+def test_toc_uses_russian_title_when_lang_ru(client: TestClient, tmp_path: Path) -> None:
+    docs = tmp_path / "docs-root"
+    (docs / "with-h2.md").write_text("# T\n\n## Alpha\n", encoding="utf-8")
+    (docs / "_nav.yaml").write_text(
+        "- name: intro\n- name: diagram\n- name: section\n- name: with-h2\n",
+        encoding="utf-8",
+    )
+    r = client.get("/docs/with-h2?lang=ru")
+    assert r.status_code == 200
+    assert "Содержание" in r.text
+
+
+def test_toc_nav_aria_label_tracks_language(client: TestClient, tmp_path: Path) -> None:
+    """The TOC <nav> landmark name is derived from the visible title via
+    aria-labelledby, so screen readers announce the localised name (not a
+    hardcoded English string)."""
+    docs = tmp_path / "docs-root"
+    (docs / "with-h2.md").write_text("# T\n\n## Alpha\n", encoding="utf-8")
+    (docs / "_nav.yaml").write_text(
+        "- name: intro\n- name: diagram\n- name: section\n- name: with-h2\n",
+        encoding="utf-8",
+    )
+    en = client.get("/docs/with-h2").text
+    ru = client.get("/docs/with-h2?lang=ru").text
+    # Both pages use aria-labelledby; the actual landmark name comes from
+    # the linked element's localized text content.
+    assert 'aria-labelledby="lb-docs-toc-heading"' in en
+    assert 'aria-labelledby="lb-docs-toc-heading"' in ru
+    # No hardcoded English aria-label remains.
+    assert 'aria-label="On this page"' not in en
+    assert 'aria-label="On this page"' not in ru
+
+
+def test_docs_toc_script_loaded_when_toc_present(client: TestClient, tmp_path: Path) -> None:
+    docs = tmp_path / "docs-root"
+    (docs / "with-h2.md").write_text("# T\n\n## A\n\nbody\n", encoding="utf-8")
+    (docs / "_nav.yaml").write_text(
+        "- name: intro\n- name: diagram\n- name: section\n- name: with-h2\n",
+        encoding="utf-8",
+    )
+    r = client.get("/docs/with-h2")
+    assert r.status_code == 200
+    assert "/_static/docs-toc.js" in r.text
+
+
+def test_docs_toc_script_omitted_when_no_toc(client: TestClient) -> None:
+    r = client.get("/docs/intro")
+    assert r.status_code == 200
+    assert "/_static/docs-toc.js" not in r.text
+
+
+def test_toc_renders_h3_nested_under_h2(client: TestClient, tmp_path: Path) -> None:
+    """The {% if h.children %} sublist branch in doc.html is otherwise only
+    exercised at the unit-test layer. Without this route test, a Jinja
+    refactor could silently break the H3 rendering."""
+    docs = tmp_path / "docs-root"
+    (docs / "with-h3.md").write_text(
+        "# Title\n\n## Alpha\n\n### Sub-alpha\n\n## Beta\n",
+        encoding="utf-8",
+    )
+    (docs / "_nav.yaml").write_text(
+        "- name: intro\n- name: diagram\n- name: section\n- name: with-h3\n",
+        encoding="utf-8",
+    )
+    r = client.get("/docs/with-h3")
+    assert r.status_code == 200
+    body = r.text
+    assert 'class="lb-docs-toc__sublist"' in body
+    assert 'href="#sub-alpha"' in body
+    assert 'data-level="3"' in body

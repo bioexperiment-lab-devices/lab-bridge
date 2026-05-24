@@ -87,6 +87,26 @@ def _entry_to_nav(directory: Path, entry: ManifestEntry, url_prefix: str) -> Nav
     )
 
 
+def flatten_nav(nav: list[NavEntry]) -> list[NavEntry]:
+    """Pre-order DFS walk of the nav tree.
+
+    Returns every NavEntry in reading order: each entry appears before its
+    own children. Used by `prev_next` to advance from a section index into
+    its first child, and from the last child of one section into the next
+    top section's index.
+    """
+    out: list[NavEntry] = []
+
+    def walk(entries: list[NavEntry]) -> None:
+        for e in entries:
+            out.append(e)
+            if e.children:
+                walk(list(e.children))
+
+    walk(nav)
+    return out
+
+
 def _maybe_home(directory: Path, url_prefix: str) -> NavEntry | None:
     index = directory / "index.md"
     if not index.is_file():
