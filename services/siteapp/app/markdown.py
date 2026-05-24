@@ -438,7 +438,7 @@ def _extract_toc(tokens) -> list[TocEntry]:
 
     Mirrors the anchors_plugin slug + duplicate-suffix logic so the TOC
     `href="#..."` always matches a heading `id="..."` in the rendered body,
-    including when authors repeat heading text (`dupe`, `dupe-2`, ...).
+    including when authors repeat heading text (`dupe`, `dupe-1`, `dupe-2`, ...).
 
     H3s are nested under the most-recent H2 in a second pass. H3s that
     appear before any H2 (allowed but rare) stay at the top level.

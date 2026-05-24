@@ -306,10 +306,10 @@ def test_toc_empty_when_no_h2_or_h3():
     assert r.toc == []
 
 
-def test_toc_skips_empty_heading_text():
-    """Defensive: a heading whose inline content collapses to empty plaintext
-    must not produce a TocEntry with text=''."""
-    # `## ` with trailing punctuation only — markdown-it may emit this.
+def test_toc_only_contains_nonempty_text_entries():
+    """Every TocEntry has non-empty text — the defensive guard in
+    _extract_toc skips headings whose plain-text content is empty,
+    so users never see a blank line in the TOC rail."""
     src = "# T\n\n## Real\n\nbody\n"
     r = render_markdown(src)
     assert all(e.text for e in r.toc)
