@@ -10,6 +10,14 @@ inputs:
   grafana_password:      { required: true }
   agent_upload_token:    { required: true }
   flasher_upload_token:  { required: true }
+  ci_smoke_user:
+    description: "Authelia username for the post-deploy authenticated smoke step. Must exist in compose/authelia/users_database.yml on the VPS with group 'admins'."
+    required: false
+    default: "ci_smoke"
+  ci_smoke_password:
+    description: "Plaintext password for ci_smoke_user. When empty, the authenticated smoke step is skipped (lets this action merge before the GH secret is provisioned)."
+    required: false
+    default: ""
   verify_version:
     description: "When set, assert siteapp /api/public/server-info.version == this AND the lab-bridge-flasher-1 container's image tag ends in :this. Omit (or empty) to skip verification."
     required: false
@@ -60,6 +68,20 @@ runs:
         LDS_REQUIRE_VAULT: '1'
         LDS_SSH_OPTS: '-o StrictHostKeyChecking=accept-new'
       run: bash scripts/deploy.sh
+
+    - name: post-deploy authenticated smoke
+      # Logs into Authelia as ci_smoke_user and hits an authenticated JSON
+      # endpoint on each protected service. Layered on top of deploy.sh's
+      # redirect probe (which only confirms forward_auth wiring) so a backend
+      # that boots into a crash loop behind /jupyter or /flash fails the
+      # deploy loudly instead of being papered over by the 302 to /login.
+      if: inputs.ci_smoke_password != ''
+      shell: bash
+      env:
+        VPS_HOST: ${{ inputs.vps_host }}
+        CI_SMOKE_USER: ${{ inputs.ci_smoke_user }}
+        CI_SMOKE_PASSWORD: ${{ inputs.ci_smoke_password }}
+      run: bash scripts/post_deploy_smoke.sh
 
     - name: verify siteapp version via /api/public/server-info
       if: inputs.verify_version != ''
