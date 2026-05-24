@@ -1,0 +1,38 @@
+name: streamer-e2e
+
+services:
+  serialhop-stub:
+    build:
+      context: .
+      dockerfile: stub_serialhop.Dockerfile
+    environment:
+      STUB_ARMED: '[{"id":"cam-0","label":"Test pattern"}]'
+      STUB_BEHAVIOUR: normal
+    networks:
+      labnet:
+        aliases:
+          - chisel       # so streamer can reach it as chisel:8001
+    ports:
+      - "127.0.0.1:8081:8001"   # for direct test poking
+
+  streamer:
+    image: ${STREAMER_TEST_IMAGE:-lab-bridge-streamer:e2e}
+    environment:
+      STREAMER_CLIENTS_FILE: /etc/streamer/clients.json
+      STREAMER_CHISEL_HOST: chisel
+      STREAMER_PUBLIC_IP: 127.0.0.1
+      STREAMER_PUBLISH_READY_TIMEOUT_S: "5"
+      STREAMER_DRAIN_DEBOUNCE_S: "1"
+      STREAMER_DISCOVERY_CACHE_TTL_S: "0.5"
+    volumes:
+      - ./fixtures/clients.json:/etc/streamer/clients.json:ro
+    ports:
+      - "127.0.0.1:8080:8000"
+      - "127.0.0.1:50000-50100:50000-50100/udp"
+    networks: [labnet]
+    depends_on:
+      - serialhop-stub
+
+networks:
+  labnet:
+    driver: bridge
