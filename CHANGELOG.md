@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.4](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.19.3...v0.19.4) (2026-05-24)
+
+
+### Bug Fixes
+
+* **caddy:** restore JupyterLab rendering by un-deferring global CSP ([#149](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/149)) ([1e32128](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/1e32128bc9d685abcb0b0c6cca21c4e0356bc9b9))
+
 ## [0.19.3](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.19.2...v0.19.3) (2026-05-24)
 
 
