@@ -1590,7 +1590,6 @@ table.files th, table.files td { border-bottom: 1px solid var(--border); padding
 }
 .lb-docs-toc__link:hover {
   color: var(--text);
-  text-decoration: none;
 }
 .lb-docs-toc__link[data-level="3"] {
   font-size: 12px;
