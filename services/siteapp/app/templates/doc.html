@@ -32,7 +32,7 @@
               <span class="lb-docs-article__nav-eyebrow">
                 &larr; {% if prev_is_section %}{{ s.prev_section }}{% else %}{{ s.prev }}{% endif %}
               </span>
-              <span class="lb-docs-article__nav-title">{{ prev.title_ru if (lang == 'ru' and prev.title_ru) else prev.title_en }}</span>
+              <span class="lb-docs-article__nav-title">{{ prev.title_ru if lang == 'ru' and prev.title_ru else prev.title_en }}</span>
             </a>
           {% else %}<span></span>{% endif %}
           {% if next %}
@@ -40,7 +40,7 @@
               <span class="lb-docs-article__nav-eyebrow">
                 {% if next_is_section %}{{ s.next_section }}{% else %}{{ s.next }}{% endif %} &rarr;
               </span>
-              <span class="lb-docs-article__nav-title">{{ next.title_ru if (lang == 'ru' and next.title_ru) else next.title_en }}</span>
+              <span class="lb-docs-article__nav-title">{{ next.title_ru if lang == 'ru' and next.title_ru else next.title_en }}</span>
             </a>
           {% else %}<span></span>{% endif %}
         </footer>

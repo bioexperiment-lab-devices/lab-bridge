@@ -148,10 +148,10 @@ def make_router(settings: Settings) -> APIRouter:
         text = file.read_text(encoding="utf-8")
         result = render_markdown(text)
 
-        nav = build_nav(settings.docs_root)
-        crumbs = build_breadcrumb(nav, str(request.url.path))
-        prev, nxt = prev_next(nav, str(request.url.path))
         current_url_path = str(request.url.path)
+        nav = build_nav(settings.docs_root)
+        crumbs = build_breadcrumb(nav, current_url_path)
+        prev, nxt = prev_next(nav, current_url_path)
         prev_is_section = bool(prev) and _is_top_section(nav, prev.url, current_url_path)
         next_is_section = bool(nxt) and _is_top_section(nav, nxt.url, current_url_path)
         response = templates.TemplateResponse(
@@ -164,7 +164,7 @@ def make_router(settings: Settings) -> APIRouter:
                 "lang": chosen,
                 "doc": doc,
                 "nav": nav,
-                "current_url": str(request.url.path),
+                "current_url": current_url_path,
                 "pygments_css": pygments_css(),
                 "crumbs": crumbs,
                 "prev": prev,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -237,6 +238,23 @@ def test_prevnext_eyebrow_russian_section_label_when_lang_ru(client: TestClient)
     assert "Следующий раздел" in r.text
 
 
+def test_prevnext_back_to_own_section_index_says_previous_not_section(
+    client: TestClient,
+) -> None:
+    """On /docs/section/page, the prev link points to /docs/section/ (the
+    page's OWN section index). The eyebrow must read "Previous", not
+    "Previous section" — the user is staying within Section, not crossing
+    into a new top-level chapter. Guards the ancestor-exclusion in
+    _is_top_section."""
+    r = client.get("/docs/section/page")
+    assert r.status_code == 200
+    body = r.text
+    # The prev link target is /docs/section/ (we are the first child).
+    assert 'href="/docs/section/"' in body
+    # But the eyebrow stays "Previous" (no "Previous section").
+    assert "Previous section" not in body
+
+
 def test_prevnext_omitted_on_single_entry_nav(tmp_path: Path, monkeypatch) -> None:
     """When the nav has exactly one entry (Home), prev = next = None and
     the footer doesn't render — matches today's `{% if prev or next %}` guard."""
@@ -246,8 +264,6 @@ def test_prevnext_omitted_on_single_entry_nav(tmp_path: Path, monkeypatch) -> No
         if child.is_file():
             child.unlink()
         else:
-            import shutil
-
             shutil.rmtree(child)
     (docs / "index.md").write_text("# Home\n", encoding="utf-8")
     # No _nav.yaml needed — Home is the implicit root entry.
