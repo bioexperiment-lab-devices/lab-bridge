@@ -1,12 +1,12 @@
 FROM python:3.13-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libavdevice59 libavfilter9 libavformat60 libavcodec60 libavutil58 \
-    libswscale7 libswresample4 libsrtp2-1 libopus0 libvpx7 \
+    libavdevice61 libavfilter10 libavformat61 libavcodec61 libavutil59 \
+    libswscale8 libswresample5 libsrtp2-1 libopus0 libvpx9 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir 'fastapi==0.115.*' 'uvicorn[standard]==0.30.*' \
-    'aiortc==1.9.*' 'httpx==0.28.*'
+    'aiortc>=1.10.0' 'httpx==0.28.*'
 
 COPY stub_serialhop.py /stub.py
 

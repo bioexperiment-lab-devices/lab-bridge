@@ -7,9 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # aiortc native deps: PyAV needs libav*, aiortc needs libsrtp + libvpx + libopus.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libavdevice59 libavfilter9 libavformat60 libavcodec60 libavutil58 \
-    libswscale7 libswresample4 \
-    libsrtp2-1 libopus0 libvpx7 \
+    libavdevice61 libavfilter10 libavformat61 libavcodec61 libavutil59 \
+    libswscale8 libswresample5 \
+    libsrtp2-1 libopus0 libvpx9 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:0.5.4 /uv /usr/local/bin/uv
