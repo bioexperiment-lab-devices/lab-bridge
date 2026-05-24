@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.2](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.19.1...v0.19.2) (2026-05-24)
+
+
+### Bug Fixes
+
+* **ci:** probe authenticated services with real session, not 302 ([#145](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/145)) ([0e4e49b](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/0e4e49b44e2d3104859d071fe424313203d92a10))
+
 ## [0.19.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.19.0...v0.19.1) (2026-05-23)
 
 
