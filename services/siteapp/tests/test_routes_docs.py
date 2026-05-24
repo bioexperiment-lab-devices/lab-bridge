@@ -337,3 +337,21 @@ def test_toc_nav_aria_label_tracks_language(client: TestClient, tmp_path: Path) 
     # No hardcoded English aria-label remains.
     assert 'aria-label="On this page"' not in en
     assert 'aria-label="On this page"' not in ru
+
+
+def test_docs_toc_script_loaded_when_toc_present(client: TestClient, tmp_path: Path) -> None:
+    docs = tmp_path / "docs-root"
+    (docs / "with-h2.md").write_text("# T\n\n## A\n\nbody\n", encoding="utf-8")
+    (docs / "_nav.yaml").write_text(
+        "- name: intro\n- name: diagram\n- name: section\n- name: with-h2\n",
+        encoding="utf-8",
+    )
+    r = client.get("/docs/with-h2")
+    assert r.status_code == 200
+    assert "/_static/docs-toc.js" in r.text
+
+
+def test_docs_toc_script_omitted_when_no_toc(client: TestClient) -> None:
+    r = client.get("/docs/intro")
+    assert r.status_code == 200
+    assert "/_static/docs-toc.js" not in r.text
