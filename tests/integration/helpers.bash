@@ -57,6 +57,20 @@ load_siteapp_test_image() {
     _save_and_load_into_fake_vps "$fixture_tag"
 }
 
+# Mirror of load_siteapp_test_image for the streamer image. Same rationale:
+# the fixture's streamer tag (ghcr.io/test/lab-bridge-streamer:VERSION) is
+# not pullable, so we build it locally and side-load it into fake-VPS so
+# `docker compose up` finds it after `pull --ignore-pull-failures` no-ops.
+load_streamer_test_image() {
+    local fixture_tag
+    local repo version
+    repo="$(yq -e '.streamer_image_repo' "$ROOT/tests/integration/fixtures/valid_pins.yaml")"
+    version="$(awk 'NF { print $1; exit }' "$ROOT/VERSION")"
+    fixture_tag="${repo}:${version}"
+    docker build --load -q -t "$fixture_tag" "$ROOT/services/streamer" >&2 || return 1
+    _save_and_load_into_fake_vps "$fixture_tag"
+}
+
 # Mirror of load_siteapp_test_image for the flasher image. Same rationale:
 # the fixture's flasher tag (ghcr.io/test/lab-bridge-flasher:VERSION) is
 # not pullable, so we build it locally and side-load it into fake-VPS so

@@ -8,6 +8,7 @@ siteapp_image_repo: ghcr.io/test/lab-bridge-siteapp
 flasher_image_repo: ghcr.io/test/lab-bridge-flasher
 caddy_image_repo: ghcr.io/test/lab-bridge-caddy
 authelia_image_repo: ghcr.io/test/lab-bridge-authelia
+streamer_image_repo: ghcr.io/test/lab-bridge-streamer
 authelia_image: ghcr.io/test/lab-bridge-authelia:0.0.0
 acme_email: ops@example.com
 remote_root: /srv/lab-bridge
