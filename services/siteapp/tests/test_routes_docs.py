@@ -316,3 +316,24 @@ def test_toc_uses_russian_title_when_lang_ru(client: TestClient, tmp_path: Path)
     r = client.get("/docs/with-h2?lang=ru")
     assert r.status_code == 200
     assert "Содержание" in r.text
+
+
+def test_toc_nav_aria_label_tracks_language(client: TestClient, tmp_path: Path) -> None:
+    """The TOC <nav> landmark name is derived from the visible title via
+    aria-labelledby, so screen readers announce the localised name (not a
+    hardcoded English string)."""
+    docs = tmp_path / "docs-root"
+    (docs / "with-h2.md").write_text("# T\n\n## Alpha\n", encoding="utf-8")
+    (docs / "_nav.yaml").write_text(
+        "- name: intro\n- name: diagram\n- name: section\n- name: with-h2\n",
+        encoding="utf-8",
+    )
+    en = client.get("/docs/with-h2").text
+    ru = client.get("/docs/with-h2?lang=ru").text
+    # Both pages use aria-labelledby; the actual landmark name comes from
+    # the linked element's localized text content.
+    assert 'aria-labelledby="lb-docs-toc-heading"' in en
+    assert 'aria-labelledby="lb-docs-toc-heading"' in ru
+    # No hardcoded English aria-label remains.
+    assert 'aria-label="On this page"' not in en
+    assert 'aria-label="On this page"' not in ru
