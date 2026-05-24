@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.strings import DL_STRINGS, HOME_STRINGS
+from app.strings import DL_STRINGS, DOCS_STRINGS, HOME_STRINGS
 
 
 def test_home_strings_have_same_keys_in_both_languages() -> None:
@@ -21,6 +21,16 @@ def test_dl_strings_no_empty_values() -> None:
     for lang in ("en", "ru"):
         for key, value in DL_STRINGS[lang].items():
             assert value.strip(), f"empty DL_STRINGS[{lang}][{key}]"
+
+
+def test_docs_strings_have_same_keys_in_both_languages() -> None:
+    assert set(DOCS_STRINGS["en"].keys()) == set(DOCS_STRINGS["ru"].keys())
+
+
+def test_docs_strings_no_empty_values() -> None:
+    for lang in ("en", "ru"):
+        for key, value in DOCS_STRINGS[lang].items():
+            assert value.strip(), f"empty DOCS_STRINGS[{lang}][{key}]"
 
 
 def test_dl_strings_includes_relative_time_units() -> None:
