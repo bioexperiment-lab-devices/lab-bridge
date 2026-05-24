@@ -205,6 +205,12 @@ def test_prev_next_last_overall_has_no_next():
     assert nxt is None
 
 
+def test_prev_next_url_not_in_nav_returns_none_pair():
+    prev, nxt = prev_next(_deeper_sample_nav(), "/docs/nonexistent")
+    assert prev is None
+    assert nxt is None
+
+
 def test_manifest_drives_root_order(tmp_path: Path) -> None:
     d = tmp_path / "docs-root"
     d.mkdir(exist_ok=True)
