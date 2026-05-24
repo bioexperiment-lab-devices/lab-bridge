@@ -172,6 +172,7 @@ def make_router(settings: Settings) -> APIRouter:
                 "prev_is_section": prev_is_section,
                 "next_is_section": next_is_section,
                 "s": DOCS_STRINGS[chosen],
+                "toc": result.toc,
             },
         )
         if lang in ("en", "ru"):

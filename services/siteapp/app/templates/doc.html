@@ -5,47 +5,75 @@
   <div class="lb-docs-shell">
     {% include "_nav.html" %}
     <div class="lb-docs-content">
-      <article class="lb-docs-article">
-        <nav class="lb-docs-article__crumbs" aria-label="Breadcrumb">
-          <div class="lb-docs-article__crumbs-trail">
-            {% for crumb in crumbs %}
-              {% if crumb.url %}<a href="{{ crumb.url }}">{{ crumb.title }}</a>{% else %}<span>{{ crumb.title }}</span>{% endif %}
-              {% if not loop.last %}<span class="lb-docs-article__sep" aria-hidden="true">/</span>{% endif %}
-            {% endfor %}
-          </div>
-          {% if doc.ru_exists %}
-            <div class="lb-lang lb-docs-article__lang" role="group" aria-label="Language">
-              <a href="?lang=en" class="lb-lang__pill{% if lang == 'en' %} is-active{% endif %}">EN</a>
-              <a href="?lang=ru" class="lb-lang__pill{% if lang == 'ru' %} is-active{% endif %}">RU</a>
+      <div class="lb-docs-grid">
+        <article class="lb-docs-article">
+          <nav class="lb-docs-article__crumbs" aria-label="Breadcrumb">
+            <div class="lb-docs-article__crumbs-trail">
+              {% for crumb in crumbs %}
+                {% if crumb.url %}<a href="{{ crumb.url }}">{{ crumb.title }}</a>{% else %}<span>{{ crumb.title }}</span>{% endif %}
+                {% if not loop.last %}<span class="lb-docs-article__sep" aria-hidden="true">/</span>{% endif %}
+              {% endfor %}
             </div>
+            {% if doc.ru_exists %}
+              <div class="lb-lang lb-docs-article__lang" role="group" aria-label="Language">
+                <a href="?lang=en" class="lb-lang__pill{% if lang == 'en' %} is-active{% endif %}">EN</a>
+                <a href="?lang=ru" class="lb-lang__pill{% if lang == 'ru' %} is-active{% endif %}">RU</a>
+              </div>
+            {% endif %}
+          </nav>
+
+          <div class="lb-docs-article__body">
+            {{ html|safe }}
+          </div>
+
+          {% if prev or next %}
+          <footer class="lb-docs-article__prevnext">
+            {% if prev %}
+              <a class="lb-docs-article__prev" href="{{ prev.url }}">
+                <span class="lb-docs-article__nav-eyebrow">
+                  &larr; {% if prev_is_section %}{{ s.prev_section }}{% else %}{{ s.prev }}{% endif %}
+                </span>
+                <span class="lb-docs-article__nav-title">{{ prev.title_ru if lang == 'ru' and prev.title_ru else prev.title_en }}</span>
+              </a>
+            {% else %}<span></span>{% endif %}
+            {% if next %}
+              <a class="lb-docs-article__next" href="{{ next.url }}">
+                <span class="lb-docs-article__nav-eyebrow">
+                  {% if next_is_section %}{{ s.next_section }}{% else %}{{ s.next }}{% endif %} &rarr;
+                </span>
+                <span class="lb-docs-article__nav-title">{{ next.title_ru if lang == 'ru' and next.title_ru else next.title_en }}</span>
+              </a>
+            {% else %}<span></span>{% endif %}
+          </footer>
           {% endif %}
+        </article>
+
+        {% if toc %}
+        <nav class="lb-docs-toc" aria-label="On this page">
+          <div class="lb-docs-toc__title">{{ s.toc_title }}</div>
+          <ul class="lb-docs-toc__list">
+            {% for h in toc %}
+              <li>
+                <a class="lb-docs-toc__link"
+                   href="#{{ h.anchor }}"
+                   data-toc-anchor="{{ h.anchor }}"
+                   data-level="2">{{ h.text }}</a>
+                {% if h.children %}
+                  <ul class="lb-docs-toc__sublist">
+                    {% for sub in h.children %}
+                      <li><a class="lb-docs-toc__link"
+                             href="#{{ sub.anchor }}"
+                             data-toc-anchor="{{ sub.anchor }}"
+                             data-level="3">{{ sub.text }}</a></li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
         </nav>
-
-        <div class="lb-docs-article__body">
-          {{ html|safe }}
-        </div>
-
-        {% if prev or next %}
-        <footer class="lb-docs-article__prevnext">
-          {% if prev %}
-            <a class="lb-docs-article__prev" href="{{ prev.url }}">
-              <span class="lb-docs-article__nav-eyebrow">
-                &larr; {% if prev_is_section %}{{ s.prev_section }}{% else %}{{ s.prev }}{% endif %}
-              </span>
-              <span class="lb-docs-article__nav-title">{{ prev.title_ru if lang == 'ru' and prev.title_ru else prev.title_en }}</span>
-            </a>
-          {% else %}<span></span>{% endif %}
-          {% if next %}
-            <a class="lb-docs-article__next" href="{{ next.url }}">
-              <span class="lb-docs-article__nav-eyebrow">
-                {% if next_is_section %}{{ s.next_section }}{% else %}{{ s.next }}{% endif %} &rarr;
-              </span>
-              <span class="lb-docs-article__nav-title">{{ next.title_ru if lang == 'ru' and next.title_ru else next.title_en }}</span>
-            </a>
-          {% else %}<span></span>{% endif %}
-        </footer>
         {% endif %}
-      </article>
+      </div>
     </div>
   </div>
 </div>

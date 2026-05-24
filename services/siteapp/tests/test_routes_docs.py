@@ -278,3 +278,41 @@ def test_prevnext_omitted_on_single_entry_nav(tmp_path: Path, monkeypatch) -> No
     r = c.get("/docs/")
     assert r.status_code == 200
     assert "lb-docs-article__prevnext" not in r.text
+
+
+def test_toc_renders_when_page_has_h2(client: TestClient, tmp_path: Path) -> None:
+    docs = tmp_path / "docs-root"
+    (docs / "with-h2.md").write_text(
+        "# With H2\n\n## First section\n\nbody\n\n## Second section\n\nbody\n",
+        encoding="utf-8",
+    )
+    (docs / "_nav.yaml").write_text(
+        "- name: intro\n- name: diagram\n- name: section\n- name: with-h2\n",
+        encoding="utf-8",
+    )
+    r = client.get("/docs/with-h2")
+    assert r.status_code == 200
+    body = r.text
+    assert 'class="lb-docs-toc"' in body
+    assert 'href="#first-section"' in body
+    assert 'href="#second-section"' in body
+    assert "On this page" in body
+
+
+def test_toc_omitted_when_page_has_no_h2(client: TestClient) -> None:
+    # /docs/intro renders "# Intro" + plain body — no H2 → no TOC.
+    r = client.get("/docs/intro")
+    assert r.status_code == 200
+    assert "lb-docs-toc" not in r.text
+
+
+def test_toc_uses_russian_title_when_lang_ru(client: TestClient, tmp_path: Path) -> None:
+    docs = tmp_path / "docs-root"
+    (docs / "with-h2.md").write_text("# T\n\n## Alpha\n", encoding="utf-8")
+    (docs / "_nav.yaml").write_text(
+        "- name: intro\n- name: diagram\n- name: section\n- name: with-h2\n",
+        encoding="utf-8",
+    )
+    r = client.get("/docs/with-h2?lang=ru")
+    assert r.status_code == 200
+    assert "Содержание" in r.text
