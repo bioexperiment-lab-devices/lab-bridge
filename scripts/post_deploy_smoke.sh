@@ -84,11 +84,41 @@ login() {
     done
 }
 
+# Grafana keeps its own session cookie independent of authelia_session
+# (compose/docker-compose.yml.tmpl sets GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN=true
+# and DISABLE_LOGIN_FORM=true; see tests/integration/test_auth_smoke.bats:127).
+# Without a grafana_session, /grafana/api/* returns 401 even when the Authelia
+# forward_auth gate is satisfied. Complete the OIDC handshake once: hitting
+# /grafana/login with -L follows the chain (Grafana → Authelia /api/oidc/
+# authorization → callback → grafana_session set → /grafana/ 200). Authelia
+# auto-approves because $JAR already carries a valid authelia_session.
+grafana_oidc_handshake() {
+    local deadline=$(($(date +%s) + LOGIN_TIMEOUT_S))
+    local result status final_url
+    while :; do
+        result="$(curl -sk -L -b "$JAR" -c "$JAR" -o /dev/null \
+            -w '%{http_code} %{url_effective}' \
+            "https://$VPS_HOST/grafana/login" || true)"
+        status="${result%% *}"
+        final_url="${result#* }"
+        if [[ "$status" == "200" ]]; then
+            log "Grafana OIDC handshake OK (landed at $final_url)"
+            return 0
+        fi
+        if (( $(date +%s) >= deadline )); then
+            warn "Grafana OIDC handshake last status=$status, landed at $final_url — grafana probe will fail"
+            return 1
+        fi
+        sleep 2
+    done
+}
+
 main() {
     log "post-deploy authenticated smoke against https://$VPS_HOST"
     login
 
     local failed=0
+    grafana_oidc_handshake || failed=1
     # 1. Authelia session is valid via siteapp's whoami (proves the cookie was
     #    issued, the forward_auth handshake works, and siteapp reads the
     #    Remote-User header).
