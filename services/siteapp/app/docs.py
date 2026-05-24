@@ -76,14 +76,22 @@ DOC_STATIC_EXTS: frozenset[str] = frozenset(
 )
 
 
-def _is_top_section(nav: list[NavEntry], url: str) -> bool:
-    """True iff `url` matches a depth-0 entry in `nav`.
+def _is_top_section(nav: list[NavEntry], url: str, current_url: str = "") -> bool:
+    """True iff `url` matches a depth-0 entry in `nav` AND is not the
+    parent section of `current_url`.
 
     Used to switch the prev/next eyebrow between "Previous"/"Next" (in-section
     page) and "Previous section"/"Next section" (crossing into a new section).
     Under pure pre-order DFS, cross-section transitions always land on the
     next section's *index page* — exactly the case this returns True for.
+
+    The `current_url` exclusion prevents the "Previous section" label from
+    appearing when navigating back to the section's own index (e.g., from
+    /docs/section/page back to /docs/section/ — you're still within the
+    same section, so "Previous" is correct, not "Previous section").
     """
+    if current_url and url and current_url.startswith(url) and url != current_url:
+        return False
     return any(top.url == url for top in nav)
 
 
@@ -143,8 +151,9 @@ def make_router(settings: Settings) -> APIRouter:
         nav = build_nav(settings.docs_root)
         crumbs = build_breadcrumb(nav, str(request.url.path))
         prev, nxt = prev_next(nav, str(request.url.path))
-        prev_is_section = bool(prev) and _is_top_section(nav, prev.url)
-        next_is_section = bool(nxt) and _is_top_section(nav, nxt.url)
+        current_url_path = str(request.url.path)
+        prev_is_section = bool(prev) and _is_top_section(nav, prev.url, current_url_path)
+        next_is_section = bool(nxt) and _is_top_section(nav, nxt.url, current_url_path)
         response = templates.TemplateResponse(
             request,
             "doc.html",

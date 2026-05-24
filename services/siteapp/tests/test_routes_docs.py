@@ -22,7 +22,8 @@ def client(tmp_path: Path, monkeypatch) -> TestClient:
     section.mkdir()
     (section / "index.md").write_text("# Section\n", encoding="utf-8")
     (section / "page.md").write_text("# Page\n", encoding="utf-8")
-    (section / "_nav.yaml").write_text("- name: page\n", encoding="utf-8")
+    (section / "second.md").write_text("# Second page\n", encoding="utf-8")
+    (section / "_nav.yaml").write_text("- name: page\n- name: second\n", encoding="utf-8")
     (docs / "_nav.yaml").write_text(
         "- name: intro\n- name: diagram\n- name: section\n", encoding="utf-8"
     )
@@ -195,3 +196,69 @@ def test_doc_static_disallowed_extension_is_404(client: TestClient) -> None:
 def test_doc_static_missing_file_is_404(client: TestClient) -> None:
     r = client.get("/docs/icons/nope.svg")
     assert r.status_code == 404
+
+
+def test_prevnext_eyebrow_says_next_for_in_section_page(client: TestClient) -> None:
+    # /docs/section/page → next is /docs/section/second (same section).
+    # Eyebrow should say "Next" (NOT "Next section").
+    r = client.get("/docs/section/page")
+    assert r.status_code == 200
+    body = r.text
+    # Both eyebrows present (in-section transition both directions).
+    assert "lb-docs-article__nav-eyebrow" in body
+    # "Section"-flavoured eyebrows must NOT appear for this in-section transition.
+    assert "Next section" not in body
+    assert "Previous section" not in body
+
+
+def test_prevnext_eyebrow_says_next_section_for_top_section_destination(
+    client: TestClient,
+) -> None:
+    # /docs/diagram → next is /docs/section/ (a top-section index).
+    # Eyebrow should say "Next section".
+    r = client.get("/docs/diagram")
+    assert r.status_code == 200
+    assert "Next section" in r.text
+
+
+def test_prevnext_eyebrow_uses_russian_strings_when_lang_ru(client: TestClient) -> None:
+    # /docs/section/page?lang=ru → in-section transition → eyebrow "Далее".
+    r = client.get("/docs/section/page?lang=ru")
+    assert r.status_code == 200
+    body = r.text
+    assert "Далее" in body
+    assert "Назад" in body  # the prev eyebrow on the same page
+
+
+def test_prevnext_eyebrow_russian_section_label_when_lang_ru(client: TestClient) -> None:
+    # /docs/diagram?lang=ru → next is /docs/section/ → eyebrow "Следующий раздел".
+    r = client.get("/docs/diagram?lang=ru")
+    assert r.status_code == 200
+    assert "Следующий раздел" in r.text
+
+
+def test_prevnext_omitted_on_single_entry_nav(tmp_path: Path, monkeypatch) -> None:
+    """When the nav has exactly one entry (Home), prev = next = None and
+    the footer doesn't render — matches today's `{% if prev or next %}` guard."""
+    docs = tmp_path / "docs-root"
+    # Wipe everything the fixture created; leave only Home.
+    for child in list(docs.iterdir()):
+        if child.is_file():
+            child.unlink()
+        else:
+            import shutil
+
+            shutil.rmtree(child)
+    (docs / "index.md").write_text("# Home\n", encoding="utf-8")
+    # No _nav.yaml needed — Home is the implicit root entry.
+    monkeypatch.setenv("SITE_DATA", str(tmp_path))
+    monkeypatch.setenv("SITEAPP_AGENT_UPLOAD_TOKEN", "x")
+    from importlib import reload
+
+    import app.main
+
+    reload(app.main)
+    c = TestClient(app.main.app)
+    r = c.get("/docs/")
+    assert r.status_code == 200
+    assert "lb-docs-article__prevnext" not in r.text
