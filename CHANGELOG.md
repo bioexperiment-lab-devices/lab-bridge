@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.20.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.19.4...v0.20.0) (2026-05-24)
+
+
+### Features
+
+* **siteapp:** docs in-page TOC + DFS prev/next ([#151](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/151)) ([3b9f598](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/3b9f598c6a74147a57bbd5c898cc7ee5419c9382))
+
+
+### Bug Fixes
+
+* **siteapp:** docs sidebar — reset on re-entry + always expand active section ([#153](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/153)) ([e52549d](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/e52549dd2f78c735884fe2f702b385e8a4e20302))
+
 ## [0.19.4](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.19.3...v0.19.4) (2026-05-24)
 
 
