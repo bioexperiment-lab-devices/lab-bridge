@@ -1,0 +1,93 @@
+name: pr-streamer
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: pr-streamer-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  streamer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: changed
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            src:
+              - 'services/streamer/**'
+              - '.github/workflows/pr-streamer.yml'
+
+      - id: should-run
+        name: determine if suite should run
+        run: |
+          set -e
+          if [[ "${{ github.head_ref }}" == release-please--* ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::release-please PR — running full streamer suite"
+          else
+            echo "run=${{ steps.changed.outputs.src }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.should-run.outputs.run != 'true'
+        run: echo "no streamer changes; skipping all steps"
+
+      - if: steps.should-run.outputs.run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: services/streamer/.python-version
+          cache: pip
+
+      - name: install uv
+        if: steps.should-run.outputs.run == 'true'
+        run: pip install uv
+
+      - name: deps
+        if: steps.should-run.outputs.run == 'true'
+        working-directory: services/streamer
+        run: uv sync --frozen
+
+      - name: ruff check
+        if: steps.should-run.outputs.run == 'true'
+        working-directory: services/streamer
+        run: uv run ruff check app tests
+
+      - name: ruff format check
+        if: steps.should-run.outputs.run == 'true'
+        working-directory: services/streamer
+        run: uv run ruff format --check app tests
+
+      - name: pytest (unit)
+        if: steps.should-run.outputs.run == 'true'
+        working-directory: services/streamer
+        run: uv run pytest -v
+
+      - name: docker buildx setup
+        if: steps.should-run.outputs.run == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: image build (no push)
+        if: steps.should-run.outputs.run == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: services/streamer
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: lab-bridge-streamer:pr-${{ github.event.pull_request.number }}
+
+      - name: pytest (e2e)
+        if: steps.should-run.outputs.run == 'true'
+        working-directory: services/streamer
+        env:
+          STREAMER_TEST_IMAGE: lab-bridge-streamer:pr-${{ github.event.pull_request.number }}
+        run: uv run pytest tests/e2e/ -v
