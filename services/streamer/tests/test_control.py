@@ -108,9 +108,7 @@ async def test_stop_204_returns_silently() -> None:
     route = respx.post("http://chisel:8089/api/translations/cam-0/stop").mock(
         return_value=httpx.Response(204)
     )
-    await _client({"alice": 8089}).stop(
-        lab_name="alice", translation_id="cam-0", session_id="01"
-    )
+    await _client({"alice": 8089}).stop(lab_name="alice", translation_id="cam-0", session_id="01")
     assert route.called
     body = httpx.Response(200, content=route.calls[0].request.content).json()
     assert body == {"session_id": "01"}
@@ -122,9 +120,7 @@ async def test_stop_409_returns_silently() -> None:
     respx.post("http://chisel:8089/api/translations/cam-0/stop").mock(
         return_value=httpx.Response(409, json={"active_session_id": "02"})
     )
-    await _client({"alice": 8089}).stop(
-        lab_name="alice", translation_id="cam-0", session_id="01"
-    )
+    await _client({"alice": 8089}).stop(lab_name="alice", translation_id="cam-0", session_id="01")
 
 
 @respx.mock
@@ -133,6 +129,4 @@ async def test_stop_connection_error_is_swallowed() -> None:
     respx.post("http://chisel:8089/api/translations/cam-0/stop").mock(
         side_effect=httpx.ConnectError("no tunnel")
     )
-    await _client({"alice": 8089}).stop(
-        lab_name="alice", translation_id="cam-0", session_id="01"
-    )
+    await _client({"alice": 8089}).stop(lab_name="alice", translation_id="cam-0", session_id="01")

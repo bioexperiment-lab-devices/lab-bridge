@@ -90,9 +90,7 @@ def make_router(
         manager.cancel_drain(session)
 
         try:
-            await asyncio.wait_for(
-                session.publish_ready.wait(), timeout=publish_ready_timeout_s
-            )
+            await asyncio.wait_for(session.publish_ready.wait(), timeout=publish_ready_timeout_s)
         except asyncio.TimeoutError:
             # Best-effort cleanup; drop session so next viewer retries fresh.
             await _stop_session(session)
@@ -110,17 +108,13 @@ def make_router(
             if state in ("failed", "closed"):
                 _remove_subscriber_sync(session, sub_pc)
 
-        await sub_pc.setRemoteDescription(
-            RTCSessionDescription(sdp=offer_sdp, type="offer")
-        )
+        await sub_pc.setRemoteDescription(RTCSessionDescription(sdp=offer_sdp, type="offer"))
         await sub_pc.setLocalDescription(await sub_pc.createAnswer())
 
         sub_id = str(ULID())
         session.subscribers[sub_id] = sub_pc
 
-        answer = rewrite_sdp_with_public_ip(
-            sub_pc.localDescription.sdp, public_ip=public_ip
-        )
+        answer = rewrite_sdp_with_public_ip(sub_pc.localDescription.sdp, public_ip=public_ip)
         return Response(
             content=answer,
             media_type="application/sdp",

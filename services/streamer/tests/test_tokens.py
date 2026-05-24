@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import time
 
 import pytest
 
-from app.tokens import WhipToken, generate_whip_token
+from app.tokens import generate_whip_token
 
 
 def test_generate_returns_distinct_tokens() -> None:

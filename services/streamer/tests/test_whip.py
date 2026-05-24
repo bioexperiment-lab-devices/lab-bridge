@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -78,7 +77,9 @@ def test_whip_201_negotiates_and_burns_token(app: FastAPI, manager: SessionManag
     fake_pc.setRemoteDescription = AsyncMock()
     fake_pc.createAnswer = AsyncMock(return_value=MagicMock(sdp="v=0\r\n", type="answer"))
     fake_pc.setLocalDescription = AsyncMock()
-    fake_pc.localDescription = MagicMock(sdp="v=0\r\na=candidate:1 1 udp 1 10.0.0.1 50001 typ host\r\n")
+    fake_pc.localDescription = MagicMock(
+        sdp="v=0\r\na=candidate:1 1 udp 1 10.0.0.1 50001 typ host\r\n"
+    )
 
     with patch("app.whip.new_peer_connection", return_value=fake_pc):
         client = TestClient(app)

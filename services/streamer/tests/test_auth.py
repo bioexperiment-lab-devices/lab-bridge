@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.auth import RequiredGroupsDep, get_remote_identity
+from app.auth import RequiredGroupsDep
 
 
 def _app() -> FastAPI:

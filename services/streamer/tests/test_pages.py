@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -24,9 +23,7 @@ def _app(armed: dict[str, list[TranslationDescriptor]], roster: dict[str, int]) 
     fast.dependency_overrides[get_remote_identity] = lambda: Identity(
         user="alice", groups=["researchers"]
     )
-    fast.include_router(
-        make_router(roster=roster, discovery=_StubDiscovery(armed))
-    )
+    fast.include_router(make_router(roster=roster, discovery=_StubDiscovery(armed)))
     return fast
 
 
@@ -44,9 +41,9 @@ def test_picker_active_when_translations_exist() -> None:
     app = _app(armed=armed, roster={"alice": 8089, "bob": 8090})
     r = TestClient(app).get("/streamer/labs")
     body = r.text
-    assert "data-lab=\"alice\"" in body
-    assert "data-active=\"true\"" in body
-    assert "data-active=\"false\"" in body  # bob
+    assert 'data-lab="alice"' in body
+    assert 'data-active="true"' in body
+    assert 'data-active="false"' in body  # bob
 
 
 def test_api_labs_returns_active_state() -> None:
@@ -88,7 +85,7 @@ def test_lab_viewing_page_contains_translation_grid_stub() -> None:
     app = _app(armed=armed, roster={"alice": 8089})
     r = TestClient(app).get("/streamer/labs/alice")
     assert r.status_code == 200
-    assert "data-lab=\"alice\"" in r.text
+    assert 'data-lab="alice"' in r.text
     assert "streamer.js" in r.text
 
 

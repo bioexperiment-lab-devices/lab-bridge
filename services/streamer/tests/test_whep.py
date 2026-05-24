@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.discovery import DiscoveryCache, TranslationDescriptor
+from app.discovery import TranslationDescriptor
 from app.session_manager import SessionManager
 from app.whep import make_router
 

@@ -69,9 +69,7 @@ class ControlPlaneClient:
             raise CameraBusy(translation_id)
         raise ControlError(f"unexpected start status: {resp.status_code}")
 
-    async def stop(
-        self, *, lab_name: str, translation_id: str, session_id: str
-    ) -> None:
+    async def stop(self, *, lab_name: str, translation_id: str, session_id: str) -> None:
         url = self._url(lab_name, translation_id, "stop")
         body = {"session_id": session_id}
         try:
