@@ -5,13 +5,24 @@
 // that navigates to the section's index page). A sibling
 // `<div class="lb-docs-side__children">` holds the nested entries; we pair
 // the toggle to its children via the shared `data-section-key` attribute.
-// State is persisted in localStorage. Ancestors of the active item auto-open
-// so the current page is visible on first load.
+//
+// State persistence rules:
+//   * Per-section open/closed state is stored in localStorage under
+//     `docs-nav:<section-key>`.
+//   * When the user enters /docs/ from OUTSIDE /docs/ (or from a fresh
+//     tab with no referrer), the stored state is wiped so the sidebar
+//     opens collapsed. Within a continuous docs session, state persists
+//     across page-to-page navigations as the user toggles sections.
+//   * The section containing the active page is ALWAYS expanded on load,
+//     regardless of any stored 'closed' value — direct-linked deep pages
+//     must be visible in the nav so the reader can see where they are.
 (function () {
   if (window.__docsSidebarLoaded) return;
   window.__docsSidebarLoaded = true;
 
   document.addEventListener('DOMContentLoaded', function () {
+    if (arrivedFromOutsideDocs()) clearStoredNavState();
+
     var toggles = document.querySelectorAll('.lb-docs-side__toggle[data-section-key]');
     toggles.forEach(function (toggle) {
       var key = 'docs-nav:' + toggle.dataset.sectionKey;
@@ -23,7 +34,9 @@
       var folder = toggle.parentElement;
       var hasActiveOwn = !!(folder && folder.querySelector('.lb-docs-side__item[data-active="true"]'));
       var hasActiveDescendant = !!(children && children.querySelector('[data-active="true"]'));
-      var open = saved === 'open' || (saved === null && (hasActiveOwn || hasActiveDescendant));
+      // Active-section auto-expand wins over a stored 'closed' so deep
+      // links always reveal where the reader is in the tree.
+      var open = hasActiveOwn || hasActiveDescendant || saved === 'open';
       setOpen(toggle, children, open);
 
       toggle.addEventListener('click', function () {
@@ -43,6 +56,27 @@
       }
     });
   });
+
+  // Returns true if the user landed on this /docs/ page from outside /docs/
+  // (e.g., from the home page) or from a fresh tab with no referrer.
+  // Same-origin docs-to-docs navigations return false, so toggling state
+  // persists naturally while the reader stays within docs.
+  function arrivedFromOutsideDocs() {
+    var ref = document.referrer;
+    if (!ref) return true;
+    var docsPrefix = location.origin + '/docs/';
+    return ref.indexOf(docsPrefix) !== 0;
+  }
+
+  function clearStoredNavState() {
+    var prefix = 'docs-nav:';
+    var keysToRemove = [];
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf(prefix) === 0) keysToRemove.push(k);
+    }
+    keysToRemove.forEach(function (k) { localStorage.removeItem(k); });
+  }
 
   function childrenFor(toggle) {
     var key = toggle.dataset.sectionKey;
