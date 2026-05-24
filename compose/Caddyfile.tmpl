@@ -57,17 +57,20 @@ https://__VPS_HOST__ {
         }
     }
 
-    # ─── Global security headers ─────────────────────────────────────────
-    # Applied to every response except where a child `handle` block sets
-    # its own Content-Security-Policy (Grafana / Jupyter override below).
-    # Audit finding 5.1.
+    # ─── Global security headers (audit finding 5.1) ─────────────────────
+    # SETs and the -Server delete are split into two `header` directives
+    # on purpose: Caddy auto-defers the ENTIRE handler if any op inside it
+    # is a delete (-) or replace. A deferred SET runs after the response is
+    # produced, so it silently overrides any per-handle CSP override. Keep
+    # SETs in their own block (immediate) so subroute SETs win — see the
+    # /jupyter handle below.
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
         X-Content-Type-Options    "nosniff"
         Referrer-Policy           "strict-origin-when-cross-origin"
         Content-Security-Policy   "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'"
-        -Server
     }
+    header -Server
 
     # ─── Platform shell assets ───────────────────────────────────────────
     handle /_shared/* {
@@ -173,10 +176,16 @@ https://__VPS_HOST__ {
     }
 
     # ─── JupyterLab (forward_auth replaces shared password) ──────────────
+    # JupyterLab needs 'unsafe-eval' in script-src: codemirror mode loading,
+    # mathjax, ajv settings validation, and plugin bootstrap all run code
+    # via `new Function()`. Without it the Lab UI loads its asset bundles
+    # but can't instantiate any plugin and renders a blank Main panel. SET
+    # (rather than a regex replace) is what overrides the global CSP — and
+    # only works because the global header block is split so its SETs aren't
+    # auto-deferred (see the comment above the global block).
     handle /jupyter* {
         import authelia_required
-        header Content-Security-Policy "(script-src[^;]*)" "${1} 'self'"
-        header Content-Security-Policy "(style-src[^;]*)" "${1} 'self'"
+        header Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'"
         reverse_proxy jupyter:8888 {
             header_up -Accept-Encoding
         }
