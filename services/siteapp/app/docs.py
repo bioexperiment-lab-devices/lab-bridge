@@ -9,7 +9,7 @@ from starlette.status import HTTP_308_PERMANENT_REDIRECT
 
 from app.config import Settings
 from app.markdown import pygments_css, render_markdown
-from app.nav import NavEntry, build_nav
+from app.nav import NavEntry, build_nav, flatten_nav
 from app.paths import safe_join
 from app.templates import templates
 from app.translations import find_doc, resolve_lang_file
@@ -46,34 +46,21 @@ def build_breadcrumb(nav: list[NavEntry], current_url: str) -> list[BreadcrumbCr
     return crumbs
 
 
-def _find_siblings(nav: list[NavEntry], target_url: str) -> tuple[list[NavEntry], int] | None:
-    """Locate the parent's children list + index of target. None if not found.
-
-    Considers top-level entries as siblings of each other.
-    """
-    for i, entry in enumerate(nav):
-        if entry.url == target_url:
-            return nav, i
-        if entry.children:
-            sub = _find_siblings(list(entry.children), target_url)
-            if sub:
-                return sub
-    return None
-
-
 def prev_next(nav: list[NavEntry], current_url: str) -> tuple[NavEntry | None, NavEntry | None]:
-    """Return (prev, next) siblings of current_url within its parent group.
+    """Return (prev, next) entries in pre-order DFS reading order.
 
-    Siblings = immediate children of the same parent. A child with no
-    siblings (sole child of a section) returns (None, None).
+    Walks the entire docs tree as one flat sequence: a section index is
+    followed by its first child, the last child of one section is followed
+    by the next top section's index, and so on. (None, None) when the
+    current URL is not in the nav at all.
     """
-    found = _find_siblings(nav, current_url)
-    if found is None:
-        return None, None
-    siblings, idx = found
-    prev = siblings[idx - 1] if idx > 0 else None
-    nxt = siblings[idx + 1] if idx + 1 < len(siblings) else None
-    return prev, nxt
+    flat = flatten_nav(nav)
+    for i, entry in enumerate(flat):
+        if entry.url == current_url:
+            prev = flat[i - 1] if i > 0 else None
+            nxt = flat[i + 1] if i + 1 < len(flat) else None
+            return prev, nxt
+    return None, None
 
 
 DOC_STATIC_EXTS: frozenset[str] = frozenset(

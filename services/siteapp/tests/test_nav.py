@@ -177,17 +177,31 @@ def test_breadcrumb_for_root_doc():
     assert [c["title"] for c in crumbs] == ["Docs", "Architecture"]
 
 
-def test_prev_next_in_section():
-    # Single-child section: first-notebook has no siblings → both None.
-    prev, nxt = prev_next(_sample_nav(), "/docs/researcher/first-notebook")
-    assert prev is None and nxt is None
+def test_prev_next_section_index_to_first_child():
+    nav = _deeper_sample_nav()
+    prev, nxt = prev_next(nav, "/docs/researcher/")
+    assert prev is not None and prev.url == "/docs/overview/"
+    assert nxt is not None and nxt.url == "/docs/researcher/first-notebook"
 
 
-def test_prev_next_across_top_level():
-    nav = _sample_nav()
-    prev, nxt = prev_next(nav, "/docs/architecture/")
-    # Architecture comes after Researchers section in the sample manifest order.
-    assert prev is not None and prev.title_en == "Researchers"
+def test_prev_next_last_child_to_next_top_section():
+    nav = _deeper_sample_nav()
+    prev, nxt = prev_next(nav, "/docs/researcher/working-with-devices")
+    assert prev is not None and prev.url == "/docs/researcher/first-notebook"
+    assert nxt is not None and nxt.url == "/docs/operator/"
+
+
+def test_prev_next_home_has_no_prev():
+    nav = _deeper_sample_nav()
+    prev, nxt = prev_next(nav, "/docs/")
+    assert prev is None
+    assert nxt is not None and nxt.url == "/docs/overview/"
+
+
+def test_prev_next_last_overall_has_no_next():
+    nav = _deeper_sample_nav()
+    prev, nxt = prev_next(nav, "/docs/operator/setup-lab-pc")
+    assert prev is not None and prev.url == "/docs/operator/"
     assert nxt is None
 
 
