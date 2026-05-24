@@ -25,7 +25,7 @@ The repo is a "Swiss-knife" lab platform: a set of independent containerised ser
 
 ## Branch & release rules
 
-- **`main` is protected. Squash-merge only, linear history.** No direct pushes, no merge-commit, no rebase-merge — release-please depends on squash. Required checks: `pr-title`, `pr-siteapp / siteapp`, `pr-flasher / flasher`, `pr-platform / platform`. Adding a service adds another required check; update branch protection in lockstep.
+- **`main` is protected. Squash-merge only, linear history.** No direct pushes, no merge-commit, no rebase-merge — release-please depends on squash. Required checks: `pr-title`, `pr-siteapp / siteapp`, `pr-flasher / flasher`, `pr-streamer / streamer`, `pr-platform / platform`. Adding a service adds another required check; update branch protection in lockstep.
 - **PR titles follow Conventional Commits** (`feat fix chore docs refactor test perf build ci revert`, scope optional). The title becomes the squash subject and is what release-please scans for the version bump.
 - **Don't bump the version by hand.** release-please owns root `VERSION`. Don't strip the `# x-release-please-version` annotation — it's the rewrite anchor.
 - **Don't manually push release-tagged images to GHCR.** CI is the only path; manual pushes break the Sigstore attestation.
