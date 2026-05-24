@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from html import escape as html_escape
 from html import unescape
 
@@ -282,17 +282,38 @@ def _title_from_tokens(tokens) -> str | None:
 
 
 @dataclass(frozen=True)
+class TocEntry:
+    """One heading in the per-page table of contents.
+
+    `level` is 2 or 3 (we don't list H1 — that's the page title — or H4+).
+    `anchor` matches the `id="..."` the anchors_plugin emits on the same
+    heading; `_extract_toc` mirrors that plugin's duplicate-suffix logic
+    so the two cannot drift.
+    """
+
+    level: int
+    text: str
+    anchor: str
+    children: tuple["TocEntry", ...] = ()
+
+
+@dataclass(frozen=True)
 class Rendered:
     """Output of `render_markdown`.
 
     `needs_mermaid` is True iff the source contained at least one
     ` ```mermaid ` fenced block; the page template uses it to decide
     whether to load the vendored Mermaid JS bundle.
+
+    `toc` is the per-page heading outline (H2 + H3, H3s nested under their
+    preceding H2). Empty when the source has no H2 or H3 headings; the
+    template omits the right-rail TOC entirely in that case.
     """
 
     html: str
     title: str | None
     needs_mermaid: bool = False
+    toc: list[TocEntry] = field(default_factory=list)
 
 
 _CSS_SANITIZER = _TableAlignCSSsanitizer()
@@ -412,15 +433,77 @@ def _has_mermaid(tokens) -> bool:
     return False
 
 
+def _extract_toc(tokens) -> list[TocEntry]:
+    """Walk the token stream once; produce TOC entries for H2 and H3.
+
+    Mirrors the anchors_plugin slug + duplicate-suffix logic so the TOC
+    `href="#..."` always matches a heading `id="..."` in the rendered body,
+    including when authors repeat heading text (`dupe`, `dupe-2`, ...).
+
+    H3s are nested under the most-recent H2 in a second pass. H3s that
+    appear before any H2 (allowed but rare) stay at the top level.
+    """
+    flat: list[TocEntry] = []
+    seen_slugs: set[str] = set()
+    for i, tok in enumerate(tokens):
+        if tok.type != "heading_open" or tok.tag not in ("h2", "h3"):
+            continue
+        if i + 1 >= len(tokens) or tokens[i + 1].type != "inline":
+            continue
+        text = _inline_text(tokens[i + 1]).strip()
+        if not text:
+            continue
+        base = _slug(text)
+        # Mirror anchors_plugin unique_slug: start at base, then base-1, base-2, ...
+        uniq = base
+        j = 1
+        while uniq in seen_slugs:
+            uniq = f"{base}-{j}"
+            j += 1
+        seen_slugs.add(uniq)
+        flat.append(TocEntry(level=2 if tok.tag == "h2" else 3, text=text, anchor=uniq))
+
+    # Second pass: nest H3s under the preceding H2.
+    out: list[TocEntry] = []
+    pending_h3: list[TocEntry] = []
+    last_h2_idx: int | None = None
+    for entry in flat:
+        if entry.level == 2:
+            if last_h2_idx is not None and pending_h3:
+                out[last_h2_idx] = TocEntry(
+                    level=2,
+                    text=out[last_h2_idx].text,
+                    anchor=out[last_h2_idx].anchor,
+                    children=tuple(pending_h3),
+                )
+                pending_h3 = []
+            out.append(entry)
+            last_h2_idx = len(out) - 1
+        else:
+            if last_h2_idx is None:
+                # H3 before any H2 — keep at top level.
+                out.append(entry)
+            else:
+                pending_h3.append(entry)
+    if last_h2_idx is not None and pending_h3:
+        out[last_h2_idx] = TocEntry(
+            level=2,
+            text=out[last_h2_idx].text,
+            anchor=out[last_h2_idx].anchor,
+            children=tuple(pending_h3),
+        )
+    return out
+
+
 def render_markdown(text: str) -> Rendered:
     tokens = _MD.parse(text)
     _apply_alerts(tokens)
     title = _title_from_tokens(tokens)
     needs_mermaid = _has_mermaid(tokens)
+    toc = _extract_toc(tokens)
     raw_html = _MD.renderer.render(tokens, _MD.options, {})
-    # Rename the anchors_plugin hardcoded class to our design-system name.
     raw_html = raw_html.replace('class="header-anchor"', 'class="lb-anchor"')
-    return Rendered(html=_sanitize(raw_html), title=title, needs_mermaid=needs_mermaid)
+    return Rendered(html=_sanitize(raw_html), title=title, needs_mermaid=needs_mermaid, toc=toc)
 
 
 def _theme_css(style: type[Style], selector: str = ".highlight") -> str:
