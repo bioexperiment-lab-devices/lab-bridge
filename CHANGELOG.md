@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.3](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.19.2...v0.19.3) (2026-05-24)
+
+
+### Bug Fixes
+
+* **ci:** complete grafana OIDC handshake before probing /grafana/api ([#147](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/147)) ([3c81a0c](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/3c81a0c4faa5441ff2d836cc173936c024f07416))
+
 ## [0.19.2](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.19.1...v0.19.2) (2026-05-24)
 
 
