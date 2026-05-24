@@ -36,6 +36,17 @@ access_control:
       policy: one_factor
     - domain: __VPS_HOST__
       resources:
+        - '^/streamer/whip(/.*)?$'
+      policy: bypass
+    - domain: __VPS_HOST__
+      resources:
+        - '^/streamer($|/.*)'
+      policy: one_factor
+      subject:
+        - 'group:researchers'
+        - 'group:admins'
+    - domain: __VPS_HOST__
+      resources:
         - '^/flash.*'
       policy: one_factor
       subject: 'group:admins'

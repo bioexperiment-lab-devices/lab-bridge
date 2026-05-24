@@ -6,6 +6,8 @@
 # This file carries only instance-specific values + secrets + the chisel
 # client roster.
 
+vps_public_ip: 0.0.0.0           # public IPv4 passed to the streamer (WebRTC ICE candidate)
+
 vps:
   host: 0.0.0.0                  # public IPv4 of the VPS
   ssh_user: khamit               # must already exist with passwordless sudo

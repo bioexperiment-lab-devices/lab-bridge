@@ -45,13 +45,20 @@ _authelia_image() {
     printf '%s:%s' "$repo" "$(_unified_version)"
 }
 
+# _streamer_image — print ghcr.io/<owner>/lab-bridge-streamer:<version>
+_streamer_image() {
+    local repo="${STREAMER_IMAGE_REPO:?STREAMER_IMAGE_REPO not set — did load_config run?}"
+    printf '%s:%s' "$repo" "$(_unified_version)"
+}
+
 # render_compose <template_path> <output_path>
 render_compose() {
     local tmpl="${1:?}" out="${2:?}"
     [[ -f "$tmpl" ]] || die "template not found: $tmpl"
-    local siteapp_image flasher_image caddy_image authelia_image
+    local siteapp_image flasher_image streamer_image caddy_image authelia_image
     siteapp_image="$(_siteapp_image)"
     flasher_image="$(_flasher_image)"
+    streamer_image="$(_streamer_image)"
     caddy_image="$(_caddy_image)"
     authelia_image="$(_authelia_image)"
     # The password_hash contains $ and : characters but no | (sha1:hex:hex),
@@ -70,6 +77,9 @@ render_compose() {
         -e "s|__VPS_HOST__|${VPS_HOST:?}|g" \
         -e "s|__SITEAPP_IMAGE__|${siteapp_image}|g" \
         -e "s|__FLASHER_IMAGE__|${flasher_image}|g" \
+        -e "s|__STREAMER_IMAGE__|${streamer_image}|g" \
+        -e "s|__VPS_PUBLIC_IP__|${VPS_PUBLIC_IP:?}|g" \
+        -e "s|__LAB_BRIDGE_VERSION__|$(_unified_version)|g" \
         -e "s|__CADDY_IMAGE__|${caddy_image}|g" \
         -e "s|__AUTHELIA_IMAGE__|${authelia_image}|g" \
         "$tmpl" \

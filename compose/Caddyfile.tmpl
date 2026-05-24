@@ -153,6 +153,24 @@ https://__VPS_HOST__ {
         }
     }
 
+    # ─── Streamer — WHIP (public, bearer-token auth) + viewer UI ─────────
+    # WHIP endpoints carry their own bearer-token auth (tokens.py); they must
+    # NOT go through Authelia or the CORS preflight + non-GET methods break.
+    handle /streamer/whip/* {
+        reverse_proxy streamer:8000 {
+            header_up -Accept-Encoding
+        }
+    }
+
+    # Everything else under /streamer/* is Authelia-gated (researchers + admins).
+    handle /streamer/* {
+        import authelia_required
+        import inject_navbar
+        reverse_proxy streamer:8000 {
+            header_up -Accept-Encoding
+        }
+    }
+
     # ─── Grafana (forward_auth gate in front of Grafana's OIDC) ──────────
     # forward_auth gives anonymous users our custom /login form instead of
     # Authelia's broken-under-sub-path React portal. Once they have an

@@ -35,6 +35,11 @@ siteapp_image_repo: ghcr.io/bioexperiment-lab-devices/lab-bridge-siteapp
 # "${flasher_image_repo}:$(cat VERSION)".
 flasher_image_repo: ghcr.io/bioexperiment-lab-devices/lab-bridge-flasher
 
+# GHCR repository for the streamer image. The image *tag* lives in
+# the root VERSION (release-please-managed); the full reference is
+# "${streamer_image_repo}:$(cat VERSION)".
+streamer_image_repo: ghcr.io/khamitovdr/lab-bridge-streamer
+
 # Authelia identity provider. Renovate-managed.
 authelia_image: authelia/authelia:4.38.10
 
