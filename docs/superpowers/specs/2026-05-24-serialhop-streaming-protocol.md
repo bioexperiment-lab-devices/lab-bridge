@@ -106,7 +106,7 @@ The server calls this when the first viewer arrives for translation `{id}`.
 |---|---|---|
 | `session_id` | ULID string | Opaque to SerialHop. Store it; you need it on stop (1.3) and to disambiguate sessions over time. A new `session_id` = a new session, even if `{id}` is the same. |
 | `whip_url` | absolute HTTPS URL | The WHIP endpoint to POST your SDP offer to. Treat as opaque; do NOT parse or derive. |
-| `whip_token` | string | One-shot bearer. Send as `Authorization: Bearer <whip_token>` on the WHIP POST. Single-use, ≤60 s validity. |
+| `whip_token` | string | One-shot bearer for the WHIP POST. Send as `Authorization: Bearer <whip_token>`. Validity ≤60 s — your WHIP POST must complete within that window. After redemption the token is burned (replay → 410). |
 | `ice_servers` | array of `RTCIceServer` objects | STUN/TURN configuration for your WebRTC peer connection. May be empty (v1 ships `[]`). Pass through to `RTCPeerConnection` as-is. |
 
 **Response codes:**
@@ -115,12 +115,18 @@ The server calls this when the first viewer arrives for translation `{id}`.
 |---|---|
 | 202 Accepted | SerialHop will publish. Response body: empty or `{}`. SerialHop now opens WHIP (see Section 2). |
 | 404 Not Found | `{id}` is unknown to SerialHop. Body: `{ "error": "unknown translation" }`. |
-| 409 Conflict | `{id}` is already publishing under a different active session. **Do not start a new capture.** Response body: `{ "session_id": "<current>" }`. |
 | 503 Service Unavailable | Camera busy / hardware failure. Body: `{ "error": "<human description>" }`. |
 
-**Idempotency:** if you receive `start` with a `session_id` you already
-recognise as the active session for `{id}`, respond 202 with empty body
-(no-op). This handles client retries.
+**Replace-on-conflict:** if `{id}` is already publishing under a *different*
+`session_id` when `start` arrives, SerialHop must **tear down the old
+publish and start the new one** (close the old WHIP peer connection,
+release the old `session_id`, then publish the new one). Return 202.
+Rationale: the server's request is the source of truth; refusing would
+leave the new viewer stuck.
+
+**Idempotency:** if `start` arrives with a `session_id` SerialHop already
+recognises as the *current* active session for `{id}`, return 202 with
+empty body (no-op). This handles retries from the server's HTTP client.
 
 **Required SerialHop behaviour on 202:**
 
@@ -147,21 +153,28 @@ The server calls this after the last viewer leaves and a debounce window
 | 204 No Content | Stopped (or already stopped — idempotent). |
 | 409 Conflict | The provided `session_id` does NOT match the currently-active session for `{id}`. **You must ignore the stop.** Response body: `{ "active_session_id": "<current>" }`. |
 
-**Why the 409 guard matters:** see this race —
+**Why the 409 guard matters:** events run top-to-bottom in time —
 
 ```
-streamer:                                  SerialHop:
-  POST stop (sid=A) ────────╮               currently publishing A
-                            │
-  last viewer leaves                        ↓
-  new viewer arrives                        ↓
-  POST start (sid=B) ───────┼──►            stops A, starts publishing B
-                            │
-  (stale stop A arrives) ───╯               checks sid != B → 409, ignores
+time   streamer side                        SerialHop side
+ │                                          publishing session A
+ │     last viewer leaves                   │
+ │     debounce expires                     │
+ │     POST stop (sid=A) ──────────╮        │  (in flight)
+ │     drop session A locally       │       │
+ │                                  │       │
+ │     new viewer arrives           │       │
+ │     create session B             │       │
+ │     POST start (sid=B) ──────────┼──►   stops A (replace-on-conflict),
+ │                                  │       starts publishing B → 202
+ │                                  │       publishing session B
+ │     (stale stop A arrives) ──────╯       sid=A != active=B → 409,
+ │                                          ignores stop
+ ▼                                          publishing session B (preserved)
 ```
 
-Without the guard the stale `stop` would kill `B`. With it, SerialHop
-preserves the new session.
+Without the 409 guard on stop, the stale `stop(A)` would kill the freshly
+started `B`. With it, SerialHop preserves the new session.
 
 **Required SerialHop behaviour on 204:**
 
@@ -238,8 +251,12 @@ down), DELETE the WHIP resource:
 
 ```
 DELETE {whip_url} HTTP/1.1
-Authorization: Bearer {whip_token}
 ```
+
+No `Authorization` header is required — the bearer was burned on the
+successful POST in 2.3. The server identifies the session purely from the
+URL path (`session_id`). Sending the `Authorization` header is harmless and
+ignored.
 
 Response: `204 No Content` (or `404` if the server already cleaned up).
 
@@ -380,14 +397,21 @@ A SerialHop implementation conforms to this spec if:
 - [ ] `GET /api/translations` returns 200 with the documented shape; empty
       array when no translations are armed.
 - [ ] `POST /api/translations/{id}/start` returns 202 for valid armed
-      translations, 404 for unknown, 409 for already-publishing, 503 for
-      hardware unavailable.
-- [ ] On 202, WHIP publish begins within 10 seconds.
+      translations, 404 for unknown id, 503 for hardware unavailable.
+- [ ] A `start` with a `session_id` matching the current active session
+      returns 202 with empty body (idempotent retry).
+- [ ] A `start` with a *different* `session_id` while one is publishing
+      replaces the old session and returns 202.
+- [ ] On 202, WHIP publish begins within 10 seconds of receipt and the
+      WHIP POST is sent within 60 seconds (token validity window).
 - [ ] WHIP uses `Authorization: Bearer {whip_token}` exactly once per
       session.
 - [ ] SDP offer is sendonly video, H.264 or VP8.
 - [ ] First video frame arrives within 5 seconds of WHIP 201.
 - [ ] `POST /api/translations/{id}/stop` returns 204 for matching
-      `session_id`, 409 for mismatched.
-- [ ] On 204, DELETE `{whip_url}` and close the camera.
+      `session_id`, 409 (with `active_session_id`) for mismatched.
+- [ ] On 204, DELETE `{whip_url}` (no Authorization header needed) and
+      close the camera.
 - [ ] Operator disarm proactively tears down publish + DELETEs `{whip_url}`.
+- [ ] On SerialHop restart, all in-flight `session_id` state is dropped;
+      subsequent stops for unknown sessions return 204 (idempotent).

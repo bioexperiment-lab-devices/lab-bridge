@@ -250,13 +250,20 @@ has no active publisher.
 
 | Code | Meaning | SerialHop action |
 |---|---|---|
-| 202 Accepted | Will publish | Open WHIP to `whip_url`, push the camera track |
+| 202 Accepted | Will publish (new session, retry, or replacement) | Open WHIP to `whip_url`, push the camera track. If a different `session_id` was active for this `id`, tear it down first (replace-on-conflict). |
 | 404 Not Found | Unknown `id` (race: was armed at discovery, disarmed since) | None |
-| 409 Conflict | Already publishing this `id` | Return current session: `{"session_id":"…"}`. No new capture. |
 | 503 Service Unavailable | Camera busy / hardware failure | None; streamer surfaces "camera unavailable" to viewer |
 
 **Idempotency:** a duplicate `start` with the same `session_id` is a no-op
-(409 with the existing `session_id`).
+(202 with empty body).
+
+**Replace-on-conflict:** a `start` with a different `session_id` while
+SerialHop is already publishing this `id` triggers tear-down of the old
+session and start of the new one. Server side, this is rare (the streamer's
+session lock prevents it under normal flow) but the contract specifies it
+for crash-recovery: if the streamer restarts mid-stream, it eventually
+issues a fresh `start` against a SerialHop that may still hold the old
+session, and replace-on-conflict converges the state cleanly.
 
 ### 2.3 Stop — `POST /api/translations/{id}/stop`
 

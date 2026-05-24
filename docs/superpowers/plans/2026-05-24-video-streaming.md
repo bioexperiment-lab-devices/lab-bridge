@@ -1348,21 +1348,6 @@ async def test_start_202_returns_started() -> None:
 
 
 @respx.mock
-async def test_start_409_returns_existing_session() -> None:
-    respx.post("http://chisel:8089/api/translations/cam-0/start").mock(
-        return_value=httpx.Response(409, json={"session_id": "01OLD"})
-    )
-    result = await _client({"alice": 8089}).start(
-        lab_name="alice",
-        translation_id="cam-0",
-        session_id="01NEW",
-        whip_url="https://lab/streamer/whip/01NEW",
-        whip_token="tk_xyz",
-    )
-    assert result.session_id == "01OLD"
-
-
-@respx.mock
 async def test_start_404_raises_unknown_translation() -> None:
     respx.post("http://chisel:8089/api/translations/ghost/start").mock(
         return_value=httpx.Response(404, json={"error": "unknown translation"})
@@ -1536,13 +1521,6 @@ class ControlPlaneClient:
             raise UnknownTranslation(translation_id)
         if resp.status_code == 503:
             raise CameraBusy(translation_id)
-        if resp.status_code == 409:
-            try:
-                payload = resp.json()
-                existing = payload.get("session_id")
-            except (ValueError, AttributeError):
-                existing = session_id
-            return StartResult(session_id=existing or session_id)
         raise ControlError(f"unexpected start status: {resp.status_code}")
 
     async def stop(
@@ -1570,7 +1548,7 @@ class ControlPlaneClient:
 cd services/streamer && uv run pytest tests/test_control.py -v
 ```
 
-Expected: 9 passed.
+Expected: 8 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -3561,12 +3539,11 @@ async def start(tid: str, request: Request) -> Response:
     if BEHAVIOUR == "camera-busy":
         raise HTTPException(status_code=503, detail="camera busy")
 
-    if tid in active_sessions and active_sessions[tid] != body["session_id"]:
-        return JSONResponse(
-            {"session_id": active_sessions[tid]}, status_code=409
-        )
-
     sid = body["session_id"]
+    # Idempotent retry: same session_id is a no-op (still 202, no new publisher).
+    if active_sessions.get(tid) == sid:
+        return Response(status_code=202)
+    # Replace-on-conflict: drop any previous session for this tid.
     active_sessions[tid] = sid
 
     # Spawn an outbound WHIP publisher in the background.
