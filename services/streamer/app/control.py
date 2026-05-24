@@ -21,7 +21,7 @@ class CameraBusy(ControlError):
 
 @dataclass(frozen=True)
 class StartResult:
-    """Outcome of a successful start (202) or already-running (409)."""
+    """Outcome of a successful start (202)."""
 
     session_id: str
 
