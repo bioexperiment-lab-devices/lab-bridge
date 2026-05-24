@@ -47,6 +47,24 @@ teardown() { teardown_tmpdir; }
     yq e '.users.alice.groups | length' "$LDS_USERS_DB" | grep -q 2
 }
 
+@test "users:add stores a dotted username as a single literal key" {
+    # yq dot-paths split on '.', so `.users.n.bogatyreva` would create nested
+    # keys and break Authelia's schema. The script must use bracket-quoted
+    # path access so the username stays a single key.
+    PASSWORD=secret bash "$TMPDIR/scripts/users.sh" add n.bogatyreva admins
+    yq e '.users | has("n.bogatyreva")' "$LDS_USERS_DB" | grep -q true
+    yq e '.users | has("n")' "$LDS_USERS_DB" | grep -q false
+    yq e '.users["n.bogatyreva"].groups[0]' "$LDS_USERS_DB" | grep -q admins
+    bash "$TMPDIR/scripts/users.sh" rm n.bogatyreva
+    yq e '.users | has("n.bogatyreva")' "$LDS_USERS_DB" | grep -q false
+}
+
+@test "users:add rejects usernames with shell-unsafe characters" {
+    PASSWORD=secret run bash "$TMPDIR/scripts/users.sh" add 'alice"; #' admins
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ invalid.username ]]
+}
+
 @test "users:list prints a header and each user row" {
     PASSWORD=secret bash "$TMPDIR/scripts/users.sh" add alice admins
     PASSWORD=secret bash "$TMPDIR/scripts/users.sh" add bob researchers

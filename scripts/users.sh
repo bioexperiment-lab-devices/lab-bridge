@@ -16,6 +16,17 @@ ensure_db() {
     fi
 }
 
+# yq's dot-path splits on '.', so `.users.n.bogatyreva` builds nested keys
+# `users -> n -> bogatyreva` instead of a literal `users["n.bogatyreva"]`.
+# We use the bracket form everywhere, which means the username is embedded
+# in a yq string literal — reject anything that could break out of it.
+validate_username() {
+    local u="$1"
+    [[ -n "$u" ]] || die "empty username"
+    [[ "$u" =~ ^[A-Za-z0-9._-]+$ ]] \
+        || die "invalid username: $u (allowed: letters, digits, '.', '_', '-')"
+}
+
 validate_groups() {
     local IFS=','
     local g
@@ -76,10 +87,11 @@ cmd_add() {
     local user="${1:?usage: users.sh add <user> <group[,group]>}"
     local groups="${2:?usage: users.sh add <user> <group[,group]>}"
     ensure_db
+    validate_username "$user"
     validate_groups "$groups"
 
     local existing
-    existing="$(yq e ".users.$user // \"\"" "$USERS_DB")"
+    existing="$(yq e ".users[\"$user\"] // \"\"" "$USERS_DB")"
     [[ -z "$existing" ]] || die "user $user already exists"
 
     local pw hash
@@ -89,32 +101,34 @@ cmd_add() {
 
     local gyaml
     gyaml="$(groups_yaml "$groups")"
-    yq -i ".users.$user.displayname = \"$user\" | .users.$user.password = \"$hash\" | .users.$user.email = \"$user@lab.local\" | .users.$user.groups = $gyaml" "$USERS_DB"
+    yq -i ".users[\"$user\"].displayname = \"$user\" | .users[\"$user\"].password = \"$hash\" | .users[\"$user\"].email = \"$user@lab.local\" | .users[\"$user\"].groups = $gyaml" "$USERS_DB"
     log "added user $user with groups $groups"
 }
 
 cmd_rm() {
     local user="${1:?usage: users.sh rm <user>}"
     ensure_db
+    validate_username "$user"
     local existing
-    existing="$(yq e ".users.$user // \"\"" "$USERS_DB")"
+    existing="$(yq e ".users[\"$user\"] // \"\"" "$USERS_DB")"
     [[ -n "$existing" ]] || die "user $user not found"
-    yq -i "del(.users.$user)" "$USERS_DB"
+    yq -i "del(.users[\"$user\"])" "$USERS_DB"
     log "removed user $user"
 }
 
 cmd_set_password() {
     local user="${1:?usage: users.sh set-password <user>}"
     ensure_db
+    validate_username "$user"
     local existing
-    existing="$(yq e ".users.$user // \"\"" "$USERS_DB")"
+    existing="$(yq e ".users[\"$user\"] // \"\"" "$USERS_DB")"
     [[ -n "$existing" ]] || die "user $user not found"
 
     local pw hash
     pw="$(prompt_or_env "new password for $user" PASSWORD)"
     [[ -n "$pw" ]] || die "empty password"
     hash="$(hash_password "$pw")"
-    yq -i ".users.$user.password = \"$hash\"" "$USERS_DB"
+    yq -i ".users[\"$user\"].password = \"$hash\"" "$USERS_DB"
     log "updated password for $user"
 }
 
@@ -122,11 +136,12 @@ cmd_set_groups() {
     local user="${1:?usage: users.sh set-groups <user> <group[,group]>}"
     local groups="${2:?usage: users.sh set-groups <user> <group[,group]>}"
     ensure_db
+    validate_username "$user"
     validate_groups "$groups"
     local existing
-    existing="$(yq e ".users.$user // \"\"" "$USERS_DB")"
+    existing="$(yq e ".users[\"$user\"] // \"\"" "$USERS_DB")"
     [[ -n "$existing" ]] || die "user $user not found"
-    yq -i ".users.$user.groups = $(groups_yaml "$groups")" "$USERS_DB"
+    yq -i ".users[\"$user\"].groups = $(groups_yaml "$groups")" "$USERS_DB"
     log "set groups for $user to $groups"
 }
 
