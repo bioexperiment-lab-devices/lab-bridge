@@ -89,6 +89,12 @@ def _is_top_section(nav: list[NavEntry], url: str, current_url: str = "") -> boo
     appearing when navigating back to the section's own index (e.g., from
     /docs/section/page back to /docs/section/ — you're still within the
     same section, so "Previous" is correct, not "Previous section").
+
+    Side effect of using URL prefix as the ancestor check: navigating to
+    or from Home (/docs/) from any other page also gets the in-section
+    eyebrow, since every URL starts with "/docs/". Acceptable — Home
+    isn't conceptually a section the reader is "entering"; the plain
+    "Previous"/"Next" reads naturally.
     """
     if current_url and url and current_url.startswith(url) and url != current_url:
         return False

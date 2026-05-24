@@ -355,3 +355,24 @@ def test_docs_toc_script_omitted_when_no_toc(client: TestClient) -> None:
     r = client.get("/docs/intro")
     assert r.status_code == 200
     assert "/_static/docs-toc.js" not in r.text
+
+
+def test_toc_renders_h3_nested_under_h2(client: TestClient, tmp_path: Path) -> None:
+    """The {% if h.children %} sublist branch in doc.html is otherwise only
+    exercised at the unit-test layer. Without this route test, a Jinja
+    refactor could silently break the H3 rendering."""
+    docs = tmp_path / "docs-root"
+    (docs / "with-h3.md").write_text(
+        "# Title\n\n## Alpha\n\n### Sub-alpha\n\n## Beta\n",
+        encoding="utf-8",
+    )
+    (docs / "_nav.yaml").write_text(
+        "- name: intro\n- name: diagram\n- name: section\n- name: with-h3\n",
+        encoding="utf-8",
+    )
+    r = client.get("/docs/with-h3")
+    assert r.status_code == 200
+    body = r.text
+    assert 'class="lb-docs-toc__sublist"' in body
+    assert 'href="#sub-alpha"' in body
+    assert 'data-level="3"' in body
