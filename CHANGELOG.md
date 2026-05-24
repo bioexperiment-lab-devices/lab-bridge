@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.20.0...v0.20.1) (2026-05-24)
+
+
+### Bug Fixes
+
+* **users:** preserve dotted usernames in users_database.yml ([#154](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/154)) ([83998bd](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/83998bd881fb552a9945855bbc552b4be31b2de7))
+
 ## [0.20.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.19.4...v0.20.0) (2026-05-24)
 
 
