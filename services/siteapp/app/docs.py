@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal, TypedDict
+from typing import TypedDict
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
@@ -11,6 +11,7 @@ from app.config import Settings
 from app.markdown import pygments_css, render_markdown
 from app.nav import NavEntry, build_nav, flatten_nav
 from app.paths import safe_join
+from app.strings import DOCS_STRINGS, pick_lang
 from app.templates import templates
 from app.translations import find_doc, resolve_lang_file
 
@@ -75,13 +76,15 @@ DOC_STATIC_EXTS: frozenset[str] = frozenset(
 )
 
 
-def _pick_lang(query: str | None, cookie: str | None) -> Literal["en", "ru"]:
-    for v in (query, cookie):
-        if v == "en":
-            return "en"
-        if v == "ru":
-            return "ru"
-    return "en"
+def _is_top_section(nav: list[NavEntry], url: str) -> bool:
+    """True iff `url` matches a depth-0 entry in `nav`.
+
+    Used to switch the prev/next eyebrow between "Previous"/"Next" (in-section
+    page) and "Previous section"/"Next section" (crossing into a new section).
+    Under pure pre-order DFS, cross-section transitions always land on the
+    next section's *index page* — exactly the case this returns True for.
+    """
+    return any(top.url == url for top in nav)
 
 
 def make_router(settings: Settings) -> APIRouter:
@@ -132,7 +135,7 @@ def make_router(settings: Settings) -> APIRouter:
                     return RedirectResponse(url=nav[0].url, status_code=HTTP_308_PERMANENT_REDIRECT)
             raise HTTPException(status_code=404)
 
-        chosen = _pick_lang(lang, request.cookies.get("lang"))
+        chosen = pick_lang(lang, request.cookies.get("lang"))
         file = resolve_lang_file(settings.docs_root, doc, chosen)
         text = file.read_text(encoding="utf-8")
         result = render_markdown(text)
@@ -140,6 +143,8 @@ def make_router(settings: Settings) -> APIRouter:
         nav = build_nav(settings.docs_root)
         crumbs = build_breadcrumb(nav, str(request.url.path))
         prev, nxt = prev_next(nav, str(request.url.path))
+        prev_is_section = bool(prev) and _is_top_section(nav, prev.url)
+        next_is_section = bool(nxt) and _is_top_section(nav, nxt.url)
         response = templates.TemplateResponse(
             request,
             "doc.html",
@@ -155,6 +160,9 @@ def make_router(settings: Settings) -> APIRouter:
                 "crumbs": crumbs,
                 "prev": prev,
                 "next": nxt,
+                "prev_is_section": prev_is_section,
+                "next_is_section": next_is_section,
+                "s": DOCS_STRINGS[chosen],
             },
         )
         if lang in ("en", "ru"):

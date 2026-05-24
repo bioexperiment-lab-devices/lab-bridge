@@ -192,3 +192,22 @@ def pick_lang(query: str | None, cookie: str | None) -> Lang:
         if v == "ru":
             return "ru"
     return "en"
+
+
+# Per-page docs UI strings (TOC + prev/next eyebrow). Keys mirrored EN/RU.
+DOCS_STRINGS: dict[Lang, dict[str, str]] = {
+    "en": {
+        "toc_title": "On this page",
+        "prev": "Previous",
+        "next": "Next",
+        "prev_section": "Previous section",
+        "next_section": "Next section",
+    },
+    "ru": {
+        "toc_title": "Содержание",
+        "prev": "Назад",
+        "next": "Далее",
+        "prev_section": "Предыдущий раздел",
+        "next_section": "Следующий раздел",
+    },
+}
