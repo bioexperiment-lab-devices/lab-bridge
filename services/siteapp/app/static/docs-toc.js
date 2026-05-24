@@ -4,8 +4,17 @@
 //
 // Anchors are taken from `data-toc-anchor` on the rail's links; matching
 // heading elements (h2/h3) carry the same `id` (emitted server-side by
-// markdown-it's anchors plugin). An IntersectionObserver with a top-anchored
-// rootMargin marks the topmost intersecting heading as active.
+// markdown-it's anchors plugin). An IntersectionObserver tracks each
+// heading's relationship to a narrow band at the top of the viewport.
+//
+// Active heading selection — when the user is deep in a section, the
+// section's heading is scrolled OFF the top of the viewport, so a naive
+// "topmost intersecting" check would highlight nothing. We track each
+// heading's state as 'above' (scrolled past the top), 'in' (inside the
+// top-of-viewport band), or 'below' (not yet reached). The active heading
+// is the topmost 'in' heading; if no headings are 'in', fall back to the
+// last 'above' heading in document order — i.e., the section the user is
+// currently reading.
 (function () {
   if (window.__docsTocLoaded) return;
   window.__docsTocLoaded = true;
@@ -28,7 +37,20 @@
     });
     if (!idsInOrder.length) return;
 
-    var active = Object.create(null);
+    // Per-heading state: 'above' | 'in' | 'below'. Initialised from each
+    // element's initial bounding rect so the very first paint shows the
+    // correct active heading before the observer has fired any entries.
+    var state = Object.create(null);
+    idsInOrder.forEach(function (id) {
+      var rect = headingById[id].getBoundingClientRect();
+      // The intersection band is the top 25% of the viewport (see rootMargin
+      // below). Compute initial state against that band.
+      var bandBottom = window.innerHeight * 0.25;
+      if (rect.top < 0) state[id] = 'above';
+      else if (rect.top <= bandBottom) state[id] = 'in';
+      else state[id] = 'below';
+    });
+
     var currentActive = null;
 
     function setActive(id) {
@@ -41,6 +63,7 @@
           link.removeAttribute('data-active');
         }
       });
+      // No heading in view → leave existing hash rather than stripping it.
       if (id) {
         // replaceState (not pushState) so the back button isn't polluted
         // and Chrome doesn't auto-scroll on hash change.
@@ -48,24 +71,39 @@
       }
     }
 
+    function pickActive() {
+      // Topmost heading currently in the band wins.
+      for (var i = 0; i < idsInOrder.length; i++) {
+        if (state[idsInOrder[i]] === 'in') return idsInOrder[i];
+      }
+      // No heading in the band — fall back to the last heading that has
+      // scrolled past the top (the section the reader is inside).
+      var lastAbove = null;
+      for (var j = 0; j < idsInOrder.length; j++) {
+        if (state[idsInOrder[j]] === 'above') lastAbove = idsInOrder[j];
+      }
+      return lastAbove;
+    }
+
+    setActive(pickActive());
+
     var observer = new IntersectionObserver(
       function (entries) {
         entries.forEach(function (e) {
-          if (e.isIntersecting) active[e.target.id] = true;
-          else delete active[e.target.id];
-        });
-        // Pick the topmost active heading in document order.
-        var topId = null;
-        for (var i = 0; i < idsInOrder.length; i++) {
-          if (active[idsInOrder[i]]) {
-            topId = idsInOrder[i];
-            break;
+          var id = e.target.id;
+          if (e.isIntersecting) {
+            state[id] = 'in';
+          } else {
+            // boundingClientRect is provided even when not intersecting;
+            // its sign tells us which side of the band the heading is on.
+            state[id] = e.boundingClientRect.top < 0 ? 'above' : 'below';
           }
-        }
-        setActive(topId);
+        });
+        setActive(pickActive());
       },
-      // Heading becomes active once it crosses into the top 25% of the
-      // viewport — empirically the most natural-feeling threshold.
+      // Intersection root = top 25% of the viewport (bottom 75% shrunk
+      // away by negative rootMargin). Empirically the most natural-feeling
+      // activation point; matches MkDocs Material.
       { rootMargin: '0px 0px -75% 0px' }
     );
 
