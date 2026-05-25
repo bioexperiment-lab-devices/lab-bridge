@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.2](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.21.1...v0.21.2) (2026-05-25)
+
+
+### Bug Fixes
+
+* **streamer:** percent-encode translation_id in control-plane URLs ([#161](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/161)) ([fd8dc13](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/fd8dc13f0fb0cacf70ab9f393b9111c9c35e0625))
+
 ## [0.21.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.21.0...v0.21.1) (2026-05-25)
 
 
