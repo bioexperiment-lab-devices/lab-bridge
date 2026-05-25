@@ -40,6 +40,12 @@ def make_router(
 ) -> APIRouter:
     router = APIRouter()
 
+    # Reverse map for DELETE: sub_id (ULID, URL-safe) → owning Session.
+    # Translation IDs may contain '/', '?', '\' (e.g. Windows DirectShow
+    # device paths), so we never embed them in the DELETE URL — DELETE
+    # uses sub_id alone.
+    sub_to_session: dict[str, Session] = {}
+
     async def _stop_session(session: Session) -> None:
         try:
             await control.stop(
@@ -50,16 +56,21 @@ def make_router(
         finally:
             if session.publisher_pc is not None:
                 await session.publisher_pc.close()
-            for pc in list(session.subscribers.values()):
+            for sub_id, pc in list(session.subscribers.items()):
                 await pc.close()
+                sub_to_session.pop(sub_id, None)
             session.subscribers.clear()
             manager.drop(session)
 
-    @router.post("/streamer/whep/{lab}/{translation_id}")
+    # translation_id uses the `:path` converter because SerialHop-assigned
+    # IDs may contain '/' (Windows DirectShow device paths, etc.). After
+    # uvicorn percent-decodes the URL, multi-segment IDs would otherwise
+    # fail the default single-segment route matcher.
+    @router.post("/streamer/whep/{lab}/{translation_id:path}")
     async def whep_post(
         request: Request,
         lab: str = Path(..., min_length=1, max_length=128),
-        translation_id: str = Path(..., min_length=1, max_length=128),
+        translation_id: str = Path(..., min_length=1, max_length=512),
         _identity=RequiredGroupsDep,
     ) -> Response:
         offer_sdp = (await request.body()).decode("utf-8")
@@ -113,25 +124,24 @@ def make_router(
 
         sub_id = str(ULID())
         session.subscribers[sub_id] = sub_pc
+        sub_to_session[sub_id] = session
 
         answer = rewrite_sdp_with_public_ip(sub_pc.localDescription.sdp, public_ip=public_ip)
+        # DELETE URL is sub-id-only so it stays URL-safe regardless of what
+        # the translation_id contains.
         return Response(
             content=answer,
             media_type="application/sdp",
             status_code=201,
-            headers={
-                "Location": f"/streamer/whep/{session.lab_name}/{session.translation_id}/{sub_id}"
-            },
+            headers={"Location": f"/streamer/whep/sub/{sub_id}"},
         )
 
-    @router.delete("/streamer/whep/{lab}/{translation_id}/{sub_id}")
+    @router.delete("/streamer/whep/sub/{sub_id}")
     async def whep_delete(
-        lab: str,
-        translation_id: str,
-        sub_id: str,
+        sub_id: str = Path(..., min_length=1, max_length=64),
         _identity=RequiredGroupsDep,
     ) -> Response:
-        session = manager.get(lab, translation_id)
+        session = sub_to_session.pop(sub_id, None)
         if session is not None:
             pc = session.subscribers.pop(sub_id, None)
             if pc is not None:
@@ -148,6 +158,7 @@ def make_router(
         for sub_id, candidate in list(session.subscribers.items()):
             if candidate is pc:
                 session.subscribers.pop(sub_id, None)
+                sub_to_session.pop(sub_id, None)
                 break
         if session.subscriber_count() == 0:
             manager.schedule_drain(
