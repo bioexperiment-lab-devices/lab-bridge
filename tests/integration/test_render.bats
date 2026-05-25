@@ -338,6 +338,7 @@ loki_image: lok:1
 loki_retention_days: 30
 grafana_image: gra:1
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
+streamer_image_repo: ghcr.io/example/lab-bridge-streamer
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
 caddy_image_repo: ghcr.io/example/lab-bridge-caddy
 authelia_image_repo: ghcr.io/example/lab-bridge-authelia
@@ -387,6 +388,7 @@ loki_image: lok:1
 loki_retention_days: 30
 grafana_image: gra:1
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
+streamer_image_repo: ghcr.io/example/lab-bridge-streamer
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
 caddy_image_repo: ghcr.io/example/lab-bridge-caddy
 authelia_image_repo: ghcr.io/example/lab-bridge-authelia
@@ -541,6 +543,7 @@ loki_image: lok:1
 loki_retention_days: 30
 grafana_image: gra:1
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
+streamer_image_repo: ghcr.io/example/lab-bridge-streamer
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
 caddy_image_repo: ghcr.io/example/lab-bridge-caddy
 authelia_image_repo: ghcr.io/test/authelia

@@ -130,6 +130,7 @@ loki_image: grafana/loki:3.2.1
 loki_retention_days: 30
 grafana_image: grafana/grafana:11.3.0
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
+streamer_image_repo: ghcr.io/example/lab-bridge-streamer
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
 caddy_image_repo: ghcr.io/example/lab-bridge-caddy
 authelia_image_repo: ghcr.io/example/lab-bridge-authelia

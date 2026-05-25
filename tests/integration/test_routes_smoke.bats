@@ -35,6 +35,7 @@ setup_file() {
     bash "$ROOT/scripts/provision.sh"
     load_siteapp_test_image
     load_flasher_test_image
+    load_streamer_test_image
     load_caddy_test_image
     load_authelia_test_image
     preload_fake_vps_images
@@ -171,4 +172,19 @@ _body_through_caddy() {
     # would require a headless browser (follow-up).
     code="$(_through_caddy 'https://127.0.0.1/jupyter/')"
     [[ "$code" == "200" || "$code" == "302" ]] || { echo "got: $code"; false; }
+}
+
+@test "/streamer/labs requires authentication" {
+    code="$(_through_caddy 'https://127.0.0.1/streamer/labs')"
+    [[ "$code" == "302" || "$code" == "401" ]] || { echo "got: $code"; false; }
+}
+
+@test "/streamer/whip/dummy is exempt from authelia (no 302 redirect)" {
+    # /streamer/whip/* is NOT behind forward_auth — Caddy routes it directly
+    # to the streamer. An anonymous request must NOT receive a 302 redirect to
+    # /login (which would indicate forward_auth intercepted the request).
+    # A GET on a POST-only route is sufficient to reach streamer and observe
+    # the absence of Authelia interception; we expect 404 or 405 from streamer.
+    code="$(_through_caddy 'https://127.0.0.1/streamer/whip/01NOPE')"
+    [[ "$code" == "404" || "$code" == "405" ]] || { echo "got: $code"; false; }
 }

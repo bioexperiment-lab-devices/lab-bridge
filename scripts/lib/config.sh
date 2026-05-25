@@ -34,6 +34,7 @@ _REQUIRED_PINS_FIELDS=(
     .grafana_image
     .siteapp_image_repo
     .flasher_image_repo
+    .streamer_image_repo
     .caddy_image_repo
     .authelia_image_repo
     .authelia_image
@@ -147,6 +148,7 @@ load_config() {
     # Instance values from config.yaml.
     export VPS_HOST          ; VPS_HOST="$(_yq e '.vps.host' "$config_path")"
     export VPS_SSH_USER      ; VPS_SSH_USER="$(_yq e '.vps.ssh_user' "$config_path")"
+    export VPS_PUBLIC_IP     ; VPS_PUBLIC_IP="$(_yq e '.vps_public_ip // .vps.host' "$config_path")"
     export JUPYTER_PASSWORD_HASH ; JUPYTER_PASSWORD_HASH="$(_yq e '.jupyter.password_hash // ""' "$config_path")"
 
     # Stack pins from pins.yaml.
@@ -166,6 +168,7 @@ load_config() {
     export PROMETHEUS_RETENTION_DAYS ; PROMETHEUS_RETENTION_DAYS="$(_yq e '.prometheus_retention_days' "$pins_path")"
     export SITEAPP_IMAGE_REPO    ; SITEAPP_IMAGE_REPO="$(_yq e '.siteapp_image_repo' "$pins_path")"
     export FLASHER_IMAGE_REPO    ; FLASHER_IMAGE_REPO="$(_yq e '.flasher_image_repo' "$pins_path")"
+    export STREAMER_IMAGE_REPO   ; STREAMER_IMAGE_REPO="$(_yq e '.streamer_image_repo' "$pins_path")"
     export CADDY_IMAGE_REPO      ; CADDY_IMAGE_REPO="$(_yq e '.caddy_image_repo' "$pins_path")"
     export AUTHELIA_IMAGE_REPO   ; AUTHELIA_IMAGE_REPO="$(_yq e '.authelia_image_repo' "$pins_path")"
     export AUTHELIA_IMAGE        ; AUTHELIA_IMAGE="$(_yq e '.authelia_image' "$pins_path")"

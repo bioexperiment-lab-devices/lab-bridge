@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Live streams — lab-bridge{% endblock %}
+{% block body %}
+<main class="streamer-picker">
+  <h1>Live streams</h1>
+  <p class="hint">Pick a lab to watch. Inactive labs have no streams armed by the operator.</p>
+  <ul class="lab-grid" id="lab-grid">
+    {% for lab in labs %}
+    <li class="lab-card"
+        data-lab="{{ lab.name }}"
+        data-active="{{ 'true' if lab.active else 'false' }}">
+      {% if lab.active %}
+      <a href="/streamer/labs/{{ lab.name }}">
+        <span class="lab-name">{{ lab.name }}</span>
+        <span class="lab-count">{{ lab.translation_count }} stream{{ '' if lab.translation_count == 1 else 's' }}</span>
+      </a>
+      {% else %}
+      <div class="lab-inactive">
+        <span class="lab-name">{{ lab.name }}</span>
+        <span class="lab-status">no streams allowed by operator</span>
+      </div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</main>
+<script>
+  // 15 s background poll for newly-armed translations.
+  setInterval(async () => {
+    try {
+      const resp = await fetch("/streamer/api/labs");
+      if (!resp.ok) return;
+      const labs = await resp.json();
+      for (const lab of labs) {
+        const card = document.querySelector(`[data-lab="${lab.name}"]`);
+        if (card && card.getAttribute("data-active") !== String(lab.active)) {
+          window.location.reload();
+          return;
+        }
+      }
+    } catch (e) {
+      // Ignored; will retry on next interval.
+    }
+  }, 15000);
+</script>
+{% endblock %}

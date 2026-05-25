@@ -181,6 +181,19 @@ jobs:
             LAB_BRIDGE_VERSION=${{ steps.ref.outputs.version }}
             LAB_BRIDGE_GIT_SHA=${{ github.sha }}
 
+      - name: build & push streamer image
+        if: steps.ref.outputs.mode == 'release'
+        id: build-streamer
+        uses: ./.github/actions/build-push-retry
+        with:
+          context: services/streamer
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/lab-bridge-streamer:${{ steps.ref.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/lab-bridge-streamer:latest
+          build-args: |
+            LAB_BRIDGE_VERSION=${{ steps.ref.outputs.version }}
+            LAB_BRIDGE_GIT_SHA=${{ github.sha }}
+
       - name: attest siteapp build provenance
         if: steps.ref.outputs.mode == 'release'
         uses: actions/attest-build-provenance@v4
@@ -211,6 +224,14 @@ jobs:
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/lab-bridge-authelia
           subject-digest: ${{ steps.build-authelia.outputs.digest }}
+          push-to-registry: true
+
+      - name: attest streamer build provenance
+        if: steps.ref.outputs.mode == 'release'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/lab-bridge-streamer
+          subject-digest: ${{ steps.build-streamer.outputs.digest }}
           push-to-registry: true
 
       - name: deploy + verify

@@ -11,7 +11,7 @@ services:
       - ./caddy_config:/config
       - ./shell:/srv/shell:ro
     networks: [labnet]
-    depends_on: [jupyter, siteapp, flasher, grafana, authelia]
+    depends_on: [jupyter, siteapp, flasher, streamer, grafana, authelia]
 
   jupyter:
     image: __JUPYTER_IMAGE__
@@ -206,6 +206,27 @@ services:
       - flasher_upload_token
     networks: [labnet]
 
+  streamer:
+    image: __STREAMER_IMAGE__
+    restart: unless-stopped
+    environment:
+      LAB_BRIDGE_VERSION: __LAB_BRIDGE_VERSION__
+      STREAMER_CLIENTS_FILE: /etc/streamer/clients.json
+      STREAMER_CHISEL_HOST: chisel
+      STREAMER_PUBLIC_IP: __VPS_PUBLIC_IP__
+      STREAMER_UDP_PORT_RANGE: 50000-50100
+      STREAMER_PUBLISH_READY_TIMEOUT_S: "10"
+      STREAMER_DRAIN_DEBOUNCE_S: "5"
+      STREAMER_DISCOVERY_CACHE_TTL_S: "10"
+      STREAMER_DISCOVERY_REQUEST_TIMEOUT_S: "1.0"
+      STREAMER_WHIP_TOKEN_VALIDITY_S: "60"
+      STREAMER_MAX_SUBSCRIBERS_PER_SESSION: "3"
+    volumes:
+      - ./siteapp/clients.json:/etc/streamer/clients.json:ro
+      - ./streamer_data:/data
+    ports:
+      - "50000-50100:50000-50100/udp"
+    networks: [labnet]
 
 networks:
   labnet:

@@ -200,9 +200,9 @@ main() {
     # every request (see services/flasher/app/routes.py), so a roster change
     # is picked up without a restart.
     log "bringing up the stack..."
-    local restart_services="caddy siteapp grafana"
+    local restart_services="caddy siteapp streamer grafana"
     if [[ "${LDS_STACK_ONLY:-}" != "1" ]]; then
-        restart_services="caddy chisel siteapp grafana authelia"
+        restart_services="caddy chisel siteapp streamer grafana authelia"
     fi
     $ssh_base "$target" "cd $VPS_REMOTE_ROOT && (docker compose pull --ignore-pull-failures || true) && docker compose up -d --remove-orphans && docker compose restart $restart_services"
 
@@ -223,7 +223,7 @@ main() {
         log "waiting for HTTPS to respond..."
         local i home_status authelia_status jupyter_status grafana_status \
             docs_status download_status flash_status static_status public_status \
-            server_info_status
+            server_info_status streamer_status
         for ((i=0; i<60; i++)); do
             home_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/" || true)"
             authelia_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/auth/api/health" || true)"
@@ -245,6 +245,10 @@ main() {
             # siteapp or the router wasn't mounted. Probed alongside /api/public/health
             # so a broken render fails the deploy.
             server_info_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/api/public/server-info" || true)"
+            # /streamer/labs — protected by Authelia forward_auth; expect 200,
+            # 302 (redirect to /login), or 401. A 502/504 means the streamer
+            # container didn't start or Caddy's upstream is misconfigured.
+            streamer_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/streamer/labs" || true)"
             if [[ "$home_status" == "200" ]] \
                 && [[ "$authelia_status" == "200" ]] \
                 && [[ "$jupyter_status" =~ ^[23][0-9][0-9]$ ]] \
@@ -254,13 +258,14 @@ main() {
                 && [[ "$flash_status" == "302" ]] \
                 && [[ "$static_status" == "200" ]] \
                 && [[ "$public_status" == "200" ]] \
-                && [[ "$server_info_status" == "200" ]]; then
-                log "deployed: home $home_status, authelia $authelia_status, jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, flash $flash_status (forward_auth 302), static $static_status, public $public_status, server_info $server_info_status"
+                && [[ "$server_info_status" == "200" ]] \
+                && [[ "$streamer_status" =~ ^(200|302|401)$ ]]; then
+                log "deployed: home $home_status, authelia $authelia_status, jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, flash $flash_status (forward_auth 302), static $static_status, public $public_status, server_info $server_info_status, streamer $streamer_status"
                 return 0
             fi
             sleep 1
         done
-        warn "health check timed out (home:$home_status authelia:$authelia_status jupyter:$jupyter_status grafana:$grafana_status docs:${docs_status}[want 200 or 308] download:$download_status flash:${flash_status}[want 302] static:$static_status public:$public_status server_info:$server_info_status). Check: task logs"
+        warn "health check timed out (home:$home_status authelia:$authelia_status jupyter:$jupyter_status grafana:$grafana_status docs:${docs_status}[want 200 or 308] download:$download_status flash:${flash_status}[want 302] static:$static_status public:$public_status server_info:$server_info_status streamer:${streamer_status}[want 200/302/401]). Check: task logs"
         if [[ "$authelia_status" != "200" ]]; then
             warn "Authelia is not reachable (/auth/api/health = $authelia_status). If this is the first deploy, run from your laptop: task secrets:bootstrap-authelia && task users:add -- <name> admins && task deploy"
         fi

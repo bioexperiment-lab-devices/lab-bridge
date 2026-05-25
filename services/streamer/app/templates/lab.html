@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ lab_name }} — streams{% endblock %}
+{% block body %}
+<main class="streamer-lab" data-lab="{{ lab_name }}">
+  <header>
+    <a href="/streamer/labs">← all labs</a>
+    <h1>{{ lab_name }}</h1>
+  </header>
+  <section class="grid" id="tile-grid">
+    {% for t in translations %}
+    <article class="tile" data-translation-id="{{ t.id }}">
+      <video autoplay muted playsinline controls></video>
+      <footer>
+        <span class="label">{{ t.label }}</span>
+        <span class="state" data-state="connecting">connecting…</span>
+      </footer>
+    </article>
+    {% endfor %}
+  </section>
+  {% if not translations %}
+  <p class="empty">No streams currently armed on this lab. Ask the operator to enable a camera.</p>
+  {% endif %}
+</main>
+<script src="/streamer/_static/streamer.js" defer></script>
+{% endblock %}
