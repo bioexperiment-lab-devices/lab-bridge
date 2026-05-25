@@ -130,3 +130,37 @@ async def test_stop_connection_error_is_swallowed() -> None:
         side_effect=httpx.ConnectError("no tunnel")
     )
     await _client({"alice": 8089}).stop(lab_name="alice", translation_id="cam-0", session_id="01")
+
+
+@respx.mock
+async def test_start_percent_encodes_special_chars_in_translation_id() -> None:
+    """Real-world Windows DirectShow device IDs contain '#', '&', '\\', '?', '/'.
+    Without percent-encoding the outbound URL, httpx truncates at '#' (treated
+    as URI fragment) and SerialHop sees a different translation_id than the
+    one it announced — manifests as a spurious 404 → ControlError → 502 on
+    the viewer side (PR #161)."""
+    weird = "@device_pnp_\\\\?\\usb#vid_1bcf&pid_2b95\\global"
+    encoded = "%40device_pnp_%5C%5C%3F%5Cusb%23vid_1bcf%26pid_2b95%5Cglobal"
+    route = respx.post(f"http://chisel:8089/api/translations/{encoded}/start").mock(
+        return_value=httpx.Response(202)
+    )
+    result = await _client({"alice": 8089}).start(
+        lab_name="alice",
+        translation_id=weird,
+        session_id="01",
+        whip_url="https://lab/streamer/whip/01",
+        whip_token="tk_xyz",
+    )
+    assert result.session_id == "01"
+    assert route.called
+
+
+@respx.mock
+async def test_stop_percent_encodes_special_chars_in_translation_id() -> None:
+    weird = "@device_pnp_\\\\?\\usb#vid_1bcf&pid_2b95\\global"
+    encoded = "%40device_pnp_%5C%5C%3F%5Cusb%23vid_1bcf%26pid_2b95%5Cglobal"
+    route = respx.post(f"http://chisel:8089/api/translations/{encoded}/stop").mock(
+        return_value=httpx.Response(204)
+    )
+    await _client({"alice": 8089}).stop(lab_name="alice", translation_id=weird, session_id="01")
+    assert route.called
