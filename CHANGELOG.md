@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.3](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.21.2...v0.21.3) (2026-05-25)
+
+
+### Bug Fixes
+
+* **streamer:** drop translations with URL-unsafe ids + tighten protocol spec ([#163](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/163)) ([54410b9](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/54410b9d65e3534fdf793cd3d266e98ac59920b9))
+
 ## [0.21.2](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.21.1...v0.21.2) (2026-05-25)
 
 
