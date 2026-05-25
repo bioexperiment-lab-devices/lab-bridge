@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.20.1...v0.21.0) (2026-05-25)
+
+
+### Features
+
+* **streamer:** live WebRTC video streaming from SerialHop ([#156](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/156)) ([2f8d0a5](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/2f8d0a5e3cf8ffd966fbd43b207302494507bf28))
+
 ## [0.20.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.20.0...v0.20.1) (2026-05-24)
 
 
