@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.21.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.21.0...v0.21.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* **deploy:** accept 403 from /streamer/labs probe ([#158](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/158)) ([709b1ee](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/709b1ee55d1d90c1555136b8657c2890684833d8))
+* **streamer:** handle translation IDs with URL-unsafe characters ([#160](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/160)) ([ebbaa44](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/ebbaa4462a1068a8e778ccd1bbf0938b885fd55d))
+
 ## [0.21.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.20.1...v0.21.0) (2026-05-25)
 
 
