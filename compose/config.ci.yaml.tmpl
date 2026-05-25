@@ -6,7 +6,13 @@
 # DO NOT use this template for laptop deploys — `task deploy` uses your
 # gitignored config.yaml.
 
-vps_public_ip: 127.0.0.1
+# vps_public_ip is omitted on purpose. config.sh falls back to .vps.host
+# when this field is absent, which is the correct value for a CI deploy
+# that ships to the real VPS (the deploy target IS the public-facing
+# address). A previous hardcoded `127.0.0.1` here was a bug — it left
+# STREAMER_PUBLIC_IP pointing at loopback in production, so WebRTC ICE
+# candidates and the WHIP URL handed to SerialHop all resolved to
+# 127.0.0.1, breaking the entire media plane.
 
 vps:
   host: ${VPS_HOST}
