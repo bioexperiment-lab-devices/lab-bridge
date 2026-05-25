@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.4](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.21.3...v0.21.4) (2026-05-25)
+
+
+### Bug Fixes
+
+* **streamer:** drop hardcoded vps_public_ip from CI config template ([#165](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/165)) ([467c8d6](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/467c8d62e3666d9881e10be27c190eaccd5e4800))
+
 ## [0.21.3](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.21.2...v0.21.3) (2026-05-25)
 
 
