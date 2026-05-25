@@ -245,9 +245,17 @@ main() {
             # siteapp or the router wasn't mounted. Probed alongside /api/public/health
             # so a broken render fails the deploy.
             server_info_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/api/public/server-info" || true)"
-            # /streamer/labs — protected by Authelia forward_auth; expect 200,
-            # 302 (redirect to /login), or 401. A 502/504 means the streamer
-            # container didn't start or Caddy's upstream is misconfigured.
+            # /streamer/labs — protected by Authelia forward_auth. Expect 200,
+            # 302 (redirect to /login), 401, or 403. The 403 is the transient
+            # state after a CI release that introduces a new Authelia rule:
+            # CI deploys are stack-only and intentionally exclude authelia/
+            # configuration.yml from rsync (see line ~168 + CLAUDE.md), so the
+            # rule lands on the VPS only on the next laptop-driven `task
+            # deploy`. Until then Authelia falls back to default_policy:deny
+            # for /streamer/* and returns 403. The route is still reachable —
+            # the streamer container is up — so this is acceptable for the
+            # health gate. A 502/504 here would indicate the streamer
+            # container failed to start or Caddy's upstream is misconfigured.
             streamer_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/streamer/labs" || true)"
             if [[ "$home_status" == "200" ]] \
                 && [[ "$authelia_status" == "200" ]] \
@@ -259,13 +267,13 @@ main() {
                 && [[ "$static_status" == "200" ]] \
                 && [[ "$public_status" == "200" ]] \
                 && [[ "$server_info_status" == "200" ]] \
-                && [[ "$streamer_status" =~ ^(200|302|401)$ ]]; then
+                && [[ "$streamer_status" =~ ^(200|302|401|403)$ ]]; then
                 log "deployed: home $home_status, authelia $authelia_status, jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, flash $flash_status (forward_auth 302), static $static_status, public $public_status, server_info $server_info_status, streamer $streamer_status"
                 return 0
             fi
             sleep 1
         done
-        warn "health check timed out (home:$home_status authelia:$authelia_status jupyter:$jupyter_status grafana:$grafana_status docs:${docs_status}[want 200 or 308] download:$download_status flash:${flash_status}[want 302] static:$static_status public:$public_status server_info:$server_info_status streamer:${streamer_status}[want 200/302/401]). Check: task logs"
+        warn "health check timed out (home:$home_status authelia:$authelia_status jupyter:$jupyter_status grafana:$grafana_status docs:${docs_status}[want 200 or 308] download:$download_status flash:${flash_status}[want 302] static:$static_status public:$public_status server_info:$server_info_status streamer:${streamer_status}[want 200/302/401/403]). Check: task logs"
         if [[ "$authelia_status" != "200" ]]; then
             warn "Authelia is not reachable (/auth/api/health = $authelia_status). If this is the first deploy, run from your laptop: task secrets:bootstrap-authelia && task users:add -- <name> admins && task deploy"
         fi
