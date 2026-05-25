@@ -174,33 +174,17 @@ _body_through_caddy() {
     [[ "$code" == "200" || "$code" == "302" ]] || { echo "got: $code"; false; }
 }
 
-# Helper: curl through Caddy with a custom HTTP method and headers.
-# Usage: _through_caddy_post <extra-curl-args...> <url>
-# Passes all args directly to curl after the fixed flags. Caller is
-# responsible for quoting; the URL must be the last argument.
-_through_caddy_with_args() {
-    local url="${@: -1}"
-    local extra_args=("${@:1:$(($#-1))}")
-    docker exec lds-fake-vps bash -c "
-        cd /srv/lab-bridge && docker compose exec -T caddy sh -c '
-            curl -k -s -o /dev/null -w \"%{http_code}\" --max-redirs 0 ${extra_args[*]} \"$url\"
-        '
-    "
-}
-
 @test "/streamer/labs requires authentication" {
     code="$(_through_caddy 'https://127.0.0.1/streamer/labs')"
     [[ "$code" == "302" || "$code" == "401" ]] || { echo "got: $code"; false; }
 }
 
-@test "/streamer/whip/dummy is exempt from authelia, returns 404 from streamer" {
-    # /streamer/whip/* is NOT behind forward_auth — Caddy routes it directly to
-    # the streamer which validates the WHIP bearer token. An anonymous POST should
-    # return 401 (token check) or 404 (path not found), but NOT 302 (forward_auth
-    # redirect to /login). A 302 would mean Authelia intercepted the request.
-    code="$(_through_caddy_with_args -X POST \
-        -H 'Content-Type: application/sdp' \
-        --data-binary 'v=0' \
-        'https://127.0.0.1/streamer/whip/01NOPE')"
-    [[ "$code" == "404" || "$code" == "401" ]] || { echo "got: $code"; false; }
+@test "/streamer/whip/dummy is exempt from authelia (no 302 redirect)" {
+    # /streamer/whip/* is NOT behind forward_auth — Caddy routes it directly
+    # to the streamer. An anonymous request must NOT receive a 302 redirect to
+    # /login (which would indicate forward_auth intercepted the request).
+    # A GET on a POST-only route is sufficient to reach streamer and observe
+    # the absence of Authelia interception; we expect 404 or 405 from streamer.
+    code="$(_through_caddy 'https://127.0.0.1/streamer/whip/01NOPE')"
+    [[ "$code" == "404" || "$code" == "405" ]] || { echo "got: $code"; false; }
 }

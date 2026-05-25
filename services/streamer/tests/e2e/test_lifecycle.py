@@ -50,9 +50,7 @@ def test_drain_emits_stop_after_debounce(
     assert len(calls["stops"]) >= 1
 
 
-def test_two_viewers_share_publisher(
-    http_streamer: httpx.Client, http_stub: httpx.Client
-) -> None:
+def test_two_viewers_share_publisher(http_streamer: httpx.Client, http_stub: httpx.Client) -> None:
     http_stub.post("/__/reset")
     a = _whep(http_streamer, "alice", "cam-0")
     b = _whep(http_streamer, "alice", "cam-0")
