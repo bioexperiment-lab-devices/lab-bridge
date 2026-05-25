@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
+from urllib.parse import quote as urllib_quote
 
 import pytest
 from fastapi import FastAPI
@@ -170,7 +171,7 @@ def test_whep_201_when_publisher_already_attached(manager: SessionManager) -> No
             content="v=0\r\n",
         )
     assert r.status_code == 201
-    assert r.headers["Location"].startswith("/streamer/whep/alice/cam-0/")
+    assert r.headers["Location"].startswith("/streamer/whep/sub/")
     fake_pc.addTrack.assert_called_once()
 
 
@@ -192,15 +193,48 @@ def test_whep_429_when_max_subscribers(manager: SessionManager) -> None:
 
 
 def test_whep_delete_removes_subscriber(manager: SessionManager) -> None:
+    """Full round-trip: POST creates the sub_id reverse mapping, DELETE uses it."""
     discovery = _StubDiscovery({"alice": [TranslationDescriptor(id="cam-0", label="Side")]})
     control = _StubControl()
     s = manager.create(lab_name="alice", translation_id="cam-0")
-    sub_pc = MagicMock()
-    sub_pc.close = AsyncMock()
-    s.subscribers["sub-A"] = sub_pc
+    s.mark_publishing(track=MagicMock())
 
     app = _app(manager, discovery, control)
-    r = TestClient(app).request("DELETE", "/streamer/whep/alice/cam-0/sub-A")
+    client = TestClient(app)
+
+    with patch("app.whep.new_peer_connection", return_value=_fake_pc()):
+        post = client.post(
+            "/streamer/whep/alice/cam-0",
+            headers={"Content-Type": "application/sdp"},
+            content="v=0\r\n",
+        )
+    assert post.status_code == 201
+    location = post.headers["Location"]
+    assert location.startswith("/streamer/whep/sub/")
+    assert s.subscriber_count() == 1
+
+    r = client.request("DELETE", location)
     assert r.status_code == 204
-    assert "sub-A" not in s.subscribers
-    sub_pc.close.assert_awaited_once()
+    assert s.subscriber_count() == 0
+
+
+def test_whep_post_accepts_translation_id_with_slashes(manager: SessionManager) -> None:
+    """Real-world SerialHop IDs (Windows DirectShow paths) contain '/', '?', '\\'.
+    With :path on translation_id and JS-side encodeURIComponent, the round-trip
+    must work end-to-end."""
+    weird_id = "@device_pnp_//?\\usb"
+    discovery = _StubDiscovery({"alice": [TranslationDescriptor(id=weird_id, label="USB cam")]})
+    control = _StubControl()
+    s = manager.create(lab_name="alice", translation_id=weird_id)
+    s.mark_publishing(track=MagicMock())
+
+    app = _app(manager, discovery, control)
+    encoded = urllib_quote(weird_id, safe="")
+    with patch("app.whep.new_peer_connection", return_value=_fake_pc()):
+        r = TestClient(app).post(
+            f"/streamer/whep/alice/{encoded}",
+            headers={"Content-Type": "application/sdp"},
+            content="v=0\r\n",
+        )
+    assert r.status_code == 201
+    assert r.headers["Location"].startswith("/streamer/whep/sub/")

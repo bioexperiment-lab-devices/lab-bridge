@@ -75,7 +75,12 @@ toggled "Allow streaming" on).
 - Each element: `{ "id": <string>, "label": <string> }`.
 - `id`: stable identifier across SerialHop restarts. Required to be unique
   within this SerialHop. The combination `(chisel_username, id)` is the
-  server-wide key.
+  server-wide key. **Recommended charset:** URL-safe ASCII
+  (`[A-Za-z0-9._-]`). The server tolerates any UTF-8 string by percent-
+  encoding IDs in viewer URLs and routing via a path-converter, but raw
+  device strings like Windows DirectShow `@device:pnp:\\?\usb#...` work
+  best when SerialHop substitutes a friendly slug (e.g. `usb-cam-0`) at
+  arming time.
 - `label`: human-readable name shown to viewers.
 - You **may** include additional fields per element; the server tolerates
   them and ignores unknown keys. Future spec versions may add fields

@@ -34,9 +34,13 @@
 
     await pc.setLocalDescription(await pc.createOffer());
 
+    // Translation IDs are SerialHop-assigned and may contain characters
+    // that are illegal in URL paths (Windows DirectShow device strings
+    // routinely include '/', '?', and '\'). Encode each segment.
+    const url = `/streamer/whep/${encodeURIComponent(labName)}/${encodeURIComponent(translationId)}`;
     let resp;
     try {
-      resp = await fetch(`/streamer/whep/${labName}/${translationId}`, {
+      resp = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/sdp" },
         body: pc.localDescription.sdp,
