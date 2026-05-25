@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.parse import quote
 
 import httpx
 
@@ -83,4 +84,10 @@ class ControlPlaneClient:
         port = self._roster.get(lab_name)
         if port is None:
             raise ControlError(f"unknown lab: {lab_name}")
-        return f"http://{self._host}:{port}/api/translations/{translation_id}/{action}"
+        # translation_id may contain '#', '&', '\', '?', '/' (Windows DirectShow
+        # device paths in the wild — see PR #160). Without percent-encoding,
+        # httpx truncates at '#' (fragment separator) and sends a URL that
+        # SerialHop can't match, producing a spurious 404 → ControlError → 502
+        # to the viewer.
+        encoded = quote(translation_id, safe="")
+        return f"http://{self._host}:{port}/api/translations/{encoded}/{action}"
