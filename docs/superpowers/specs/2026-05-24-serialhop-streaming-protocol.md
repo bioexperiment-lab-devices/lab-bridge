@@ -75,12 +75,19 @@ toggled "Allow streaming" on).
 - Each element: `{ "id": <string>, "label": <string> }`.
 - `id`: stable identifier across SerialHop restarts. Required to be unique
   within this SerialHop. The combination `(chisel_username, id)` is the
-  server-wide key. **Recommended charset:** URL-safe ASCII
-  (`[A-Za-z0-9._-]`). The server tolerates any UTF-8 string by percent-
-  encoding IDs in viewer URLs and routing via a path-converter, but raw
-  device strings like Windows DirectShow `@device:pnp:\\?\usb#...` work
-  best when SerialHop substitutes a friendly slug (e.g. `usb-cam-0`) at
-  arming time.
+  server-wide key. **Required charset: URL-safe ASCII (`[A-Za-z0-9._-]`),
+  maximum 128 characters.** Any other character (`/`, `\`, `?`, `#`, `&`,
+  `:`, `@`, spaces, non-ASCII Unicode, etc.) is forbidden. Rationale: the
+  server embeds `{id}` in path segments when calling SerialHop back at
+  `POST /api/translations/{id}/{start,stop}`. Even when percent-encoded,
+  Go's `net/http` package decodes the path before route matching, so an
+  encoded `%2F` becomes a literal `/` and the registered single-segment
+  route pattern fails to match. Raw device strings like Windows
+  DirectShow `@device:pnp:\\?\usb#vid_...&pid_...#{guid}\global` must be
+  slugged before announcement — typical mapping: hash the device path
+  with SHA-1, take the first 16 hex chars, prefix with `cam-`, yielding
+  e.g. `cam-3f17b2a8e4d9c01a`. The human-readable form belongs in
+  `label`, not `id`.
 - `label`: human-readable name shown to viewers.
 - You **may** include additional fields per element; the server tolerates
   them and ignores unknown keys. Future spec versions may add fields
@@ -401,6 +408,11 @@ A SerialHop implementation conforms to this spec if:
 
 - [ ] `GET /api/translations` returns 200 with the documented shape; empty
       array when no translations are armed.
+- [ ] Every announced `id` matches `^[A-Za-z0-9._-]{1,128}$` (the server
+      drops non-conforming entries at discovery time with a warning;
+      treat this as a hard requirement, not a guideline). Raw device
+      strings like Windows DirectShow `@device:pnp:\\?\usb#...` MUST be
+      slugged — typical mapping: `f"cam-{sha1(device_path)[:16]}"`.
 - [ ] `POST /api/translations/{id}/start` returns 202 for valid armed
       translations, 404 for unknown id, 503 for hardware unavailable.
 - [ ] A `start` with a `session_id` matching the current active session

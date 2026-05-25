@@ -123,3 +123,47 @@ async def test_translations_field_must_be_array() -> None:
     )
     cache = _make_cache({"alice": 8089})
     assert await cache.list("alice") == []
+
+
+@respx.mock
+async def test_translation_with_url_unsafe_id_is_dropped(caplog) -> None:
+    """SerialHop bug: announcing a raw Windows DirectShow device path as the
+    id (containing '/', '#', '?', '\\') breaks the control-plane round-trip
+    because Go's net/http decodes percent-escapes before route matching.
+    Drop such entries at discovery time with a warning instead of letting
+    them propagate into a confusing 502 deep in the WHEP path."""
+    import logging
+
+    respx.get("http://chisel:8089/api/translations").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "translations": [
+                    {"id": "cam-0", "label": "Good"},
+                    {"id": "@device_pnp_\\\\?\\usb#vid_1bcf", "label": "Bad"},
+                    {"id": "with/slash", "label": "Also bad"},
+                    {"id": "with space", "label": "Also bad"},
+                    {"id": "ok.id_with-safe-chars", "label": "Also good"},
+                ]
+            },
+        )
+    )
+    cache = _make_cache({"alice": 8089})
+
+    with caplog.at_level(logging.WARNING):
+        result = await cache.list("alice")
+    assert {t.id for t in result} == {"cam-0", "ok.id_with-safe-chars"}
+    assert sum("unsupported id charset" in r.message for r in caplog.records) == 3
+
+
+@respx.mock
+async def test_id_too_long_is_dropped() -> None:
+    long_id = "a" * 129
+    respx.get("http://chisel:8089/api/translations").mock(
+        return_value=httpx.Response(
+            200,
+            json={"translations": [{"id": long_id, "label": "Too long"}]},
+        )
+    )
+    cache = _make_cache({"alice": 8089})
+    assert await cache.list("alice") == []
