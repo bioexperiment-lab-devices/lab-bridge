@@ -652,8 +652,12 @@ EOF
     # relative URLs (see compose/Caddyfile.tmpl).
     [[ "$output" == *"redir /studio /studio/ 308"* ]]
     [[ "$output" == *"handle /studio/*"* ]]
-    studio_block="$(grep -A 8 'handle /studio/\*' <<< "$output")"
+    studio_block="$(grep -A 14 'handle /studio/\*' <<< "$output")"
     [[ "$studio_block" == *"import authelia_required"* ]]
+    # The strip must live inside a `route` wrapper so forward_auth sees the
+    # un-stripped /studio path (Caddy otherwise sorts `uri` before
+    # forward_auth and Authelia default-denies) — see compose/Caddyfile.tmpl.
+    [[ "$studio_block" == *"route {"* ]]
     [[ "$studio_block" == *"uri strip_prefix /studio"* ]]
     [[ "$studio_block" == *"reverse_proxy studio:8000"* ]]
 }

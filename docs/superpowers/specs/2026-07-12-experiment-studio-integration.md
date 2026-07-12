@@ -210,6 +210,31 @@ Add an ops log task mirroring the others:
 - `docs/adding-a-service.md`: out of scope (that doc is for in-repo services; do not extend
   it in this increment).
 
+### 3.10 Implementation notes (recorded at execution, 2026-07-12)
+
+Deviations from the snippets above, discovered during implementation (details in
+`docs/superpowers/plans/2026-07-12-experiment-studio-integration.md`):
+
+- **§3.4 — the strip is wrapped in `route {}`.** Caddy sorts a handle's directives
+  by its global directive order, which runs `uri` *before* `forward_auth`; as
+  written above, Authelia would receive the stripped path (`/`), match no rule,
+  and default-deny everyone with 403. `route` preserves written order so
+  forward_auth authenticates against the un-stripped `/studio` path.
+- **§L4 — `studio_data/` IS added to deploy.sh's rsync excludes.** The
+  parenthetical above is self-contradictory: `rsync --delete` removes receiver
+  dirs absent from the staged tree unless excluded, and `flasher_data` (the
+  named mirror) is excluded for exactly that reason. Without the exclude every
+  deploy would wipe studio's SQLite DB + run artifacts.
+- **§3.1/L3 — no auto-export.** This repo's `load_config` enumerates exports, so
+  `scripts/lib/config.sh` gains `.studio_image` in `_REQUIRED_PINS_FIELDS` plus
+  an explicit `STUDIO_IMAGE` export.
+- **§3.6 — the probe accepts `302|403`, not `302` only.** Stack-only CI deploys
+  exclude `authelia/configuration.yml` from rsync, so the first CI deploy sees
+  Authelia's default-deny 403 until the next laptop `task deploy` lands the
+  rule — the same documented transient as the streamer probe.
+- **§3.8 — Taskfile task delegates to `bash scripts/ops.sh logs:studio`** (the
+  actual idiom used by every `ops:logs:*` sibling).
+
 ## 4. Testing & acceptance
 
 1. **Unit/none** — no service code here.

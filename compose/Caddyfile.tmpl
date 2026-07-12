@@ -182,9 +182,16 @@ https://__VPS_HOST__ {
     handle /studio/* {
         import authelia_required
         import inject_navbar
-        uri strip_prefix /studio
-        reverse_proxy studio:8000 {
-            header_up -Accept-Encoding
+        # The route wrapper is load-bearing: Caddy sorts a handle's directives
+        # by its global directive order, which runs `uri` BEFORE forward_auth —
+        # Authelia would then see the stripped path ("/"), match no rule, and
+        # default-deny everyone. `route` preserves written order: authenticate
+        # against the un-stripped /studio path first, then strip for upstream.
+        route {
+            uri strip_prefix /studio
+            reverse_proxy studio:8000 {
+                header_up -Accept-Encoding
+            }
         }
     }
 
