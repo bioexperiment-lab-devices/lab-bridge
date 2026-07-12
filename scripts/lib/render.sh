@@ -70,6 +70,7 @@ render_compose() {
         -e "s|__NOTEBOOKS_PATH__|${VPS_NOTEBOOKS_PATH:?}|g" \
         -e "s|__LOKI_IMAGE__|${LOKI_IMAGE:?}|g" \
         -e "s|__GRAFANA_IMAGE__|${GRAFANA_IMAGE:?}|g" \
+        -e "s|__STUDIO_IMAGE__|${STUDIO_IMAGE:?}|g" \
         -e "s|__PROMETHEUS_IMAGE__|${PROMETHEUS_IMAGE:?}|g" \
         -e "s|__PROMETHEUS_RETENTION_DAYS__|${PROMETHEUS_RETENTION_DAYS:?}|g" \
         -e "s|__NODE_EXPORTER_IMAGE__|${NODE_EXPORTER_IMAGE:?}|g" \

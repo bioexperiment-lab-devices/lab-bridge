@@ -11,7 +11,7 @@ services:
       - ./caddy_config:/config
       - ./shell:/srv/shell:ro
     networks: [labnet]
-    depends_on: [jupyter, siteapp, flasher, streamer, grafana, authelia]
+    depends_on: [jupyter, siteapp, flasher, streamer, studio, grafana, authelia]
 
   jupyter:
     image: __JUPYTER_IMAGE__
@@ -226,6 +226,21 @@ services:
       - ./streamer_data:/data
     ports:
       - "50000-50100:50000-50100/udp"
+    networks: [labnet]
+
+  # Experiment Studio — external app image (lab-devices repo), pinned in
+  # compose/pins.yaml. No in-app auth: the Caddy/Authelia edge is the only
+  # gate. Single replica only — studio enforces one active run per instance.
+  studio:
+    image: __STUDIO_IMAGE__
+    restart: unless-stopped
+    environment:
+      STUDIO_DATA_DIR: /data
+      # Default inside the image is already this URL; set explicitly for
+      # greppability (which service talks to which).
+      LAB_DEVICES_DISCOVERY_URL: http://siteapp:8000/api/clients/
+    volumes:
+      - ./studio_data:/data
     networks: [labnet]
 
 networks:

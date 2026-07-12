@@ -149,6 +149,7 @@ main() {
         --exclude='flasher_data/'
         --exclude='prometheus_data/'
         --exclude='authelia_data/'
+        --exclude='studio_data/'
     )
     if [[ "${LDS_SKIP_PUBLIC_DOCS:-0}" == "1" ]]; then
         # siteapp/docs is owned by deploy-public-docs.yml (see the public-docs
@@ -223,7 +224,7 @@ main() {
         log "waiting for HTTPS to respond..."
         local i home_status authelia_status jupyter_status grafana_status \
             docs_status download_status flash_status static_status public_status \
-            server_info_status streamer_status
+            server_info_status streamer_status studio_status
         for ((i=0; i<60; i++)); do
             home_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/" || true)"
             authelia_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/auth/api/health" || true)"
@@ -257,6 +258,13 @@ main() {
             # health gate. A 502/504 here would indicate the streamer
             # container failed to start or Caddy's upstream is misconfigured.
             streamer_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/streamer/labs" || true)"
+            # /studio/ — Authelia forward_auth → 302 to /login for anonymous.
+            # 403 is the same transient as /streamer/labs above: stack-only CI
+            # deploys exclude authelia/configuration.yml from rsync, so until
+            # the next laptop `task deploy` lands the /studio rule Authelia
+            # falls back to default_policy:deny → 403. A 502/504 would mean
+            # the studio container failed to start.
+            studio_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/studio/" || true)"
             if [[ "$home_status" == "200" ]] \
                 && [[ "$authelia_status" == "200" ]] \
                 && [[ "$jupyter_status" =~ ^[23][0-9][0-9]$ ]] \
@@ -267,13 +275,14 @@ main() {
                 && [[ "$static_status" == "200" ]] \
                 && [[ "$public_status" == "200" ]] \
                 && [[ "$server_info_status" == "200" ]] \
-                && [[ "$streamer_status" =~ ^(200|302|401|403)$ ]]; then
-                log "deployed: home $home_status, authelia $authelia_status, jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, flash $flash_status (forward_auth 302), static $static_status, public $public_status, server_info $server_info_status, streamer $streamer_status"
+                && [[ "$streamer_status" =~ ^(200|302|401|403)$ ]] \
+                && [[ "$studio_status" =~ ^(302|403)$ ]]; then
+                log "deployed: home $home_status, authelia $authelia_status, jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, flash $flash_status (forward_auth 302), static $static_status, public $public_status, server_info $server_info_status, streamer $streamer_status, studio $studio_status"
                 return 0
             fi
             sleep 1
         done
-        warn "health check timed out (home:$home_status authelia:$authelia_status jupyter:$jupyter_status grafana:$grafana_status docs:${docs_status}[want 200 or 308] download:$download_status flash:${flash_status}[want 302] static:$static_status public:$public_status server_info:$server_info_status streamer:${streamer_status}[want 200/302/401/403]). Check: task logs"
+        warn "health check timed out (home:$home_status authelia:$authelia_status jupyter:$jupyter_status grafana:$grafana_status docs:${docs_status}[want 200 or 308] download:$download_status flash:${flash_status}[want 302] static:$static_status public:$public_status server_info:$server_info_status streamer:${streamer_status}[want 200/302/401/403] studio:${studio_status}[want 302/403]). Check: task logs"
         if [[ "$authelia_status" != "200" ]]; then
             warn "Authelia is not reachable (/auth/api/health = $authelia_status). If this is the first deploy, run from your laptop: task secrets:bootstrap-authelia && task users:add -- <name> admins && task deploy"
         fi

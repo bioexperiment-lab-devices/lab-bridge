@@ -171,6 +171,30 @@ https://__VPS_HOST__ {
         }
     }
 
+    # ─── Experiment Studio (researchers + admins) ────────────────────────
+    # External image (lab-devices repo). SPA + API served at container root;
+    # the app emits relative URLs (>= 0.3.0), so strip the public prefix.
+    # The exact-path redirect is load-bearing: the SPA resolves relative
+    # URLs against the document URL, so it must be loaded at /studio/
+    # (trailing slash), never /studio. reverse_proxy passes the run-events
+    # WebSocket upgrade through automatically; no extra directive needed.
+    redir /studio /studio/ 308
+    handle /studio/* {
+        import authelia_required
+        import inject_navbar
+        # The route wrapper is load-bearing: Caddy sorts a handle's directives
+        # by its global directive order, which runs `uri` BEFORE forward_auth —
+        # Authelia would then see the stripped path ("/"), match no rule, and
+        # default-deny everyone. `route` preserves written order: authenticate
+        # against the un-stripped /studio path first, then strip for upstream.
+        route {
+            uri strip_prefix /studio
+            reverse_proxy studio:8000 {
+                header_up -Accept-Encoding
+            }
+        }
+    }
+
     # ─── Grafana (forward_auth gate in front of Grafana's OIDC) ──────────
     # forward_auth gives anonymous users our custom /login form instead of
     # Authelia's broken-under-sub-path React portal. Once they have an

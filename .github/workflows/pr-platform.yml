@@ -66,9 +66,11 @@ jobs:
     runs-on: ubuntu-latest
     # Each cell brings up the fake VPS (compose pull + render + bringup) before
     # its bats file runs. On the slowest GitHub runner allocations the `ops`
-    # cell has been observed near 15 min; bump the cap so a slow runner doesn't
+    # cell has been observed near 15 min — and it tripped a 25-min cap after
+    # the studio image joined the preload set (PR #167: all tests green, job
+    # canceled in teardown at 25m18s). Keep headroom so a slow runner doesn't
     # flake the gate. A genuinely stuck step will still trip the limit cleanly.
-    timeout-minutes: 25
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:

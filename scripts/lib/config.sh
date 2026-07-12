@@ -46,6 +46,7 @@ _REQUIRED_PINS_FIELDS=(
     .node_exporter_image
     .cadvisor_image
     .prometheus_retention_days
+    .studio_image
 )
 
 _yq() { yq "$@" 2>/dev/null; }
@@ -162,6 +163,7 @@ load_config() {
     export LOKI_IMAGE            ; LOKI_IMAGE="$(_yq e '.loki_image' "$pins_path")"
     export LOKI_RETENTION_DAYS   ; LOKI_RETENTION_DAYS="$(_yq e '.loki_retention_days' "$pins_path")"
     export GRAFANA_IMAGE         ; GRAFANA_IMAGE="$(_yq e '.grafana_image' "$pins_path")"
+    export STUDIO_IMAGE          ; STUDIO_IMAGE="$(_yq e '.studio_image' "$pins_path")"
     export PROMETHEUS_IMAGE      ; PROMETHEUS_IMAGE="$(_yq e '.prometheus_image' "$pins_path")"
     export NODE_EXPORTER_IMAGE   ; NODE_EXPORTER_IMAGE="$(_yq e '.node_exporter_image' "$pins_path")"
     export CADVISOR_IMAGE        ; CADVISOR_IMAGE="$(_yq e '.cadvisor_image' "$pins_path")"

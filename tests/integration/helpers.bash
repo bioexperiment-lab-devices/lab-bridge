@@ -123,6 +123,7 @@ preload_fake_vps_images() {
         grafana/grafana:11.3.0
         quay.io/jupyter/scipy-notebook:2026-04-20
         authelia/authelia:4.38.10
+        ghcr.io/bioexperiment-lab-devices/experiment-studio:0.3.0
     )
     local img
     for img in "${imgs[@]}"; do
@@ -145,6 +146,7 @@ compose_images_available() {
         grafana/grafana:11.3.0
         quay.io/jupyter/scipy-notebook:2026-04-20
         authelia/authelia:4.38.10
+        ghcr.io/bioexperiment-lab-devices/experiment-studio:0.3.0
     )
     local img
     for img in "${imgs[@]}"; do
