@@ -47,6 +47,13 @@ access_control:
         - 'group:admins'
     - domain: __VPS_HOST__
       resources:
+        - '^/studio($|/.*)'
+      policy: one_factor
+      subject:
+        - 'group:researchers'
+        - 'group:admins'
+    - domain: __VPS_HOST__
+      resources:
         - '^/flash.*'
       policy: one_factor
       subject: 'group:admins'

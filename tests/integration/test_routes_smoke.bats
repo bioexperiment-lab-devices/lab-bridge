@@ -96,6 +96,11 @@ _through_caddy() {
     [[ "$code" == "302" ]] || { echo "got: $code"; false; }
 }
 
+@test "/studio/ is gated by forward_auth (302 to /login)" {
+    code="$(_through_caddy 'https://127.0.0.1/studio/')"
+    [[ "$code" == "302" ]] || { echo "got: $code"; false; }
+}
+
 @test "/grafana/login routes to grafana (200 or 307)" {
     # Grafana with GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN=true issues a 307 redirect
     # to the OIDC provider instead of serving a 200 login page. Both are

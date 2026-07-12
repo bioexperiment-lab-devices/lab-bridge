@@ -337,6 +337,7 @@ chisel_listen_port: 8080
 loki_image: lok:1
 loki_retention_days: 30
 grafana_image: gra:1
+studio_image: stu:1
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
 streamer_image_repo: ghcr.io/example/lab-bridge-streamer
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
@@ -387,6 +388,7 @@ chisel_listen_port: 8080
 loki_image: lok:1
 loki_retention_days: 30
 grafana_image: gra:1
+studio_image: stu:1
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
 streamer_image_repo: ghcr.io/example/lab-bridge-streamer
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
@@ -542,6 +544,7 @@ chisel_listen_port: 8080
 loki_image: lok:1
 loki_retention_days: 30
 grafana_image: gra:1
+studio_image: stu:1
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
 streamer_image_repo: ghcr.io/example/lab-bridge-streamer
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
@@ -614,5 +617,44 @@ EOF
     run grep -qE '__[A-Z][A-Z0-9_]*__' "$TMPDIR/prometheus.yml"
     [ "$status" -eq 1 ]
     yq e '.' "$TMPDIR/prometheus.yml" >/dev/null
+}
+
+@test "render_compose: emits studio service with data volume and discovery env" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
+        render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
+        cat $TMPDIR/docker-compose.yml
+    "
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"image: ghcr.io/bioexperiment-lab-devices/experiment-studio:0.3.0"* ]]
+    [[ "$output" == *"./studio_data:/data"* ]]
+    grep -q "LAB_DEVICES_DISCOVERY_URL: http://siteapp:8000/api/clients/" <<< "$output"
+    # No published ports — studio is only reachable through Caddy.
+    run yq e '.services.studio | has("ports")' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "false" ]]
+}
+
+@test "render_caddyfile: routes /studio/* to studio:8000 with prefix strip behind forward_auth" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
+        render_caddyfile $ROOT/compose/Caddyfile.tmpl $TMPDIR/Caddyfile
+        cat $TMPDIR/Caddyfile
+    "
+    [ "$status" -eq 0 ]
+    # Exact-path redirect adds the trailing slash the SPA needs to resolve
+    # relative URLs (see compose/Caddyfile.tmpl).
+    [[ "$output" == *"redir /studio /studio/ 308"* ]]
+    [[ "$output" == *"handle /studio/*"* ]]
+    studio_block="$(grep -A 8 'handle /studio/\*' <<< "$output")"
+    [[ "$studio_block" == *"import authelia_required"* ]]
+    [[ "$studio_block" == *"uri strip_prefix /studio"* ]]
+    [[ "$studio_block" == *"reverse_proxy studio:8000"* ]]
 }
 

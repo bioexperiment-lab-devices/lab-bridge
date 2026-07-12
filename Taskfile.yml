@@ -117,3 +117,8 @@ tasks:
   "ops:logs:streamer":
     desc: Tail recent streamer container logs
     cmd: bash scripts/ops.sh logs:streamer
+
+  # --- Experiment Studio (external image; pinned in compose/pins.yaml) ---
+  "ops:logs:studio":
+    desc: Tail recent studio container logs
+    cmd: bash scripts/ops.sh logs:studio

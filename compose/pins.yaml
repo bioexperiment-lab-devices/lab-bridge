@@ -9,6 +9,13 @@ loki_image: grafana/loki:3.2.1
 loki_retention_days: 30
 grafana_image: grafana/grafana:11.3.0
 
+# Experiment Studio — operator UI for lab_devices experiments. Built and
+# released by the bioexperiment-lab-devices/lab-devices repo (NOT part of
+# this repo's unified VERSION stream). Renovate-managed like the other
+# external images. MUST be >= 0.3.0 (sub-path portability behind the
+# stripped /studio route; 0.2.0 emits absolute URLs and breaks).
+studio_image: ghcr.io/bioexperiment-lab-devices/experiment-studio:0.3.0
+
 # Prometheus host-monitoring stack. All vendor-neutral; no metadata-service
 # dependency. Renovate-managed.
 prometheus_image: prom/prometheus:v3.0.1

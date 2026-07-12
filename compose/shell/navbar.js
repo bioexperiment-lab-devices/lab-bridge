@@ -24,12 +24,14 @@
     { id: 'home',    label: 'Home',           href: '/',                   mode: 'persistent', external: false },
     { id: 'docs',    label: 'Docs',           href: '/docs/',              mode: 'persistent', external: false },
     { id: 'agent',   label: 'Download Agent', href: '/download/agent',     mode: 'persistent', external: false },
+    { id: 'studio',  label: 'Experiment Studio', href: '/studio/',         mode: 'bookmark',   external: true  },
     { id: 'jupyter', label: 'JupyterLab',     href: '/jupyter/',           mode: 'bookmark',   external: true  },
     { id: 'grafana', label: 'Grafana',        href: '/grafana/dashboards', mode: 'bookmark',   external: true  },
     { id: 'flasher', label: 'Flasher',        href: '/flash/',             mode: 'persistent', external: true  },
   ];
 
   const PATH_RULES = [
+    { prefix: '/studio',  mode: 'bookmark' },
     { prefix: '/jupyter', mode: 'bookmark' },
     { prefix: '/grafana', mode: 'bookmark' },
   ];
@@ -55,6 +57,10 @@
     agent:   ICON(`<path d="M12 15V3"/>
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                     <path d="m7 10 5 5 5-5"/>`),
+    // Lucide: flask-conical
+    studio:  ICON(`<path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2"/>
+                    <path d="M6.453 15h11.094"/>
+                    <path d="M8.5 2h7"/>`),
     // Simple Icons: Jupyter
     jupyter: BRAND(`<path d="M7.157 22.201A1.784 1.799 0 0 1 5.374 24a1.784 1.799 0 0 1-1.784-1.799 1.784 1.799 0 0 1 1.784-1.799 1.784 1.799 0 0 1 1.783 1.799zM20.582 1.427a1.415 1.427 0 0 1-1.415 1.428 1.415 1.427 0 0 1-1.416-1.428A1.415 1.427 0 0 1 19.167 0a1.415 1.427 0 0 1 1.415 1.427zM4.992 3.336A1.047 1.056 0 0 1 3.946 4.39a1.047 1.056 0 0 1-1.047-1.055A1.047 1.056 0 0 1 3.946 2.28a1.047 1.056 0 0 1 1.046 1.056zm7.336 1.517c3.769 0 7.06 1.38 8.768 3.424a9.363 9.363 0 0 0-3.393-4.547 9.238 9.238 0 0 0-5.377-1.728A9.238 9.238 0 0 0 6.95 3.73a9.363 9.363 0 0 0-3.394 4.547c1.713-2.04 5.004-3.424 8.772-3.424zm.001 13.295c-3.768 0-7.06-1.381-8.768-3.425a9.363 9.363 0 0 0 3.394 4.547A9.238 9.238 0 0 0 12.33 21a9.238 9.238 0 0 0 5.377-1.729 9.363 9.363 0 0 0 3.393-4.547c-1.712 2.044-5.003 3.425-8.772 3.425Z"/>`),
     // Simple Icons: Grafana
@@ -445,7 +451,7 @@
             </button>
           </header>
           <div class="modal__body">
-            <p class="modal__lede">You'll be signed out of lab-bridge. Open sessions to JupyterLab, Grafana, and Flasher will end.</p>
+            <p class="modal__lede">You'll be signed out of lab-bridge. Open sessions to Experiment Studio, JupyterLab, Grafana, and Flasher will end.</p>
             <div class="modal__user">
               <span class="user__avatar" aria-hidden="true">${escapeHtml(user.initials)}</span>
               <div class="modal__user-text"><b>${escapeHtml(user.name)}</b></div>

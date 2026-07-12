@@ -4,6 +4,7 @@ chisel_listen_port: 8080
 loki_image: grafana/loki:3.2.1
 loki_retention_days: 30
 grafana_image: grafana/grafana:11.3.0
+studio_image: ghcr.io/bioexperiment-lab-devices/experiment-studio:0.3.0
 siteapp_image_repo: ghcr.io/test/lab-bridge-siteapp
 flasher_image_repo: ghcr.io/test/lab-bridge-flasher
 caddy_image_repo: ghcr.io/test/lab-bridge-caddy

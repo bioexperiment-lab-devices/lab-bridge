@@ -50,6 +50,7 @@ cmd_logs_grafana() { load_config "$CONFIG"; remote_compose "logs --tail=200 graf
 cmd_logs_siteapp()  { load_config "$CONFIG"; remote_compose "logs --tail=200 siteapp"; }
 cmd_logs_flasher()  { load_config "$CONFIG"; remote_compose "logs --tail=200 flasher"; }
 cmd_logs_streamer() { load_config "$CONFIG"; remote_compose "logs --tail=200 streamer"; }
+cmd_logs_studio()   { load_config "$CONFIG"; remote_compose "logs --tail=200 studio"; }
 
 cmd_loki_disk() {
     load_config "$CONFIG"
@@ -104,6 +105,7 @@ main() {
         logs:siteapp)  cmd_logs_siteapp ;;
         logs:flasher)  cmd_logs_flasher ;;
         logs:streamer) cmd_logs_streamer ;;
+        logs:studio)   cmd_logs_studio ;;
         loki-disk)     cmd_loki_disk ;;
         site-disk)     cmd_site_disk ;;
         ssh)           cmd_ssh ;;
