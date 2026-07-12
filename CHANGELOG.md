@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.21.4...v0.22.0) (2026-07-12)
+
+
+### Features
+
+* add experiment-studio to the stack ([#167](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/167)) ([1c6afbf](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/1c6afbf600c44a1f511425b9b3c4751248f809f1))
+
 ## [0.21.4](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.21.3...v0.21.4) (2026-05-25)
 
 
