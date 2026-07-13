@@ -150,6 +150,7 @@ main() {
         --exclude='prometheus_data/'
         --exclude='authelia_data/'
         --exclude='studio_data/'
+        --exclude='streamer_data/'
     )
     if [[ "${LDS_SKIP_PUBLIC_DOCS:-0}" == "1" ]]; then
         # siteapp/docs is owned by deploy-public-docs.yml (see the public-docs

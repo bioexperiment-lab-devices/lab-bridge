@@ -64,6 +64,9 @@ CFG
     [[ "$output" == *"--exclude=authelia/secrets/"* ]]
     [[ "$output" == *"--exclude=grafana/oidc_secret"* ]]
     [[ "$output" == *"--exclude=authelia_data/"* ]]
+    # streamer_data holds recorded streams on the VPS; without the exclude,
+    # rsync --delete wipes it on every deploy (no source dir = "extra" in dest).
+    [[ "$output" == *"--exclude=streamer_data/"* ]]
 }
 
 @test "deploy.sh: with LDS_STACK_ONLY=1 + LDS_REQUIRE_VAULT=1, fails if chisel_clients is non-empty" {
