@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.22.0...v0.22.1) (2026-07-13)
+
+
+### Bug Fixes
+
+* **streamer:** preserve streamer_data across deploys ([#169](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/169)) ([f9ac849](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/f9ac849a2e0107769ad5670b8d0128e01c2532e4))
+
 ## [0.22.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.21.4...v0.22.0) (2026-07-12)
 
 
