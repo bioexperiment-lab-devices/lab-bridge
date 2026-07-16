@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.22.1...v0.23.0) (2026-07-16)
+
+
+### Features
+
+* ship experiment-studio 0.6.0 (export/import) to the stack ([#172](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/172)) ([07e3520](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/07e352055062b0a353adc57ae0e21c3bdd7e1da7))
+
 ## [0.22.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.22.0...v0.22.1) (2026-07-13)
 
 
