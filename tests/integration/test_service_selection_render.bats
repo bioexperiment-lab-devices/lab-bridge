@@ -272,7 +272,8 @@ EOF
     LDS_DISABLED_SERVICES='jupyter, monitoring' \
         envsubst < "$ROOT/compose/config.ci.yaml.tmpl" > "$TMPDIR/ci.yaml"
     run yq e '.disabled_services | length' "$TMPDIR/ci.yaml"
-    [[ "$output" == "2" ]]
+    [ "$status" -eq 0 ]
+    [ "$output" = "2" ]
     run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/ci.yaml"
     [ "$status" -eq 0 ]
 }
