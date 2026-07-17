@@ -19,6 +19,17 @@
     return '';
   })();
 
+  // Navbar ids disabled on this instance. Caddy substitutes the
+  // data-disabled attr at deploy time (Caddyfile.tmpl inject_navbar).
+  const DISABLED_IDS = (function () {
+    const scripts = document.querySelectorAll('script[src*="/_shared/navbar.js"]');
+    for (const s of scripts) {
+      const v = s.getAttribute('data-disabled');
+      if (v != null) return new Set(v.split(',').map((x) => x.trim()).filter(Boolean));
+    }
+    return new Set();
+  })();
+
   // ─── Data ─────────────────────────────────────────────────────────────
   const SERVICES = [
     { id: 'home',    label: 'Home',           href: '/',                   mode: 'persistent', external: false },
@@ -28,7 +39,7 @@
     { id: 'jupyter', label: 'JupyterLab',     href: '/jupyter/',           mode: 'bookmark',   external: true  },
     { id: 'grafana', label: 'Grafana',        href: '/grafana/dashboards', mode: 'bookmark',   external: true  },
     { id: 'flasher', label: 'Flasher',        href: '/flash/',             mode: 'persistent', external: true  },
-  ];
+  ].filter((svc) => !DISABLED_IDS.has(svc.id));
 
   const PATH_RULES = [
     { prefix: '/studio',  mode: 'bookmark' },

@@ -44,11 +44,13 @@ main() {
         render_chisel_users "$stage/chisel/users.json"
         render_siteapp_clients "$stage/siteapp/clients.json"
     fi
-    render_loki_config  "$REPO_ROOT/compose/loki/config.yaml.tmpl"   "$stage/loki/config.yaml"
-    render_prometheus_config "$REPO_ROOT/compose/prometheus/prometheus.yml.tmpl" "$stage/prometheus/prometheus.yml"
+    if ! service_disabled monitoring; then
+        render_loki_config  "$REPO_ROOT/compose/loki/config.yaml.tmpl"   "$stage/loki/config.yaml"
+        render_prometheus_config "$REPO_ROOT/compose/prometheus/prometheus.yml.tmpl" "$stage/prometheus/prometheus.yml"
 
-    # Static Grafana provisioning — datasource + dashboard provider + dashboard JSON.
-    cp -R "$REPO_ROOT/compose/grafana/provisioning/." "$stage/grafana/provisioning/"
+        # Static Grafana provisioning — datasource + dashboard provider + dashboard JSON.
+        cp -R "$REPO_ROOT/compose/grafana/provisioning/." "$stage/grafana/provisioning/"
+    fi
 
     # Platform shell assets — navbar.js, navbar-inner.css. Mounted into the
     # custom Caddy image at /srv/shell so the file_server route /_shared/*
@@ -63,18 +65,22 @@ main() {
     # runs as uid 472 and cannot read a 0600 file owned by the deploy user.
     # The local copy in compose/grafana/admin_password stays 0600 — only the
     # deploy artifact on the private VPS path is loosened.
-    local pwfile="${LDS_GRAFANA_PASSWORD_FILE:-$REPO_ROOT/compose/grafana/admin_password}"
-    [[ -f "$pwfile" ]] || die "grafana admin password not found at $pwfile — run: task secrets:set-grafana-password"
-    install -m 644 "$pwfile" "$stage/grafana/admin_password"
+    if ! service_disabled monitoring; then
+        local pwfile="${LDS_GRAFANA_PASSWORD_FILE:-$REPO_ROOT/compose/grafana/admin_password}"
+        [[ -f "$pwfile" ]] || die "grafana admin password not found at $pwfile — run: task secrets:set-grafana-password"
+        install -m 644 "$pwfile" "$stage/grafana/admin_password"
+    fi
 
     # Grafana OIDC client secret + Authelia secret material + users DB are
     # laptop-only: `task secrets:bootstrap-authelia` writes them, `task deploy`
     # rsyncs them to the VPS, and they persist there. CI release deploys
     # (stack-only) preserve the on-disk copies via the rsync excludes below.
     if [[ "${LDS_STACK_ONLY:-}" != "1" ]]; then
-        local grafana_oidc_secret_file="${LDS_GRAFANA_OIDC_SECRET_FILE:-$REPO_ROOT/compose/grafana/oidc_secret}"
-        [[ -f "$grafana_oidc_secret_file" ]] || die "grafana OIDC secret not found at $grafana_oidc_secret_file — run: task secrets:bootstrap-authelia"
-        install -m 644 "$grafana_oidc_secret_file" "$stage/grafana/oidc_secret"
+        if ! service_disabled monitoring; then
+            local grafana_oidc_secret_file="${LDS_GRAFANA_OIDC_SECRET_FILE:-$REPO_ROOT/compose/grafana/oidc_secret}"
+            [[ -f "$grafana_oidc_secret_file" ]] || die "grafana OIDC secret not found at $grafana_oidc_secret_file — run: task secrets:bootstrap-authelia"
+            install -m 644 "$grafana_oidc_secret_file" "$stage/grafana/oidc_secret"
+        fi
 
         local authelia_secrets_dir="${LDS_AUTHELIA_SECRETS_DIR:-$REPO_ROOT/compose/authelia/secrets}"
         for f in jwt_secret session_secret storage_encryption_key oidc_hmac_secret oidc_jwks_key.pem; do
@@ -108,10 +114,12 @@ main() {
 
     # Flasher upload token — required at deploy time. Same pattern as the agent
     # upload token above: bind-mounted Docker secret, mode 0644 on the staged copy.
-    local flashertokfile="${LDS_FLASHER_UPLOAD_TOKEN_FILE:-$REPO_ROOT/compose/flasher/upload_token}"
-    [[ -f "$flashertokfile" ]] || die "flasher upload token not found at $flashertokfile — run: task secrets:rotate-flasher-upload-token"
-    mkdir -p "$stage/flasher"
-    install -m 644 "$flashertokfile" "$stage/flasher/upload_token"
+    if ! service_disabled flasher; then
+        local flashertokfile="${LDS_FLASHER_UPLOAD_TOKEN_FILE:-$REPO_ROOT/compose/flasher/upload_token}"
+        [[ -f "$flashertokfile" ]] || die "flasher upload token not found at $flashertokfile — run: task secrets:rotate-flasher-upload-token"
+        mkdir -p "$stage/flasher"
+        install -m 644 "$flashertokfile" "$stage/flasher/upload_token"
+    fi
 
     # Public docs — opt-out via LDS_SKIP_PUBLIC_DOCS=1 (set by task deploy and
     # by the CI deploy-stack action). The .github/workflows/deploy-public-docs.yml
@@ -175,8 +183,9 @@ main() {
     fi
     rsync -az --delete "${rsync_excludes[@]}" -e "$rsync_e" "$stage/" "$target:$VPS_REMOTE_ROOT/"
 
-    # Always restart caddy, siteapp, grafana, and (in full mode) chisel +
-    # authelia because their bind-mounted config files may have been replaced
+    # Restart caddy + siteapp always; add streamer and (when monitoring is
+    # enabled) grafana; full mode adds chisel + authelia. Restarts are needed
+    # because their bind-mounted config files may have been replaced
     # by rsync (atomic rename → new inode → the already-loaded reference
     # inside the container goes stale; `up -d` doesn't recreate containers
     # whose compose-config didn't change, and a single-file bind mount pins
@@ -202,9 +211,11 @@ main() {
     # every request (see services/flasher/app/routes.py), so a roster change
     # is picked up without a restart.
     log "bringing up the stack..."
-    local restart_services="caddy siteapp streamer grafana"
+    local restart_services="caddy siteapp"
+    service_disabled streamer   || restart_services+=" streamer"
+    service_disabled monitoring || restart_services+=" grafana"
     if [[ "${LDS_STACK_ONLY:-}" != "1" ]]; then
-        restart_services="caddy chisel siteapp streamer grafana authelia"
+        restart_services+=" chisel authelia"
     fi
     $ssh_base "$target" "cd $VPS_REMOTE_ROOT && (docker compose pull --ignore-pull-failures || true) && docker compose up -d --remove-orphans && docker compose restart $restart_services"
 
@@ -229,11 +240,17 @@ main() {
         for ((i=0; i<60; i++)); do
             home_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/" || true)"
             authelia_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/auth/api/health" || true)"
-            jupyter_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/jupyter/" || true)"
-            grafana_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/grafana/api/health" || true)"
+            if service_disabled jupyter; then jupyter_status="skip"; else
+                jupyter_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/jupyter/" || true)"
+            fi
+            if service_disabled monitoring; then grafana_status="skip"; else
+                grafana_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/grafana/api/health" || true)"
+            fi
             docs_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/docs/" || true)"
             download_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/download/agent" || true)"
-            flash_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/flash/" || true)"
+            if service_disabled flasher; then flash_status="skip"; else
+                flash_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/flash/" || true)"
+            fi
             # /_static/site.css must reach siteapp (not the jupyter catchall) or
             # every siteapp page renders unstyled. Probe one known asset.
             static_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/_static/site.css" || true)"
@@ -258,26 +275,30 @@ main() {
             # the streamer container is up — so this is acceptable for the
             # health gate. A 502/504 here would indicate the streamer
             # container failed to start or Caddy's upstream is misconfigured.
-            streamer_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/streamer/labs" || true)"
+            if service_disabled streamer; then streamer_status="skip"; else
+                streamer_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/streamer/labs" || true)"
+            fi
             # /studio/ — Authelia forward_auth → 302 to /login for anonymous.
             # 403 is the same transient as /streamer/labs above: stack-only CI
             # deploys exclude authelia/configuration.yml from rsync, so until
             # the next laptop `task deploy` lands the /studio rule Authelia
             # falls back to default_policy:deny → 403. A 502/504 would mean
             # the studio container failed to start.
-            studio_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/studio/" || true)"
+            if service_disabled studio; then studio_status="skip"; else
+                studio_status="$(curl -sk -o /dev/null -w '%{http_code}' "https://$VPS_HOST/studio/" || true)"
+            fi
             if [[ "$home_status" == "200" ]] \
                 && [[ "$authelia_status" == "200" ]] \
-                && [[ "$jupyter_status" =~ ^[23][0-9][0-9]$ ]] \
-                && [[ "$grafana_status" == "200" ]] \
+                && [[ "$jupyter_status" == "skip" || "$jupyter_status" =~ ^[23][0-9][0-9]$ ]] \
+                && [[ "$grafana_status" == "skip" || "$grafana_status" == "200" ]] \
                 && [[ "$docs_status" == "200" || "$docs_status" == "308" ]] \
                 && [[ "$download_status" == "200" ]] \
-                && [[ "$flash_status" == "302" ]] \
+                && [[ "$flash_status" == "skip" || "$flash_status" == "302" ]] \
                 && [[ "$static_status" == "200" ]] \
                 && [[ "$public_status" == "200" ]] \
                 && [[ "$server_info_status" == "200" ]] \
-                && [[ "$streamer_status" =~ ^(200|302|401|403)$ ]] \
-                && [[ "$studio_status" =~ ^(302|403)$ ]]; then
+                && [[ "$streamer_status" =~ ^(skip|200|302|401|403)$ ]] \
+                && [[ "$studio_status" =~ ^(skip|302|403)$ ]]; then
                 log "deployed: home $home_status, authelia $authelia_status, jupyter $jupyter_status, grafana $grafana_status, docs $docs_status, download $download_status, flash $flash_status (forward_auth 302), static $static_status, public $public_status, server_info $server_info_status, streamer $streamer_status, studio $studio_status"
                 return 0
             fi

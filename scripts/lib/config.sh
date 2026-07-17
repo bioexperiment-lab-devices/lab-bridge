@@ -49,6 +49,15 @@ _REQUIRED_PINS_FIELDS=(
     .studio_image
 )
 
+# Optional-service selection (spec: 2026-07-17-service-selection-design.md).
+# The ONLY names an operator may list in config.yaml's disabled_services.
+# `monitoring` is a group name expanding to the five observability compose
+# services. Core services are deliberately absent — the platform cannot
+# run without them.
+_OPTIONAL_SERVICES=(jupyter monitoring studio streamer flasher)
+_CORE_SERVICES=(caddy authelia siteapp chisel)
+_MONITORING_COMPOSE_SERVICES=(grafana loki prometheus node-exporter cadvisor)
+
 _yq() { yq "$@" 2>/dev/null; }
 
 # validate_config <config_path> — also validates pins (LDS_PINS_FILE or default).
@@ -117,6 +126,33 @@ validate_config() {
         fi
     done
 
+    # disabled_services: every entry must be a known optional service name.
+    local ds_count j entry opt known core
+    local seen_ds=()
+    ds_count="$(_yq e '.disabled_services | length' "$config_path")"
+    for ((j=0; j<ds_count; j++)); do
+        entry="$(_yq e ".disabled_services[$j]" "$config_path")"
+        known=false
+        for opt in "${_OPTIONAL_SERVICES[@]}"; do
+            [[ "$entry" == "$opt" ]] && known=true
+        done
+        if ! $known; then
+            core=false
+            for opt in "${_CORE_SERVICES[@]}"; do
+                [[ "$entry" == "$opt" ]] && core=true
+            done
+            if $core; then
+                errors+=("disabled_services: '$entry' is a core service and cannot be disabled")
+            else
+                errors+=("disabled_services: unknown service '$entry' (allowed: ${_OPTIONAL_SERVICES[*]})")
+            fi
+        fi
+        for seen in "${seen_ds[@]:-}"; do
+            [[ "$seen" == "$entry" ]] && errors+=("disabled_services: duplicate entry '$entry'")
+        done
+        seen_ds+=("$entry")
+    done
+
     local retention
     retention="$(_yq e '.loki_retention_days // ""' "$pins_path")"
     if [[ -n "$retention" ]] && ! [[ "$retention" =~ ^[0-9]+$ ]]; then
@@ -175,4 +211,31 @@ load_config() {
     export AUTHELIA_IMAGE_REPO   ; AUTHELIA_IMAGE_REPO="$(_yq e '.authelia_image_repo' "$pins_path")"
     export AUTHELIA_IMAGE        ; AUTHELIA_IMAGE="$(_yq e '.authelia_image' "$pins_path")"
     export AUTHELIA_GRAFANA_OIDC_SECRET_HASH ; AUTHELIA_GRAFANA_OIDC_SECRET_HASH="$(_yq e '.authelia.grafana_oidc_secret_hash // ""' "$config_path")"
+
+    # Optional-service selection. DISABLED_SERVICES carries the raw group
+    # names (probe/secret/Caddyfile gating); DISABLED_COMPOSE_SERVICES the
+    # compose-level expansion (filter_compose).
+    export DISABLED_SERVICES
+    DISABLED_SERVICES="$(_yq e '(.disabled_services // [])[]' "$config_path" | tr '\n' ' ' | sed 's/ *$//')"
+    local _dcs="" _svc
+    for _svc in $DISABLED_SERVICES; do
+        if [[ "$_svc" == "monitoring" ]]; then
+            _dcs+=" ${_MONITORING_COMPOSE_SERVICES[*]}"
+        else
+            _dcs+=" $_svc"
+        fi
+    done
+    export DISABLED_COMPOSE_SERVICES
+    DISABLED_COMPOSE_SERVICES="${_dcs# }"
+}
+
+# service_disabled <name> — succeed when <name> (a GROUP name like
+# "monitoring", never a compose-level name like "grafana") is disabled.
+# Requires load_config to have run.
+service_disabled() {
+    local svc
+    for svc in ${DISABLED_SERVICES:-}; do
+        [[ "$svc" == "$1" ]] && return 0
+    done
+    return 1
 }

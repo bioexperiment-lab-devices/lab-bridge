@@ -46,7 +46,7 @@
         match {
             header Content-Type *text/html*
         }
-        "</head>" `<script src="/_shared/navbar.js?v=__PLATFORM_VERSION__" data-version="__PLATFORM_VERSION__" defer></script></head>`
+        "</head>" `<script src="/_shared/navbar.js?v=__PLATFORM_VERSION__" data-version="__PLATFORM_VERSION__" data-disabled="__DISABLED_NAV__" defer></script></head>`
     }
 }
 
@@ -140,6 +140,7 @@ https://__VPS_HOST__ {
         }
     }
 
+    # --- BEGIN svc:flasher ---
     # ─── Flasher (admins only — forward_auth replaces basic_auth) ────────
     handle /flash/api/v1/* {
         reverse_proxy flasher:8000 {
@@ -152,7 +153,9 @@ https://__VPS_HOST__ {
             header_up -Accept-Encoding
         }
     }
+    # --- END svc:flasher ---
 
+    # --- BEGIN svc:streamer ---
     # ─── Streamer — WHIP (public, bearer-token auth) + viewer UI ─────────
     # WHIP endpoints carry their own bearer-token auth (tokens.py); they must
     # NOT go through Authelia or the CORS preflight + non-GET methods break.
@@ -170,7 +173,9 @@ https://__VPS_HOST__ {
             header_up -Accept-Encoding
         }
     }
+    # --- END svc:streamer ---
 
+    # --- BEGIN svc:studio ---
     # ─── Experiment Studio (researchers + admins) ────────────────────────
     # External image (lab-devices repo). SPA + API served at container root;
     # the app emits relative URLs (>= 0.3.0), so strip the public prefix.
@@ -194,7 +199,9 @@ https://__VPS_HOST__ {
             }
         }
     }
+    # --- END svc:studio ---
 
+    # --- BEGIN svc:monitoring ---
     # ─── Grafana (forward_auth gate in front of Grafana's OIDC) ──────────
     # forward_auth gives anonymous users our custom /login form instead of
     # Authelia's broken-under-sub-path React portal. Once they have an
@@ -216,7 +223,9 @@ https://__VPS_HOST__ {
             header_up -Accept-Encoding
         }
     }
+    # --- END svc:monitoring ---
 
+    # --- BEGIN svc:jupyter ---
     # ─── JupyterLab (forward_auth replaces shared password) ──────────────
     # JupyterLab needs 'unsafe-eval' in script-src: codemirror mode loading,
     # mathjax, ajv settings validation, and plugin bootstrap all run code
@@ -232,12 +241,15 @@ https://__VPS_HOST__ {
             header_up -Accept-Encoding
         }
     }
+    # --- END svc:jupyter ---
 
+    # --- BEGIN svc:jupyter ---
     # ─── Temporary redirect for old Jupyter bookmarks ────────────────────
     @old_jupyter {
         path /lab* /tree*
     }
     redir @old_jupyter /jupyter{uri} 302
+    # --- END svc:jupyter ---
 
     # ─── Home — siteapp serves / ─────────────────────────────────────────
     handle / {

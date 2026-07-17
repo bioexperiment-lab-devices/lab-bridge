@@ -245,5 +245,6 @@ jobs:
           grafana_password:      ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           agent_upload_token:    ${{ secrets.AGENT_UPLOAD_TOKEN }}
           flasher_upload_token:  ${{ secrets.FLASHER_UPLOAD_TOKEN }}
+          disabled_services:      ${{ vars.LDS_DISABLED_SERVICES }}
           ci_smoke_password:     ${{ secrets.CI_SMOKE_PASSWORD }}
           verify_version:        ${{ steps.ref.outputs.verify_version }}

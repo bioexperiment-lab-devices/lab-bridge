@@ -10,6 +10,10 @@ inputs:
   grafana_password:      { required: true }
   agent_upload_token:    { required: true }
   flasher_upload_token:  { required: true }
+  disabled_services:
+    description: "Comma-separated optional services to omit (e.g. 'jupyter, monitoring'). Must mirror the target VPS's laptop config.yaml. Empty = full stack."
+    required: false
+    default: ""
   ci_smoke_user:
     description: "Authelia username for the post-deploy authenticated smoke step. Must exist in compose/authelia/users_database.yml on the VPS with group 'admins'."
     required: false
@@ -47,6 +51,7 @@ runs:
         FLASHER_UPLOAD_TOKEN: ${{ inputs.flasher_upload_token }}
         GRAFANA_PASSWORD: ${{ inputs.grafana_password }}
         JUPYTER_PASSWORD_HASH: ${{ inputs.jupyter_password_hash }}
+        LDS_DISABLED_SERVICES: ${{ inputs.disabled_services }}
         VPS_HOST: ${{ inputs.vps_host }}
         VPS_SSH_USER: ${{ inputs.vps_ssh_user }}
       run: |
@@ -81,6 +86,7 @@ runs:
         VPS_HOST: ${{ inputs.vps_host }}
         CI_SMOKE_USER: ${{ inputs.ci_smoke_user }}
         CI_SMOKE_PASSWORD: ${{ inputs.ci_smoke_password }}
+        LDS_DISABLED_SERVICES: ${{ inputs.disabled_services }}
       run: bash scripts/post_deploy_smoke.sh
 
     - name: verify siteapp version via /api/public/server-info
@@ -105,7 +111,8 @@ runs:
         exit 1
 
     - name: verify flasher container image tag
-      if: inputs.verify_version != ''
+      # No optional-service name is a substring of another, so contains() is safe.
+      if: inputs.verify_version != '' && !contains(inputs.disabled_services, 'flasher')
       shell: bash
       env:
         VPS_HOST: ${{ inputs.vps_host }}

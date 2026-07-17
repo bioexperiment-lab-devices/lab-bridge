@@ -208,6 +208,25 @@ Once the PR adding the service lands, update branch protection on `main`:
 
 The PR's description should call this out so the operator does it immediately after merge.
 
+## 15. Optional or mandatory?
+
+Decide whether the new service may be disabled per-instance via
+`disabled_services` (see the spec
+`docs/superpowers/specs/2026-07-17-service-selection-design.md`). If optional:
+
+1. Add its name to `_OPTIONAL_SERVICES` in `scripts/lib/config.sh` (and to
+   a group expansion if it ships as part of a group).
+2. Wrap its Caddyfile route blocks in `# --- BEGIN svc:<name> ---` /
+   `# --- END svc:<name> ---` markers.
+3. Map its navbar id in `render_caddyfile`'s `disabled_nav` case statement
+   (or add a no-entry case like streamer's).
+4. Gate its deploy-time secrets/renders/restart/healthcheck probe in
+   `scripts/deploy.sh` with `service_disabled <name>`, and its smoke probe
+   in `scripts/post_deploy_smoke.sh`.
+5. Extend `tests/integration/test_service_selection_render.bats` (filtered
+   compose/Caddyfile assertions) and the disabled sets in
+   `tests/integration/test_service_selection.bats`.
+
 ## What you should NOT do
 
 - **Don't put service source under `compose/<name>/`.** The old layout. Migration in `2026-05-15-per-service-isolation-design.md` deliberately moved away from this.

@@ -36,6 +36,7 @@ The repo is a "Swiss-knife" lab platform: a set of independent containerised ser
 
 - **Image pins, paths, ports, retention → `compose/pins.yaml`** (tracked). Not `config.yaml`.
 - **Instance values + secrets + chisel roster → `config.yaml`** (gitignored, laptop only).
+- **Optional-service selection → `disabled_services` in `config.yaml`** (allowed names + monitoring-group expansion live in `scripts/lib/config.sh`). CI mirrors it via the `LDS_DISABLED_SERVICES` GH variable — dual-managed like secrets.
 - **`compose/config.ci.yaml.tmpl`'s `chisel_clients` MUST stay `[]`.** The vault guard (`LDS_REQUIRE_VAULT=1`) fails the CI deploy if non-empty.
 
 ## Laptop vs CI surface

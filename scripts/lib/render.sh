@@ -85,6 +85,31 @@ render_compose() {
         -e "s|__AUTHELIA_IMAGE__|${authelia_image}|g" \
         "$tmpl" \
         > "$out"
+    filter_compose "$out"
+}
+
+# filter_compose <compose_path> — strip disabled services from a rendered
+# compose file, in place (spec: 2026-07-17-service-selection-design.md).
+# Reads DISABLED_COMPOSE_SERVICES (exported by load_config). Beyond deleting
+# the service entries, the file must stay deployable: a depends_on reference
+# to a deleted service aborts `docker compose up`, and a top-level secret
+# whose file is no longer staged aborts it too.
+filter_compose() {
+    local file="${1:?}"
+    [[ -z "${DISABLED_COMPOSE_SERVICES:-}" ]] && return 0
+    local name
+    for name in $DISABLED_COMPOSE_SERVICES; do
+        yq -i "del(.services.\"$name\")" "$file"
+        yq -i "with(.services[]; select(has(\"depends_on\")) | .depends_on |= map(select(. != \"$name\")))" "$file"
+    done
+    # Prune top-level secrets no longer referenced by any remaining service.
+    local referenced sname
+    referenced="$(yq e '.services[] | .secrets // [] | .[]' "$file")"
+    for sname in $(yq e '.secrets // {} | keys | .[]' "$file"); do
+        if ! grep -qx "$sname" <<< "$referenced"; then
+            yq -i "del(.secrets.\"$sname\")" "$file"
+        fi
+    done
 }
 
 # render_caddyfile <template_path> <output_path>
@@ -93,11 +118,30 @@ render_caddyfile() {
     [[ -f "$tmpl" ]] || die "template not found: $tmpl"
     local platform_version
     platform_version="$(_unified_version)"
+    # data-disabled carries navbar-entry ids for services disabled on this
+    # instance; navbar.js hides matching entries. Mapping: monitoring's
+    # navbar id is "grafana"; streamer has no navbar entry.
+    local svc disabled_nav=""
+    for svc in ${DISABLED_SERVICES:-}; do
+        case "$svc" in
+            monitoring) disabled_nav+="${disabled_nav:+,}grafana" ;;
+            streamer)   ;;
+            *)          disabled_nav+="${disabled_nav:+,}$svc" ;;
+        esac
+    done
     sed \
         -e "s|__ACME_EMAIL__|${CADDY_ACME_EMAIL:?}|g" \
         -e "s|__VPS_HOST__|${VPS_HOST:?}|g" \
         -e "s|__PLATFORM_VERSION__|${platform_version}|g" \
+        -e "s|__DISABLED_NAV__|${disabled_nav}|g" \
         "$tmpl" > "$out"
+    # Strip the marked route blocks of disabled services; their paths then
+    # fall through to the catch-all → styled 404. sed -i.bak is the
+    # BSD/GNU-portable in-place form.
+    for svc in ${DISABLED_SERVICES:-}; do
+        sed -i.bak "/# --- BEGIN svc:$svc ---/,/# --- END svc:$svc ---/d" "$out"
+        rm -f "$out.bak"
+    done
 }
 
 # render_chisel_users <output_path>
