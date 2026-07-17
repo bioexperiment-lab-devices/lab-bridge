@@ -183,8 +183,9 @@ main() {
     fi
     rsync -az --delete "${rsync_excludes[@]}" -e "$rsync_e" "$stage/" "$target:$VPS_REMOTE_ROOT/"
 
-    # Always restart caddy, siteapp, grafana, and (in full mode) chisel +
-    # authelia because their bind-mounted config files may have been replaced
+    # Restart caddy + siteapp always; add streamer and (when monitoring is
+    # enabled) grafana; full mode adds chisel + authelia. Restarts are needed
+    # because their bind-mounted config files may have been replaced
     # by rsync (atomic rename → new inode → the already-loaded reference
     # inside the container goes stale; `up -d` doesn't recreate containers
     # whose compose-config didn't change, and a single-file bind mount pins
