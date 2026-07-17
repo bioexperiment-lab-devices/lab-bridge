@@ -28,3 +28,17 @@ chisel_clients: []
 #   - name: microscope-1
 #     reverse_port: 9001
 #     password: "32-char-random"
+
+# Optional-service selection. Services listed here are omitted from the
+# deploy entirely: no container, no Caddy route (path → styled 404), no
+# navbar entry, no healthcheck probe. Absent key or [] = full stack.
+# Allowed names: jupyter, monitoring, studio, streamer, flasher
+#   - monitoring = grafana + loki + prometheus + node-exporter + cadvisor
+#     (disabling it also drops chisel-client log shipping to Loki)
+# Core services (caddy, authelia, siteapp, chisel) cannot be disabled.
+# Data dirs (grafana_data/, flasher_data/, …) are preserved on the VPS —
+# re-enabling a service restores its state.
+# NOTE: if this instance is also the CI deploy target, mirror this list in
+# the LDS_DISABLED_SERVICES GitHub Actions variable (dual-managed, like
+# secrets) or the next release will re-enable the services.
+disabled_services: []

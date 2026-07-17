@@ -167,6 +167,32 @@ task ops:loki-disk                            # show Loki retention/size
 
 `task --list` shows the full menu.
 
+### Optional services
+
+Low-budget instances can skip heavy containers via `disabled_services` in
+`config.yaml` (gitignored):
+
+```yaml
+disabled_services: [jupyter, monitoring]
+```
+
+Allowed names: `jupyter`, `monitoring` (= grafana + loki + prometheus +
+node-exporter + cadvisor, one toggle), `studio`, `streamer`, `flasher`.
+Core services (caddy, authelia, siteapp, chisel) cannot be disabled.
+
+A disabled service is fully absent: no container (`--remove-orphans` cleans
+up on the next deploy), no Caddy route (its paths return the styled 404),
+no navbar entry, no healthcheck probe, and its deploy-time secrets are not
+required. Its `*_data/` directory on the VPS is untouched, so re-enabling
+restores prior state. Caveat: disabling `monitoring` also drops chisel-client
+log shipping (the `loki:3100` tunnel allow-list entry stays but has no
+listener).
+
+CI release deploys are dual-managed, like secrets: set the
+`LDS_DISABLED_SERVICES` GitHub Actions **variable** (comma-separated, e.g.
+`jupyter, monitoring`) to mirror the laptop `config.yaml` of the CI-deployed
+VPS. If they drift, the next release re-enables (or removes) services.
+
 ## Users & authentication
 
 See [docs/adding-a-user.md](docs/adding-a-user.md). Users are managed via
