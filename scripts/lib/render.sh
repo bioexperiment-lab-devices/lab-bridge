@@ -118,11 +118,30 @@ render_caddyfile() {
     [[ -f "$tmpl" ]] || die "template not found: $tmpl"
     local platform_version
     platform_version="$(_unified_version)"
+    # data-disabled carries navbar-entry ids for services disabled on this
+    # instance; navbar.js hides matching entries. Mapping: monitoring's
+    # navbar id is "grafana"; streamer has no navbar entry.
+    local svc disabled_nav=""
+    for svc in ${DISABLED_SERVICES:-}; do
+        case "$svc" in
+            monitoring) disabled_nav+="${disabled_nav:+,}grafana" ;;
+            streamer)   ;;
+            *)          disabled_nav+="${disabled_nav:+,}$svc" ;;
+        esac
+    done
     sed \
         -e "s|__ACME_EMAIL__|${CADDY_ACME_EMAIL:?}|g" \
         -e "s|__VPS_HOST__|${VPS_HOST:?}|g" \
         -e "s|__PLATFORM_VERSION__|${platform_version}|g" \
+        -e "s|__DISABLED_NAV__|${disabled_nav}|g" \
         "$tmpl" > "$out"
+    # Strip the marked route blocks of disabled services; their paths then
+    # fall through to the catch-all → styled 404. sed -i.bak is the
+    # BSD/GNU-portable in-place form.
+    for svc in ${DISABLED_SERVICES:-}; do
+        sed -i.bak "/# --- BEGIN svc:$svc ---/,/# --- END svc:$svc ---/d" "$out"
+        rm -f "$out.bak"
+    done
 }
 
 # render_chisel_users <output_path>

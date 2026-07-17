@@ -139,3 +139,53 @@ render_full_compose() {
     run yq e '.secrets | length' "$TMPDIR/docker-compose.yml"
     [[ "$output" == "9" ]]
 }
+
+render_full_caddyfile() {
+    bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $TMPDIR/config.yaml
+        render_caddyfile $ROOT/compose/Caddyfile.tmpl $TMPDIR/Caddyfile
+    "
+}
+
+@test "render_caddyfile: disabled routes are stripped, core routes stay" {
+    write_config '[jupyter, monitoring, studio, streamer, flasher]'
+    render_full_caddyfile
+    run cat "$TMPDIR/Caddyfile"
+    ! grep -q 'reverse_proxy jupyter:8888'  <<< "$output"
+    ! grep -q 'reverse_proxy grafana:3000'  <<< "$output"
+    ! grep -q 'reverse_proxy flasher:8000'  <<< "$output"
+    ! grep -q 'reverse_proxy streamer:8000' <<< "$output"
+    ! grep -q 'reverse_proxy studio:8000'   <<< "$output"
+    ! grep -q 'redir /studio'               <<< "$output"
+    ! grep -q 'redir @old_jupyter'          <<< "$output"
+    grep -q 'reverse_proxy siteapp:8000'  <<< "$output"
+    grep -q 'reverse_proxy authelia:9091' <<< "$output"
+    grep -q 'handle_errors'               <<< "$output"
+    ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
+}
+
+@test "render_caddyfile: data-disabled maps monitoring to grafana and omits streamer" {
+    write_config '[jupyter, monitoring, streamer]'
+    render_full_caddyfile
+    grep -q 'data-disabled="jupyter,grafana"' "$TMPDIR/Caddyfile"
+}
+
+@test "render_caddyfile: nothing disabled renders empty data-disabled and all routes" {
+    write_config ''
+    render_full_caddyfile
+    grep -q 'data-disabled=""' "$TMPDIR/Caddyfile"
+    grep -q 'reverse_proxy jupyter:8888'  "$TMPDIR/Caddyfile"
+    grep -q 'reverse_proxy grafana:3000'  "$TMPDIR/Caddyfile"
+    grep -q 'reverse_proxy streamer:8000' "$TMPDIR/Caddyfile"
+}
+
+@test "Caddyfile.tmpl: svc markers are balanced" {
+    local begins ends
+    begins="$(grep -c 'BEGIN svc:' "$ROOT/compose/Caddyfile.tmpl")"
+    ends="$(grep -c 'END svc:' "$ROOT/compose/Caddyfile.tmpl")"
+    [ "$begins" -eq "$ends" ]
+    [ "$begins" -ge 6 ]
+}
