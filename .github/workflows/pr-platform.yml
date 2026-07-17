@@ -84,6 +84,7 @@ jobs:
               tests/integration/test_secrets.bats
               tests/integration/test_grafana_provisioning.bats
               tests/integration/test_deploy_stack_only.bats
+              tests/integration/test_service_selection_render.bats
           - suite: deploy
             files: tests/integration/test_deploy.bats
           - suite: ops
