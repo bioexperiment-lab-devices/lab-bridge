@@ -154,17 +154,29 @@ render_full_caddyfile() {
     write_config '[jupyter, monitoring, studio, streamer, flasher]'
     render_full_caddyfile
     run cat "$TMPDIR/Caddyfile"
-    ! grep -q 'reverse_proxy jupyter:8888'  <<< "$output"
-    ! grep -q 'reverse_proxy grafana:3000'  <<< "$output"
-    ! grep -q 'reverse_proxy flasher:8000'  <<< "$output"
-    ! grep -q 'reverse_proxy streamer:8000' <<< "$output"
-    ! grep -q 'reverse_proxy studio:8000'   <<< "$output"
-    ! grep -q 'redir /studio'               <<< "$output"
-    ! grep -q 'redir @old_jupyter'          <<< "$output"
     grep -q 'reverse_proxy siteapp:8000'  <<< "$output"
     grep -q 'reverse_proxy authelia:9091' <<< "$output"
     grep -q 'handle_errors'               <<< "$output"
-    ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
+    # Negated checks use the run + status-1 idiom (test_render.bats:449-450):
+    # `! grep ... <<< "$output"` is silently exempt from bats' errexit
+    # handling (bash never traps a failing command prefixed with `!`), so it
+    # can't actually fail the test. Asserting on $status makes it enforce.
+    run grep -q 'reverse_proxy jupyter:8888' "$TMPDIR/Caddyfile"
+    [ "$status" -eq 1 ]
+    run grep -q 'reverse_proxy grafana:3000' "$TMPDIR/Caddyfile"
+    [ "$status" -eq 1 ]
+    run grep -q 'reverse_proxy flasher:8000' "$TMPDIR/Caddyfile"
+    [ "$status" -eq 1 ]
+    run grep -q 'reverse_proxy streamer:8000' "$TMPDIR/Caddyfile"
+    [ "$status" -eq 1 ]
+    run grep -q 'reverse_proxy studio:8000' "$TMPDIR/Caddyfile"
+    [ "$status" -eq 1 ]
+    run grep -q 'redir /studio' "$TMPDIR/Caddyfile"
+    [ "$status" -eq 1 ]
+    run grep -q 'redir @old_jupyter' "$TMPDIR/Caddyfile"
+    [ "$status" -eq 1 ]
+    run grep -qE '__[A-Z][A-Z0-9_]*__' "$TMPDIR/Caddyfile"
+    [ "$status" -eq 1 ]
 }
 
 @test "render_caddyfile: data-disabled maps monitoring to grafana and omits streamer" {
