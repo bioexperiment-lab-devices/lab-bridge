@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.23.0...v0.24.0) (2026-07-17)
+
+
+### Features
+
+* optional-service selection via gitignored disabled_services ([#174](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/174)) ([e1304ec](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/e1304ec24d82942428e4669ae2df1e085faceecb))
+
 ## [0.23.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.22.1...v0.23.0) (2026-07-16)
 
 
