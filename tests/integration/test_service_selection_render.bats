@@ -80,3 +80,62 @@ CFG
     [[ "$output" == *"no-jupyter"* ]]
     [[ "$output" == *"no-grafana"* ]]
 }
+
+# Render the full compose template honoring $TMPDIR/config.yaml's
+# disabled_services, into $TMPDIR/docker-compose.yml.
+render_full_compose() {
+    bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $TMPDIR/config.yaml
+        render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
+    "
+}
+
+@test "filter_compose: disabled services are removed, core stays" {
+    write_config '[jupyter, monitoring, studio, streamer, flasher]'
+    render_full_compose
+    local gone
+    for gone in jupyter grafana loki prometheus node-exporter cadvisor studio streamer flasher; do
+        run yq e ".services | has(\"$gone\")" "$TMPDIR/docker-compose.yml"
+        [[ "$output" == "false" ]] || { echo "service '$gone' still present"; false; }
+    done
+    local kept
+    for kept in caddy authelia siteapp chisel; do
+        run yq e ".services | has(\"$kept\")" "$TMPDIR/docker-compose.yml"
+        [[ "$output" == "true" ]] || { echo "service '$kept' missing"; false; }
+    done
+}
+
+@test "filter_compose: caddy depends_on is pruned to remaining services" {
+    write_config '[jupyter, monitoring]'
+    render_full_compose
+    run yq e -o=json -I=0 '.services.caddy.depends_on' "$TMPDIR/docker-compose.yml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == '["siteapp","flasher","streamer","studio","authelia"]' ]]
+}
+
+@test "filter_compose: unreferenced top-level secrets are pruned" {
+    write_config '[monitoring, flasher]'
+    render_full_compose
+    local gone
+    for gone in grafana_admin_password grafana_oidc_secret flasher_upload_token; do
+        run yq e ".secrets | has(\"$gone\")" "$TMPDIR/docker-compose.yml"
+        [[ "$output" == "false" ]] || { echo "secret '$gone' still present"; false; }
+    done
+    local kept
+    for kept in agent_upload_token authelia_jwt_secret authelia_session_secret authelia_storage_encryption_key authelia_oidc_hmac_secret authelia_oidc_jwks_key; do
+        run yq e ".secrets | has(\"$kept\")" "$TMPDIR/docker-compose.yml"
+        [[ "$output" == "true" ]] || { echo "secret '$kept' missing"; false; }
+    done
+}
+
+@test "filter_compose: empty disabled list keeps all 13 services and 9 secrets" {
+    write_config ''
+    render_full_compose
+    run yq e '.services | length' "$TMPDIR/docker-compose.yml"
+    [[ "$output" == "13" ]]
+    run yq e '.secrets | length' "$TMPDIR/docker-compose.yml"
+    [[ "$output" == "9" ]]
+}
