@@ -26,6 +26,16 @@ set -euo pipefail
 LOGIN_TIMEOUT_S="${LDS_SMOKE_LOGIN_TIMEOUT_S:-30}"
 PROBE_TIMEOUT_S="${LDS_SMOKE_PROBE_TIMEOUT_S:-30}"
 
+# Optional-service gating: LDS_DISABLED_SERVICES is the same comma-separated
+# list the deploy used (group names). Probes for disabled services are
+# skipped — their routes 404 by design.
+service_disabled() {
+    case ",$(printf '%s' "${LDS_DISABLED_SERVICES:-}" | tr -d ' ')," in
+        *",$1,"*) return 0 ;;
+        *)        return 1 ;;
+    esac
+}
+
 JAR="$(mktemp)"
 trap 'rm -f "$JAR"' EXIT
 
@@ -118,7 +128,11 @@ main() {
     login
 
     local failed=0
-    grafana_oidc_handshake || failed=1
+    if service_disabled monitoring; then
+        log "  grafana: skipped (monitoring disabled)"
+    else
+        grafana_oidc_handshake || failed=1
+    fi
     # 1. Authelia session is valid via siteapp's whoami (proves the cookie was
     #    issued, the forward_auth handshake works, and siteapp reads the
     #    Remote-User header).
@@ -128,27 +142,37 @@ main() {
         ".user == \"$CI_SMOKE_USER\"" || failed=1
 
     # 2. JupyterLab: status endpoint returns the standard Jupyter Server payload.
-    probe "jupyter" \
-        "https://$VPS_HOST/jupyter/api/status" \
-        200 \
-        'has("started")' || failed=1
+    if service_disabled jupyter; then
+        log "  jupyter: skipped (disabled)"
+    else
+        probe "jupyter" \
+            "https://$VPS_HOST/jupyter/api/status" \
+            200 \
+            'has("started")' || failed=1
+    fi
 
     # 3. Grafana: /api/user returns the OIDC-provisioned user record. Don't
     #    assert on .login (OIDC username mapping is config-dependent) — just
     #    require a non-empty email, which proves the OIDC handshake produced a
     #    real Grafana user, not an anonymous session.
-    probe "grafana" \
-        "https://$VPS_HOST/grafana/api/user" \
-        200 \
-        '.email != null and (.email | length) > 0' || failed=1
+    if ! service_disabled monitoring; then
+        probe "grafana" \
+            "https://$VPS_HOST/grafana/api/user" \
+            200 \
+            '.email != null and (.email | length) > 0' || failed=1
+    fi
 
     # 4. Flasher: /flash/api/clients returns the roster envelope. Always 200 +
     #    {"clients":[...]} regardless of roster size, so it works on CI deploys
     #    (roster file is preserved on the VPS by the rsync --exclude).
-    probe "flasher" \
-        "https://$VPS_HOST/flash/api/clients" \
-        200 \
-        'has("clients")' || failed=1
+    if service_disabled flasher; then
+        log "  flasher: skipped (disabled)"
+    else
+        probe "flasher" \
+            "https://$VPS_HOST/flash/api/clients" \
+            200 \
+            'has("clients")' || failed=1
+    fi
 
     if (( failed )); then
         fail "one or more services failed the authenticated smoke check (see warnings above)"

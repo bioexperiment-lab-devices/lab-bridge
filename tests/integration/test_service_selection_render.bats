@@ -251,3 +251,28 @@ EOF
     run grep -q 'streamer' <<< "$restart_line"
     [ "$status" -eq 1 ]
 }
+
+@test "config.ci.yaml.tmpl: empty LDS_DISABLED_SERVICES renders [] and validates" {
+    command -v envsubst >/dev/null || skip "envsubst not installed"
+    VPS_HOST=1.2.3.4 VPS_SSH_USER=u \
+    JUPYTER_PASSWORD_HASH="sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567" \
+    ADMIN_PASSWORD_HASH='$2a$14$DG5Aycl5h3ED0V1Qz50BfuZDxSle4cvw7sRFYCArNvB03eCpKSPxa' \
+    LDS_DISABLED_SERVICES= \
+        envsubst < "$ROOT/compose/config.ci.yaml.tmpl" > "$TMPDIR/ci.yaml"
+    grep -q 'disabled_services: \[\]' "$TMPDIR/ci.yaml"
+    run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/ci.yaml"
+    [ "$status" -eq 0 ]
+}
+
+@test "config.ci.yaml.tmpl: comma list renders a flow list that validates" {
+    command -v envsubst >/dev/null || skip "envsubst not installed"
+    VPS_HOST=1.2.3.4 VPS_SSH_USER=u \
+    JUPYTER_PASSWORD_HASH="sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567" \
+    ADMIN_PASSWORD_HASH='$2a$14$DG5Aycl5h3ED0V1Qz50BfuZDxSle4cvw7sRFYCArNvB03eCpKSPxa' \
+    LDS_DISABLED_SERVICES='jupyter, monitoring' \
+        envsubst < "$ROOT/compose/config.ci.yaml.tmpl" > "$TMPDIR/ci.yaml"
+    run yq e '.disabled_services | length' "$TMPDIR/ci.yaml"
+    [[ "$output" == "2" ]]
+    run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/ci.yaml"
+    [ "$status" -eq 0 ]
+}

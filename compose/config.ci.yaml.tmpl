@@ -29,3 +29,10 @@ siteapp:
 # chisel/users.json and siteapp/clients.json from rsync). LDS_REQUIRE_VAULT=1
 # asserts this field stays empty in stack-only mode.
 chisel_clients: []
+
+# Optional-service selection for the CI-deployed VPS. Rendered from the
+# LDS_DISABLED_SERVICES repo variable (comma-separated group names, e.g.
+# "jupyter, monitoring"; empty = full stack). DUAL-MANAGED with the
+# operator's laptop config.yaml, like the secret pairs above — if they
+# drift, the next release re-enables (or removes) services on the VPS.
+disabled_services: [${LDS_DISABLED_SERVICES}]
