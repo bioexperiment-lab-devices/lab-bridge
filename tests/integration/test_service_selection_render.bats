@@ -201,3 +201,53 @@ render_full_caddyfile() {
     [ "$begins" -eq "$ends" ]
     [ "$begins" -ge 6 ]
 }
+
+# rsync/ssh spies that LOG their args (helpers' setup_fake_rsync_spy
+# swallows ssh args; we need them to assert the restart list).
+setup_logging_spies() {
+    mkdir -p "$BATS_TEST_TMPDIR/spy_bin"
+    cat > "$BATS_TEST_TMPDIR/spy_bin/rsync" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$@" >> "$BATS_TEST_TMPDIR/rsync.log"
+EOF
+    cat > "$BATS_TEST_TMPDIR/spy_bin/ssh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$@" >> "$BATS_TEST_TMPDIR/ssh.log"
+EOF
+    chmod +x "$BATS_TEST_TMPDIR/spy_bin/rsync" "$BATS_TEST_TMPDIR/spy_bin/ssh"
+    export PATH="$BATS_TEST_TMPDIR/spy_bin:$PATH"
+}
+
+@test "deploy.sh: disabled monitoring/flasher/streamer need no secrets and are not restarted" {
+    write_config '[monitoring, flasher, streamer]'
+    export LDS_CONFIG="$TMPDIR/config.yaml"
+    stub_authelia_for_tests
+    # Agent token is core (siteapp) — still required.
+    printf 'tok' > "$TMPDIR/agent_upload_token"
+    export LDS_AGENT_TOKEN_FILE="$TMPDIR/agent_upload_token"
+    # Point the gated secrets at NONEXISTENT paths: with the gating in
+    # place deploy.sh must not require them.
+    export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/absent_grafana_pw"
+    export LDS_FLASHER_UPLOAD_TOKEN_FILE="$TMPDIR/absent_flasher_tok"
+    setup_logging_spies
+
+    LDS_SKIP_HEALTHCHECK=1 run bash "$ROOT/scripts/deploy.sh"
+    [ "$status" -eq 0 ]
+
+    # rsync ran (stage was fully assembled without the gated secrets).
+    [ -s "$BATS_TEST_TMPDIR/rsync.log" ]
+
+    # The remote command restarts only enabled services.
+    run cat "$BATS_TEST_TMPDIR/ssh.log"
+    [[ "$output" == *"docker compose restart"* ]]
+    restart_line="$(grep -o 'docker compose restart.*' "$BATS_TEST_TMPDIR/ssh.log")"
+    [[ "$restart_line" == *"caddy"* ]]
+    [[ "$restart_line" == *"siteapp"* ]]
+    # Negated checks use the run + status-1 idiom (test_render.bats:449-450):
+    # a bare `[[ ... != ... ]]` or `! grep` can be exempted from bats'
+    # errexit-based failure propagation, so it can't reliably fail the test.
+    run grep -q 'grafana' <<< "$restart_line"
+    [ "$status" -eq 1 ]
+    run grep -q 'streamer' <<< "$restart_line"
+    [ "$status" -eq 1 ]
+}
