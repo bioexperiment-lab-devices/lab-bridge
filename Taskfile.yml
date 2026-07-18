@@ -30,6 +30,9 @@ tasks:
   "images:bump":
     desc: "Bump an external image pin and open a releasable PR (e.g. task images:bump -- studio 0.9.0)"
     cmd: bash scripts/images.sh bump {{.CLI_ARGS}}
+  "images:ship":
+    desc: "Cut a release for image pins already merged to main (e.g. Renovate chore bumps)"
+    cmd: bash scripts/images.sh ship {{.CLI_ARGS}}
   restart:  { desc: "docker compose restart",                        cmd: "bash scripts/ops.sh restart" }
   down:     { desc: "docker compose down",                           cmd: "bash scripts/ops.sh down" }
   destroy:  { desc: "docker compose down -v (DANGEROUS)",            cmd: "bash scripts/ops.sh destroy" }

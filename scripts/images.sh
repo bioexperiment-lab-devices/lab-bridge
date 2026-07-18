@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
 # Manage externally-released image pins in compose/images.yaml.
 #
-#   images.sh bump <service> <version>   bump one image pin
+#   images.sh bump <service> <version>   bump one image pin, branch + PR it
+#   images.sh ship                       cut a release for pins already on main
 #
-# `bump` is meant to be committed with a RELEASABLE type (feat:) — see
+# Both commit with a RELEASABLE type (feat:) — see
 # docs/superpowers/specs/2026-05-17-unified-release-design.md and
 # release-please-config.json: `chore` is hidden there, so a chore-typed pin
-# bump never cuts a release and the new image sits on main undeployed. This
-# script only edits + validates the file; the git/commit/PR automation is a
-# separate concern (task images:bump wraps this; a future task adds the PR
-# flow on top).
+# bump never cuts a release and the new image sits on main undeployed.
+# `ship` exists because Renovate lands its grouped bumps as `chore` on
+# purpose (no auto-deploy); an empty `feat:` commit is how those pins get
+# shipped once someone decides they're ready.
+#
+# LDS_NO_GIT=1 makes `bump` edit compose/images.yaml only (no branch/commit/
+# PR) — used by tests. LDS_REPO_DIR overrides which git repo the git/PR
+# helpers act on (defaults to the repo this script lives in) — also test-only.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,6 +24,10 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 # Override via LDS_IMAGES_FILE for tests.
 IMAGES_FILE="${LDS_IMAGES_FILE:-$ROOT/compose/images.yaml}"
+
+# Git operations act on this repo. Overridable so tests can use a scratch repo
+# instead of the real checkout.
+REPO_DIR="${LDS_REPO_DIR:-$ROOT}"
 
 # Service names are the *_image keys in compose/images.yaml, minus the
 # suffix. Deliberately does NOT include siteapp/flasher/streamer/caddy —
@@ -95,6 +104,22 @@ _verify_pullable() {
     [[ "$code" == "200" ]] || die "image not pullable: $ref (registry returned $code)"
 }
 
+# Refuse to touch git if the working tree has staged or unstaged changes —
+# a bump/ship commit must contain only what this script itself adds.
+_require_clean_tree() {
+    git -C "$REPO_DIR" diff --quiet && git -C "$REPO_DIR" diff --cached --quiet \
+        || die "git working tree is not clean — commit or stash first"
+}
+
+# _open_pr <branch> <subject> <body> — branch, commit staged changes, push, PR.
+_open_pr() {
+    local branch="$1" subject="$2" body="$3"
+    git -C "$REPO_DIR" checkout -b "$branch"
+    git -C "$REPO_DIR" commit -q -m "$subject" -m "$body"
+    git -C "$REPO_DIR" push -u origin "$branch"
+    gh pr create --title "$subject" --body "$body" --base main --head "$branch"
+}
+
 cmd_bump() {
     local svc="${1:-}" version="${2:-}"
     [[ -n "$svc" && -n "$version" ]] || die "usage: images.sh bump <service> <version>"
@@ -113,16 +138,58 @@ cmd_bump() {
         log "already at $new"
         return 0
     fi
+
+    local subject body branch dry_run=0
+    [[ "${*: -1}" == "--dry-run" ]] && dry_run=1
+    subject="feat: bump ${svc} image to ${version}"
+    body="Bumps \`${svc}_image\` from \`${current}\` to \`${new}\` in compose/images.yaml.
+
+Typed \`feat:\` deliberately: release-please marks \`chore\` hidden, so a
+chore-typed pin bump never cuts a release and the image would sit on main
+undeployed. This single PR both pins and ships the image.
+
+Image verified pullable before commit."
+
+    if (( dry_run )); then
+        printf '%s\n' "$subject"
+        return 0
+    fi
+
     _verify_pullable "$new"
     yq -i "$key = \"$new\"" "$IMAGES_FILE"
-    log "bumped $svc: $current -> $new"
+    printf 'bumped %s: %s -> %s\n' "$svc" "$current" "$new"
+
+    [[ "${LDS_NO_GIT:-0}" == "1" ]] && return 0
+    branch="images/${svc}-${version}"
+    git -C "$REPO_DIR" add "$IMAGES_FILE"
+    _open_pr "$branch" "$subject" "$body"
+}
+
+cmd_ship() {
+    local subject body
+    subject="feat: ship pinned images to the stack"
+    body="Empty by design — compose/images.yaml already holds the intended pins
+on main. Renovate lands image bumps as \`chore\`, which release-please marks
+hidden, so those pins never cut a release on their own. This commit carries a
+releasable type so release-build deploys them."
+    if [[ "${1:-}" == "--dry-run" ]]; then
+        _require_clean_tree
+        printf '%s\n' "$subject"
+        return 0
+    fi
+    _require_clean_tree
+    git -C "$REPO_DIR" checkout -b "images/ship-$(git -C "$REPO_DIR" rev-parse --short HEAD)"
+    git -C "$REPO_DIR" commit -q --allow-empty -m "$subject" -m "$body"
+    git -C "$REPO_DIR" push -u origin HEAD
+    gh pr create --title "$subject" --body "$body" --base main
 }
 
 main() {
     local sub="${1:-}"; shift || true
     case "$sub" in
         bump) cmd_bump "$@" ;;
-        *)    die "usage: images.sh {bump} [args]" ;;
+        ship) cmd_ship "$@" ;;
+        *)    die "usage: images.sh {bump|ship} [args]" ;;
     esac
 }
 
