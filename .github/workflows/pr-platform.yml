@@ -131,14 +131,34 @@ jobs:
         include:
           # profile (LDS_SUITE_PROFILE) picks how much of the stack
           # preload_fake_vps_images/compose_images_available bring up — see
-          # _profile_images in tests/integration/helpers.bash. `core` (only
-          # provision below) skips jupyter/studio/monitoring preload+deploy;
-          # every other cell needs `full` because it asserts something about
-          # at least one of those services (auth included: it exercises the
-          # forward_auth gate on /jupyter/ and /grafana/, and those routes are
-          # deleted outright by render_caddyfile's svc:jupyter/svc:monitoring
-          # block-stripping when the service is disabled — a `core` auth cell
-          # would fail hard, not just skip less).
+          # the CONTRACT note above _profile_images in
+          # tests/integration/helpers.bash. `core` trims the PRELOAD set and
+          # the skip-guard's image coverage ONLY — it does NOT by itself stop
+          # deploy.sh from bringing jupyter/studio/monitoring up. A cell is
+          # only safe at `core` if its suite also satisfies one of:
+          #   (a) it brings the stack up via fake_vps_up_with_users(), which
+          #       applies its own disabled_services override for this
+          #       profile — `auth` is the only cell that calls this helper,
+          #       and it still needs `full` (see below), so no cell uses
+          #       `core` via path (a) today;
+          #   (b) it sets disabled_services itself in its own inline
+          #       bring-up — `service-selection` (it already disables
+          #       jupyter/monitoring/studio/streamer/flasher, so trimming
+          #       preload to caddy/chisel/authelia matches what's actually
+          #       deployed);
+          #   (c) it never deploys the stack at all — `provision` (its
+          #       setup_file only exercises provision.sh, never deploy.sh).
+          # deploy/ops/routes-smoke/metrics-smoke/navbar wire bring-up inline
+          # WITHOUT touching disabled_services and each assert something
+          # about jupyter, studio, or the monitoring group, so they MUST stay
+          # `full`: `core` would still let deploy.sh bring those services up
+          # unpreloaded and unguarded, trading a graceful rate-limit skip for
+          # a hard mid-deploy pull failure. `auth` satisfies path (a) above
+          # but still needs `full`: it exercises the forward_auth gate on
+          # /jupyter/ and /grafana/, and those routes are deleted outright by
+          # render_caddyfile's svc:jupyter/svc:monitoring block-stripping
+          # when the service is disabled — a `core` auth cell would fail
+          # hard, not just skip less.
           - suite: deploy
             files: tests/integration/test_deploy.bats
             profile: full
@@ -162,7 +182,7 @@ jobs:
             profile: full
           - suite: service-selection
             files: tests/integration/test_service_selection.bats
-            profile: full
+            profile: core
     name: bats (${{ matrix.suite }})
     steps:
       - uses: actions/checkout@v4
