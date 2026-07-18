@@ -1,7 +1,8 @@
 # CI-only config template. Rendered by .github/workflows/release-please.yml
 # on the runner via `envsubst`. Schema mirrors the post-refactor config.yaml
 # (instance values + password hashes + roster only). Stack pins come from
-# compose/pins.yaml, read by scripts/lib/config.sh.
+# compose/pins.yaml (paths/ports/retention) and compose/images.yaml
+# (externally-released image tags), read by scripts/lib/config.sh.
 #
 # DO NOT use this template for laptop deploys — `task deploy` uses your
 # gitignored config.yaml.

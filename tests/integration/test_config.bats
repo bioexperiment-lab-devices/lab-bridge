@@ -37,7 +37,7 @@ teardown() { teardown_tmpdir; }
 @test "load_config: exports VPS_HOST, JUPYTER_PASSWORD_HASH, etc." {
     run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/integration/fixtures/valid_config.yaml; echo \$VPS_HOST \$VPS_SSH_USER \$VPS_SSH_PORT \$JUPYTER_PASSWORD_HASH"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"192.0.2.10 khamit 22"* ]]
+    [[ "$output" == *"192.0.2.10 khamit 22"* ]] || false
     [[ "$output" == *"sha1:abcdef012345:"* ]]
 }
 
@@ -81,15 +81,28 @@ teardown() { teardown_tmpdir; }
 @test "load_config: exports LOKI_IMAGE, LOKI_RETENTION_DAYS, GRAFANA_IMAGE" {
     run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/integration/fixtures/valid_config.yaml; echo \$LOKI_IMAGE \$LOKI_RETENTION_DAYS \$GRAFANA_IMAGE"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"grafana/loki:3.2.1 30 grafana/grafana:11.3.0"* ]]
+    # No LDS_IMAGES_FILE override in this test — load_config falls back to the
+    # real compose/images.yaml, so derive the expected refs from that same
+    # file instead of hardcoding upstream versions (a routine Renovate bump
+    # of grafana/loki must not break this cheap-tier test).
+    local loki_image grafana_image
+    loki_image="$(yq e '.loki_image' "$ROOT/compose/images.yaml")"
+    grafana_image="$(yq e '.grafana_image' "$ROOT/compose/images.yaml")"
+    [ "$output" = "$loki_image 30 $grafana_image" ]
 }
 
 @test "load_config: exports PROMETHEUS_IMAGE, NODE_EXPORTER_IMAGE, CADVISOR_IMAGE, PROMETHEUS_RETENTION_DAYS" {
     run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/integration/fixtures/valid_config.yaml; echo \$PROMETHEUS_IMAGE \$NODE_EXPORTER_IMAGE \$CADVISOR_IMAGE \$PROMETHEUS_RETENTION_DAYS"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"prom/prometheus:v3.0.1"* ]]
-    [[ "$output" == *"quay.io/prometheus/node-exporter:v1.8.2"* ]]
-    [[ "$output" == *"ghcr.io/google/cadvisor:v0.57.0"* ]]
+    # No LDS_IMAGES_FILE override — falls back to the real compose/images.yaml;
+    # derive expected refs from that file instead of hardcoding versions.
+    local prometheus_image node_exporter_image cadvisor_image
+    prometheus_image="$(yq e '.prometheus_image' "$ROOT/compose/images.yaml")"
+    node_exporter_image="$(yq e '.node_exporter_image' "$ROOT/compose/images.yaml")"
+    cadvisor_image="$(yq e '.cadvisor_image' "$ROOT/compose/images.yaml")"
+    [[ "$output" == *"$prometheus_image"* ]] || false
+    [[ "$output" == *"$node_exporter_image"* ]] || false
+    [[ "$output" == *"$cadvisor_image"* ]] || false
     [[ "$output" == *"30"* ]]
 }
 

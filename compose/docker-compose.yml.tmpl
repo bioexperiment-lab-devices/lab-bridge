@@ -229,7 +229,7 @@ services:
     networks: [labnet]
 
   # Experiment Studio — external app image (lab-devices repo), pinned in
-  # compose/pins.yaml. No in-app auth: the Caddy/Authelia edge is the only
+  # compose/images.yaml. No in-app auth: the Caddy/Authelia edge is the only
   # gate. Single replica only — studio enforces one active run per instance.
   studio:
     image: __STUDIO_IMAGE__

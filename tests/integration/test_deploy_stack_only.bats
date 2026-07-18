@@ -43,12 +43,15 @@ CFG
 
     local spy_pins="$BATS_TEST_TMPDIR/stack_pins.yaml"
     cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$spy_pins"
+    local spy_images="$BATS_TEST_TMPDIR/stack_images.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_images.yaml" "$spy_images"
 
     setup_fake_rsync_spy "$rsync_log"
 
     LDS_STACK_ONLY=1 \
     LDS_SKIP_HEALTHCHECK=1 \
     LDS_PINS_FILE="$spy_pins" \
+    LDS_IMAGES_FILE="$spy_images" \
     LDS_CONFIG="$spy_config" \
         run bash "$ROOT/scripts/deploy.sh"
     [ "$status" -eq 0 ]
@@ -83,11 +86,14 @@ CFG
 
     local spy_pins="$BATS_TEST_TMPDIR/stack_pins.yaml"
     cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$spy_pins"
+    local spy_images="$BATS_TEST_TMPDIR/stack_images.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_images.yaml" "$spy_images"
 
     LDS_STACK_ONLY=1 \
     LDS_REQUIRE_VAULT=1 \
     LDS_SKIP_HEALTHCHECK=1 \
     LDS_PINS_FILE="$spy_pins" \
+    LDS_IMAGES_FILE="$spy_images" \
     LDS_CONFIG="$spy_config" \
         run bash "$ROOT/scripts/deploy.sh"
     [ "$status" -ne 0 ]
