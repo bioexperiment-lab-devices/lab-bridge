@@ -104,20 +104,41 @@ _verify_pullable() {
     [[ "$code" == "200" ]] || die "image not pullable: $ref (registry returned $code)"
 }
 
-# Refuse to touch git if the working tree has staged or unstaged changes —
-# a bump/ship commit must contain only what this script itself adds.
+# Refuse to touch git if the working tree has staged, unstaged, OR untracked
+# changes — a bump/ship commit must contain only what this script itself
+# adds. `git status --porcelain` (rather than `diff`/`diff --cached` alone)
+# is deliberate: it also catches untracked stray files, which the old
+# diff-only check let through.
 _require_clean_tree() {
-    git -C "$REPO_DIR" diff --quiet && git -C "$REPO_DIR" diff --cached --quiet \
-        || die "git working tree is not clean — commit or stash first"
+    [[ -z "$(git -C "$REPO_DIR" status --porcelain)" ]] \
+        || die "git working tree is not clean — commit, stash, or remove untracked files first"
 }
 
-# _open_pr <branch> <subject> <body> — branch, commit staged changes, push, PR.
-_open_pr() {
-    local branch="$1" subject="$2" body="$3"
+# Checkout a new branch, dying with an actionable message if it already
+# exists — e.g. a prior bump/ship run's PR hasn't merged (or been deleted)
+# yet, so a bare `git checkout -b` would fail with a bare, unhelpful error.
+_checkout_new_branch() {
+    local branch="$1"
+    git -C "$REPO_DIR" show-ref --verify --quiet "refs/heads/$branch" \
+        && die "branch '$branch' already exists in $REPO_DIR — delete it (git -C '$REPO_DIR' branch -D $branch) or merge/close its PR before re-running"
     git -C "$REPO_DIR" checkout -b "$branch"
-    git -C "$REPO_DIR" commit -q -m "$subject" -m "$body"
+}
+
+# _open_pr <branch> <subject> <body> [pathspec] — branch, commit, push, PR.
+# When pathspec is given, the commit is scoped to it (`git commit -- path`
+# commits only that path even if other, unrelated changes are staged) so a
+# bump commit can never sweep in something else the operator had staged.
+# `ship`'s empty commit has no path to scope to and omits it.
+_open_pr() {
+    local branch="$1" subject="$2" body="$3" pathspec="${4:-}"
+    _checkout_new_branch "$branch"
+    if [[ -n "$pathspec" ]]; then
+        git -C "$REPO_DIR" commit -q -m "$subject" -m "$body" -- "$pathspec"
+    else
+        git -C "$REPO_DIR" commit -q -m "$subject" -m "$body"
+    fi
     git -C "$REPO_DIR" push -u origin "$branch"
-    gh pr create --title "$subject" --body "$body" --base main --head "$branch"
+    ( cd "$REPO_DIR" && gh pr create --title "$subject" --body "$body" --base main --head "$branch" )
 }
 
 cmd_bump() {
@@ -155,6 +176,13 @@ Image verified pullable before commit."
         return 0
     fi
 
+    # Guard before any mutation — including the registry probe's implicit
+    # "this file is about to change" — so a dirty tree fails clearly rather
+    # than silently sweeping stray staged/untracked content into the bump
+    # commit. Skipped under LDS_NO_GIT=1: file-edit-only mode has no git
+    # commit to protect, and Task 4's tests rely on it working in a dirty tree.
+    [[ "${LDS_NO_GIT:-0}" == "1" ]] || _require_clean_tree
+
     _verify_pullable "$new"
     yq -i "$key = \"$new\"" "$IMAGES_FILE"
     printf 'bumped %s: %s -> %s\n' "$svc" "$current" "$new"
@@ -162,7 +190,7 @@ Image verified pullable before commit."
     [[ "${LDS_NO_GIT:-0}" == "1" ]] && return 0
     branch="images/${svc}-${version}"
     git -C "$REPO_DIR" add "$IMAGES_FILE"
-    _open_pr "$branch" "$subject" "$body"
+    _open_pr "$branch" "$subject" "$body" "$IMAGES_FILE"
 }
 
 cmd_ship() {
@@ -178,10 +206,10 @@ releasable type so release-build deploys them."
         return 0
     fi
     _require_clean_tree
-    git -C "$REPO_DIR" checkout -b "images/ship-$(git -C "$REPO_DIR" rev-parse --short HEAD)"
+    _checkout_new_branch "images/ship-$(git -C "$REPO_DIR" rev-parse --short HEAD)"
     git -C "$REPO_DIR" commit -q --allow-empty -m "$subject" -m "$body"
     git -C "$REPO_DIR" push -u origin HEAD
-    gh pr create --title "$subject" --body "$body" --base main
+    ( cd "$REPO_DIR" && gh pr create --title "$subject" --body "$body" --base main )
 }
 
 main() {

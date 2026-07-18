@@ -12,10 +12,15 @@ setup() {
 teardown() { teardown_tmpdir; }
 
 # Build a throwaway git repo so the git-touching paths never act on the real
-# checkout. LDS_REPO_DIR is what points images.sh at it.
+# checkout. LDS_REPO_DIR is what points images.sh at it. Commits whatever's
+# already in $TMPDIR (the images.yaml fixture copy from setup()) so the repo
+# starts genuinely clean — _require_clean_tree now rejects untracked files
+# too, and an uncommitted images.yaml would otherwise make every test using
+# this helper look dirty before the test even does anything.
 _scratch_repo() {
     git -C "$TMPDIR" init -q .
-    git -C "$TMPDIR" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+    git -C "$TMPDIR" add -A
+    git -C "$TMPDIR" -c user.email=t@t -c user.name=t commit -q -m init
 }
 
 @test "images bump: rewrites the tag for a known service" {
@@ -83,4 +88,49 @@ _scratch_repo() {
     [[ "$output" == *"studio"* ]] || false
     run yq e '.studio_image' "$LDS_IMAGES_FILE"
     [ "$output" = "$before" ]
+}
+
+@test "images bump: refuses rather than sweeping a pre-staged unrelated change into the commit" {
+    _scratch_repo
+    touch "$TMPDIR/unrelated_wip.txt"
+    git -C "$TMPDIR" add unrelated_wip.txt
+
+    # Real (non-dry-run) bump, LDS_NO_GIT explicitly unset so the git/PR path
+    # runs. No `gh` on PATH is required: the clean-tree guard must refuse
+    # before any commit, branch, or push is attempted.
+    run env LDS_REPO_DIR="$TMPDIR" LDS_IMAGES_FILE="$TMPDIR/images.yaml" \
+        LDS_SKIP_REGISTRY_CHECK=1 LDS_NO_GIT=0 \
+        bash "$ROOT/scripts/images.sh" bump grafana 13.0.0
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"not clean"* ]] || false
+
+    # Refused before the yq write: images.yaml is untouched.
+    run yq e '.grafana_image' "$TMPDIR/images.yaml"
+    [ "$output" = "grafana/grafana:11.3.0" ]
+
+    # Refused before any commit: still just the one "init" commit from
+    # _scratch_repo, and the unrelated file is still merely staged, not
+    # swept into a new commit.
+    run git -C "$TMPDIR" log --oneline
+    [ "${#lines[@]}" -eq 1 ]
+    run git -C "$TMPDIR" status --porcelain
+    [[ "$output" == *"unrelated_wip.txt"* ]] || false
+}
+
+@test "images bump: a pre-existing branch dies with an actionable message, not a raw git error" {
+    _scratch_repo
+    git -C "$TMPDIR" branch images/grafana-13.0.0
+
+    run env LDS_REPO_DIR="$TMPDIR" LDS_IMAGES_FILE="$TMPDIR/images.yaml" \
+        LDS_SKIP_REGISTRY_CHECK=1 LDS_NO_GIT=0 \
+        bash "$ROOT/scripts/images.sh" bump grafana 13.0.0
+    # Git's own raw failure ("fatal: a branch named '...' already exists",
+    # exit 128) also happens to contain the branch name and the substring
+    # "already exists" — so those two checks alone can't tell our friendly
+    # die() apart from an unguarded `git checkout -b` failure. Pin the exit
+    # code to die()'s 1 (not git's 128) and require guidance text that only
+    # our custom message contains.
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"images/grafana-13.0.0"* ]] || false
+    [[ "$output" == *"merge/close its PR"* ]] || false
 }
