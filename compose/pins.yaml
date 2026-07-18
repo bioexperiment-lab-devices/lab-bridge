@@ -14,7 +14,7 @@ grafana_image: grafana/grafana:11.3.0
 # this repo's unified VERSION stream). Renovate-managed like the other
 # external images. MUST be >= 0.3.0 (sub-path portability behind the
 # stripped /studio route; 0.2.0 emits absolute URLs and breaks).
-studio_image: ghcr.io/bioexperiment-lab-devices/experiment-studio:0.7.0
+studio_image: ghcr.io/bioexperiment-lab-devices/experiment-studio:0.8.0
 
 # Prometheus host-monitoring stack. All vendor-neutral; no metadata-service
 # dependency. Renovate-managed.
