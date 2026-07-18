@@ -688,27 +688,20 @@ _known_service() {
 
 # Verify the target reference is a real, anonymously-pullable image before
 # touching git. Skipped in tests via LDS_SKIP_REGISTRY_CHECK=1.
+#
+# NOTE: an earlier draft of this plan carried a naive implementation here that
+# was WRONG for 7 of the 9 real pins. Two bugs, both verified against live
+# registries: (a) it prefixed single-slash Docker Hub refs (jpillora/chisel,
+# grafana/grafana, prom/prometheus, ...) with "library/", which only applies to
+# official single-NAME images; (b) Docker Hub delegates token auth to
+# auth.docker.io, not registry-1.docker.io, so the token request 401'd.
+# quay.io additionally needs an empty-bearer-token request. See the shipped
+# scripts/images.sh for the correct resolution logic and
+# .superpowers/sdd/task-4-report.md for the per-registry evidence.
 _verify_pullable() {
-    local ref="$1"
-    [[ "${LDS_SKIP_REGISTRY_CHECK:-0}" == "1" ]] && return 0
-    local repo tag registry path token
-    repo="${ref%:*}"; tag="${ref##*:}"
-    case "$repo" in
-        */*/*) registry="${repo%%/*}"; path="${repo#*/}" ;;
-        *)     registry="registry-1.docker.io"; path="library/$repo" ;;
-    esac
-    if [[ "$registry" != *.* ]]; then
-        registry="registry-1.docker.io"; path="$repo"
-    fi
-    token="$(curl -fsSL "https://${registry}/token?scope=repository:${path}:pull" 2>/dev/null \
-        | yq -p=json -o=yaml '.token // ""' 2>/dev/null || true)"
-    local code
-    code="$(curl -s -o /dev/null -w '%{http_code}' \
-        -H "Authorization: Bearer ${token}" \
-        -H 'Accept: application/vnd.oci.image.index.v1+json' \
-        -H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
-        "https://${registry}/v2/${path}/manifests/${tag}" || echo 000)"
-    [[ "$code" == "200" ]] || die "image not pullable: $ref (registry returned $code)"
+    ...  # see scripts/images.sh — resolve registry/path per-registry, then
+         # GET /v2/<path>/manifests/<tag> with the right Accept headers and
+         # require HTTP 200.
 }
 
 cmd_bump() {
