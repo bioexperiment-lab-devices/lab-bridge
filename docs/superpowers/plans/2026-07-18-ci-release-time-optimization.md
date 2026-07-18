@@ -782,30 +782,47 @@ git commit -m "feat: add task images:bump for one-PR external image bumps"
 
 **Interfaces:**
 - Consumes: `scripts/images.sh` from Task 4.
-- Produces: subcommand `ship`; `LDS_NO_GIT=1` env var makes `bump` edit the file only (no branch/commit/PR) — this is what the Task 4 tests rely on, so they must set it.
+- Produces: subcommand `ship`; `LDS_NO_GIT=1` makes `bump` edit the file only (no branch/commit/PR) — the Task 4 tests rely on this, so they must set it; `LDS_REPO_DIR` overrides which git repo the git/PR helpers act on (defaults to `$ROOT`), so tests can point at a scratch repo.
 
 - [ ] **Step 1: Write the failing tests**
 
 Add to `tests/integration/test_images_cli.bats` (and add `export LDS_NO_GIT=1` to its `setup()` so the existing tests keep editing files only):
 
 ```bash
+# Build a throwaway git repo so the git-touching paths never act on the real
+# checkout. LDS_REPO_DIR is what points images.sh at it.
+_scratch_repo() {
+    git -C "$TMPDIR" init -q .
+    git -C "$TMPDIR" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+}
+
 @test "images ship: refuses when git working tree is dirty" {
-    run bash -c "cd $TMPDIR && git init -q . && touch dirty && git add dirty && LDS_IMAGES_FILE=$TMPDIR/images.yaml bash $ROOT/scripts/images.sh ship --dry-run"
+    _scratch_repo
+    touch "$TMPDIR/dirty"
+    git -C "$TMPDIR" add dirty
+    run env LDS_REPO_DIR="$TMPDIR" LDS_IMAGES_FILE="$TMPDIR/images.yaml" \
+        bash "$ROOT/scripts/images.sh" ship --dry-run
     [ "$status" -ne 0 ]
     [[ "$output" == *"working tree"* ]]
 }
 
 @test "images ship: dry-run prints the releasable commit subject" {
-    run bash -c "cd $TMPDIR && git init -q . && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init && LDS_IMAGES_FILE=$TMPDIR/images.yaml bash $ROOT/scripts/images.sh ship --dry-run"
+    _scratch_repo
+    run env LDS_REPO_DIR="$TMPDIR" LDS_IMAGES_FILE="$TMPDIR/images.yaml" \
+        bash "$ROOT/scripts/images.sh" ship --dry-run
     [ "$status" -eq 0 ]
     [[ "$output" == *"feat:"* ]]
 }
 
-@test "images bump: dry-run prints the releasable commit subject" {
+@test "images bump: dry-run prints the subject and does NOT modify the file" {
+    local before
+    before="$(yq e '.studio_image' "$LDS_IMAGES_FILE")"
     run bash "$ROOT/scripts/images.sh" bump studio 9.9.9 --dry-run
     [ "$status" -eq 0 ]
     [[ "$output" == *"feat:"* ]]
     [[ "$output" == *"studio"* ]]
+    run yq e '.studio_image' "$LDS_IMAGES_FILE"
+    [ "$output" = "$before" ]
 }
 ```
 
@@ -816,28 +833,40 @@ Expected: FAIL — `ship` is not a known subcommand.
 
 - [ ] **Step 3: Add git/PR automation and `ship` to `scripts/images.sh`**
 
+Add the repo-dir indirection near the top, beside `IMAGES_FILE`:
+
+```bash
+# Git operations act on this repo. Overridable so tests can use a scratch repo
+# instead of the real checkout.
+REPO_DIR="${LDS_REPO_DIR:-$ROOT}"
+```
+
 Add these helpers above `main`:
 
 ```bash
 _require_clean_tree() {
-    git -C "$ROOT" diff --quiet && git -C "$ROOT" diff --cached --quiet \
+    git -C "$REPO_DIR" diff --quiet && git -C "$REPO_DIR" diff --cached --quiet \
         || die "git working tree is not clean — commit or stash first"
 }
 
 # _open_pr <branch> <subject> <body> — branch, commit staged changes, push, PR.
 _open_pr() {
     local branch="$1" subject="$2" body="$3"
-    git -C "$ROOT" checkout -b "$branch"
-    git -C "$ROOT" commit -q -m "$subject" -m "$body"
-    git -C "$ROOT" push -u origin "$branch"
+    git -C "$REPO_DIR" checkout -b "$branch"
+    git -C "$REPO_DIR" commit -q -m "$subject" -m "$body"
+    git -C "$REPO_DIR" push -u origin "$branch"
     gh pr create --title "$subject" --body "$body" --base main --head "$branch"
 }
 ```
 
-Extend `cmd_bump` so that after the `yq -i` edit it stages and opens the PR unless suppressed:
+Extend `cmd_bump`. **Order matters:** parse `--dry-run` and return *before*
+`_verify_pullable` and `yq -i`, so a dry run neither hits the network nor
+modifies the file. Replace the tail of `cmd_bump` (from the `_verify_pullable`
+call onward) with:
 
 ```bash
-    local subject body branch
+    local subject body branch dry_run=0
+    [[ "${*: -1}" == "--dry-run" ]] && dry_run=1
     subject="feat: bump ${svc} image to ${version}"
     body="Bumps \`${svc}_image\` from \`${current}\` to \`${new}\` in compose/images.yaml.
 
@@ -846,17 +875,21 @@ chore-typed pin never cuts a release and the image would sit on main
 undeployed. This single PR both pins and ships the image.
 
 Image verified pullable before commit."
-    if [[ "${*: -1}" == "--dry-run" ]]; then
+
+    if (( dry_run )); then
         printf '%s\n' "$subject"
         return 0
     fi
+
+    _verify_pullable "$new"
+    yq -i "$key = \"$new\"" "$IMAGES_FILE"
+    printf 'bumped %s: %s -> %s\n' "$svc" "$current" "$new"
+
     [[ "${LDS_NO_GIT:-0}" == "1" ]] && return 0
     branch="images/${svc}-${version}"
-    git -C "$ROOT" add "$IMAGES_FILE"
+    git -C "$REPO_DIR" add "$IMAGES_FILE"
     _open_pr "$branch" "$subject" "$body"
 ```
-
-Note: capture `subject`/`body` **before** the `--dry-run` early return, and move the `_verify_pullable`/`yq -i` calls above it so `--dry-run` still reports the intended subject without mutating git.
 
 Add `cmd_ship`:
 
@@ -874,9 +907,9 @@ releasable type so release-build deploys them."
         return 0
     fi
     _require_clean_tree
-    git -C "$ROOT" checkout -b "images/ship-$(git -C "$ROOT" rev-parse --short HEAD)"
-    git -C "$ROOT" commit -q --allow-empty -m "$subject" -m "$body"
-    git -C "$ROOT" push -u origin HEAD
+    git -C "$REPO_DIR" checkout -b "images/ship-$(git -C "$REPO_DIR" rev-parse --short HEAD)"
+    git -C "$REPO_DIR" commit -q --allow-empty -m "$subject" -m "$body"
+    git -C "$REPO_DIR" push -u origin HEAD
     gh pr create --title "$subject" --body "$body" --base main
 }
 ```
