@@ -208,23 +208,67 @@ CFG
     [[ "$output" != *"pins"* ]]
 }
 
-@test "pr-platform: heavy filter excludes compose/images.yaml" {
-    run yq e '.jobs.changes.steps[] | select(.id == "changed") | .with.filters' \
-        "$ROOT/.github/workflows/pr-platform.yml"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"'!compose/images.yaml'"* ]]
+@test "pr-platform: heavy filter uses the extglob exclusion, not a bare negation entry" {
+    # dorny/paths-filter@v3 combines a rule's patterns with `some()`
+    # semantics (predicateQuantifier defaults to "some") — there is no
+    # ordered last-match-wins and no negation-as-exclusion. A bare
+    # '!compose/images.yaml' entry is NOT an exclusion of 'compose/**'; it's
+    # an independent matcher that is true for every path that isn't that
+    # file (a catch-all). The real fix is the 'compose/**/!(images.yaml)'
+    # extglob. Bash/yq cannot evaluate picomatch glob semantics, so this
+    # test only pins the pattern text — the actual matching behavior (that
+    # compose/images.yaml-only PRs get heavy=false, and README.md/services/**
+    # PRs stay heavy=false) is verified out-of-band with a real picomatch
+    # run against a truth table; see the task-3 report for that evidence.
+    run bash -c "yq e '.jobs.changes.steps[] | select(.id == \"changed\") | .with.filters' \
+        '$ROOT/.github/workflows/pr-platform.yml' | yq e '.heavy | .[]' -"
+    [ "$status" -eq 0 ] || false
+
+    # No bare `!`-prefixed entry anywhere in the heavy rule (the bug pattern).
+    [[ "$output" != *$'\n!'* ]] || false
+    [[ "$output" != '!'* ]] || false
+
+    # The extglob exclusion entry must be present, verbatim.
+    [[ "$output" == *'compose/**/!(images.yaml)'* ]]
+}
+
+@test "pr-platform: images filter targets only compose/images.yaml" {
+    run bash -c "yq e '.jobs.changes.steps[] | select(.id == \"changed\") | .with.filters' \
+        '$ROOT/.github/workflows/pr-platform.yml' | yq e '.images | .[]' -"
+    [ "$status" -eq 0 ] || false
+    [ "$output" = "compose/images.yaml" ]
 }
 
 @test "pr-platform: has separate cheap and heavy bats jobs" {
     run yq e '.jobs | keys | .[]' "$ROOT/.github/workflows/pr-platform.yml"
-    [[ "$output" == *"bats-cheap"* ]] || false
-    [[ "$output" == *"bats-heavy"* ]]
+    [ "$status" -eq 0 ] || false
+    local IFS=$'\n'
+    local -a job_names=($output)
+    unset IFS
+    local name
+    local found_cheap=0 found_heavy=0
+    for name in "${job_names[@]}"; do
+        [[ "$name" == "bats-cheap" ]] && found_cheap=1
+        [[ "$name" == "bats-heavy" ]] && found_heavy=1
+    done
+    [ "$found_cheap" -eq 1 ] || false
+    [ "$found_heavy" -eq 1 ]
 }
 
 @test "pr-platform: platform aggregator still needs both bats jobs" {
     run yq e '.jobs.platform.needs | .[]' "$ROOT/.github/workflows/pr-platform.yml"
-    [[ "$output" == *"bats-cheap"* ]] || false
-    [[ "$output" == *"bats-heavy"* ]]
+    [ "$status" -eq 0 ] || false
+    local IFS=$'\n'
+    local -a needs=($output)
+    unset IFS
+    local name
+    local found_cheap=0 found_heavy=0
+    for name in "${needs[@]}"; do
+        [[ "$name" == "bats-cheap" ]] && found_cheap=1
+        [[ "$name" == "bats-heavy" ]] && found_heavy=1
+    done
+    [ "$found_cheap" -eq 1 ] || false
+    [ "$found_heavy" -eq 1 ]
 }
 
 @test "pr-platform: release-please refs still force the heavy suite" {

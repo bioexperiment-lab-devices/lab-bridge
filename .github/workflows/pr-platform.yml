@@ -27,9 +27,20 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
+            # dorny/paths-filter@v3 combines a rule's patterns with `some()`
+            # semantics (predicateQuantifier defaults to "some") — there is NO
+            # ordered last-match-wins and no negation-as-exclusion. A bare
+            # '!compose/images.yaml' entry is NOT an exclusion of
+            # 'compose/**': it is an independent matcher that is true for
+            # every path that is not compose/images.yaml, i.e. a catch-all
+            # that matches README.md, services/**, etc. Do not "simplify"
+            # this back to the two-entry form — use the extglob below, which
+            # matches every compose/** file except images.yaml in one
+            # pattern. (Do not shrink it to 'compose/!(images.yaml)' either —
+            # that doesn't cross '/', so it would drop compose/grafana/**
+            # and compose/loki/** from the heavy gate.)
             heavy:
-              - 'compose/**'
-              - '!compose/images.yaml'
+              - 'compose/**/!(images.yaml)'
               - 'scripts/**'
               - 'tests/integration/**'
               - 'config.example.yaml'
