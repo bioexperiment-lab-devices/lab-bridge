@@ -129,22 +129,40 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # profile (LDS_SUITE_PROFILE) picks how much of the stack
+          # preload_fake_vps_images/compose_images_available bring up — see
+          # _profile_images in tests/integration/helpers.bash. `core` (only
+          # provision below) skips jupyter/studio/monitoring preload+deploy;
+          # every other cell needs `full` because it asserts something about
+          # at least one of those services (auth included: it exercises the
+          # forward_auth gate on /jupyter/ and /grafana/, and those routes are
+          # deleted outright by render_caddyfile's svc:jupyter/svc:monitoring
+          # block-stripping when the service is disabled — a `core` auth cell
+          # would fail hard, not just skip less).
           - suite: deploy
             files: tests/integration/test_deploy.bats
+            profile: full
           - suite: ops
             files: tests/integration/test_ops.bats
+            profile: full
           - suite: provision
             files: tests/integration/test_provision.bats
+            profile: core
           - suite: routes-smoke
             files: tests/integration/test_routes_smoke.bats
+            profile: full
           - suite: metrics-smoke
             files: tests/integration/test_metrics_smoke.bats
+            profile: full
           - suite: navbar
             files: tests/integration/test_navbar_smoke.bats
+            profile: full
           - suite: auth
             files: tests/integration/test_auth_smoke.bats
+            profile: full
           - suite: service-selection
             files: tests/integration/test_service_selection.bats
+            profile: full
     name: bats (${{ matrix.suite }})
     steps:
       - uses: actions/checkout@v4
@@ -182,6 +200,8 @@ jobs:
         uses: bats-core/bats-action@3.0.1
 
       - name: bats ${{ matrix.suite }}
+        env:
+          LDS_SUITE_PROFILE: ${{ matrix.profile }}
         run: bats ${{ matrix.files }}
 
   # Aggregator: the single required check for branch protection. Succeeds

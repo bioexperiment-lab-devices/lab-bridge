@@ -111,26 +111,49 @@ _save_and_load_into_fake_vps() {
     rm -f "$tar"
 }
 
+# Image set the active suite profile needs, derived from the test fixture so a
+# fixture bump can never silently desync the preload list.
+#
+#   full (default) — the whole stack, including the multi-GB scipy-notebook
+#                    and the studio image
+#   core           — caddy/chisel/authelia only; for suites that assert nothing
+#                    about jupyter, studio, or the monitoring group
+#
+# authelia_image is deliberately read from the PRODUCTION images file
+# (compose/images.yaml), NOT the fixture: the fixture's authelia_image
+# (fixtures/valid_images.yaml) is a placeholder tag
+# (ghcr.io/test/lab-bridge-authelia:0.0.0) that only satisfies config
+# validation and is never pulled or built — the real upstream
+# authelia/authelia:<version> pin (compose/images.yaml) is what
+# bootstrap_authelia_for_tests / scripts/users.sh actually need on the host to
+# build the local authelia test image FROM. Probing the fixture's fake tag
+# here would 404 every run and make compose_images_available skip every
+# heavy suite unconditionally.
+_profile_images() {
+    local fixture="$ROOT/tests/integration/fixtures/valid_images.yaml"
+    local profile="${LDS_SUITE_PROFILE:-full}"
+    printf '%s\n' caddy:2
+    yq e '.chisel_image' "$fixture"
+    yq e '.authelia_image' "$ROOT/compose/images.yaml"
+    [[ "$profile" == "core" ]] && return 0
+    yq e '.loki_image' "$fixture"
+    yq e '.grafana_image' "$fixture"
+    yq e '.jupyter_image' "$fixture"
+    yq e '.studio_image' "$fixture"
+}
+
 # Pre-load any images already cached on the host into the fake-VPS. This
 # sidesteps Docker Hub anonymous-pull rate limits during repeated test runs:
 # `docker compose pull --ignore-pull-failures` then no-ops when the image is
 # already present in the DinD's cache. Skips any image that isn't on the host.
 preload_fake_vps_images() {
-    local imgs=(
-        caddy:2
-        jpillora/chisel:1.10.1
-        grafana/loki:3.2.1
-        grafana/grafana:11.3.0
-        quay.io/jupyter/scipy-notebook:2026-04-20
-        authelia/authelia:4.38.10
-        ghcr.io/bioexperiment-lab-devices/experiment-studio:0.3.0
-    )
     local img
-    for img in "${imgs[@]}"; do
+    while IFS= read -r img; do
+        [[ -z "$img" ]] && continue
         if docker image inspect "$img" >/dev/null 2>&1; then
             _save_and_load_into_fake_vps "$img" || true
         fi
-    done
+    done < <(_profile_images)
 }
 
 # Returns 0 when every compose-service image listed in the fixture is either
@@ -139,23 +162,15 @@ preload_fake_vps_images() {
 # typically a Docker Hub anonymous-pull rate limit on the CI runner. Use as
 # `compose_images_available || skip "host docker can't reach all images"`.
 compose_images_available() {
-    local imgs=(
-        caddy:2
-        jpillora/chisel:1.10.1
-        grafana/loki:3.2.1
-        grafana/grafana:11.3.0
-        quay.io/jupyter/scipy-notebook:2026-04-20
-        authelia/authelia:4.38.10
-        ghcr.io/bioexperiment-lab-devices/experiment-studio:0.3.0
-    )
     local img
-    for img in "${imgs[@]}"; do
+    while IFS= read -r img; do
+        [[ -z "$img" ]] && continue
         if ! docker image inspect "$img" >/dev/null 2>&1; then
             if ! docker pull "$img" >/dev/null 2>&1; then
                 return 1
             fi
         fi
-    done
+    done < <(_profile_images)
     return 0
 }
 
@@ -302,6 +317,11 @@ fake_vps_up_with_users() {
     # ── Config + pins ──────────────────────────────────────────────────────
     cp "$ROOT/tests/integration/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
     yq -i ".vps.host = \"127.0.0.1\"" "$TMPDIR/config.yaml"
+    # A `core` profile suite asserts nothing about jupyter/studio/monitoring,
+    # so don't deploy them — this skips both their preload and their startup.
+    if [[ "${LDS_SUITE_PROFILE:-full}" == "core" ]]; then
+        yq -i '.disabled_services = ["jupyter", "studio", "monitoring"]' "$TMPDIR/config.yaml"
+    fi
     cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
     yq -i ".ssh_port = 2222" "$TMPDIR/pins.yaml"
     export LDS_CONFIG="$TMPDIR/config.yaml"
