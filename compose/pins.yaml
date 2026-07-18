@@ -1,32 +1,15 @@
 # Single source of truth for stack pins and infrastructure paths.
 # Read by both `task deploy` (laptop) and CI's release-build job.
 # Renovate-managed; bump via PR.
+#
+# Externally-released image refs (jupyter, chisel, loki, grafana, studio,
+# authelia, prometheus, node-exporter, cadvisor) now live in
+# compose/images.yaml, NOT here — see that file for rationale. This file
+# keeps *_image_repo keys (whose tag is this repo's own VERSION), ports,
+# retention, and infrastructure paths.
 
-jupyter_image: quay.io/jupyter/scipy-notebook:2026-04-20
-chisel_image: jpillora/chisel:1.10.1
 chisel_listen_port: 7000
-loki_image: grafana/loki:3.2.1
 loki_retention_days: 30
-grafana_image: grafana/grafana:11.3.0
-
-# Experiment Studio — operator UI for lab_devices experiments. Built and
-# released by the bioexperiment-lab-devices/lab-devices repo (NOT part of
-# this repo's unified VERSION stream). Renovate-managed like the other
-# external images. MUST be >= 0.3.0 (sub-path portability behind the
-# stripped /studio route; 0.2.0 emits absolute URLs and breaks).
-studio_image: ghcr.io/bioexperiment-lab-devices/experiment-studio:0.8.0
-
-# Prometheus host-monitoring stack. All vendor-neutral; no metadata-service
-# dependency. Renovate-managed.
-prometheus_image: prom/prometheus:v3.0.1
-node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
-# cadvisor must be ≥ v0.54.0 to read container stats under Docker's new
-# `overlayfs` storage driver (default on Ubuntu 24.04 with Docker 28+).
-# Older versions fail with "Failed to identify the read-write layer ID"
-# and never attach the `name` label, leaving every container_* panel empty.
-# Registry: from v0.56 onwards cadvisor only publishes to ghcr.io/google/cadvisor
-# (the legacy gcr.io/cadvisor/cadvisor mirror stopped at v0.54.x).
-cadvisor_image: ghcr.io/google/cadvisor:v0.57.0
 
 # Prometheus TSDB retention. Mirrors loki_retention_days for symmetry between
 # logs and metrics history (see compose/pins.yaml:loki_retention_days).
@@ -46,9 +29,6 @@ flasher_image_repo: ghcr.io/bioexperiment-lab-devices/lab-bridge-flasher
 # the root VERSION (release-please-managed); the full reference is
 # "${streamer_image_repo}:$(cat VERSION)".
 streamer_image_repo: ghcr.io/bioexperiment-lab-devices/lab-bridge-streamer
-
-# Authelia identity provider. Renovate-managed.
-authelia_image: authelia/authelia:4.38.10
 
 # GHCR repository for the (currently passthrough) authelia image.
 # We rebuild upstream Authelia under our own GHCR namespace to keep image

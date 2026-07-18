@@ -1,18 +1,32 @@
 #!/usr/bin/env bash
-# Load and validate config.yaml + compose/pins.yaml. Sourced, not executed.
-# Depends on lib/common.sh being sourced first.
+# Load and validate config.yaml + compose/pins.yaml + compose/images.yaml.
+# Sourced, not executed. Depends on lib/common.sh being sourced first.
 #
-# Two-file split:
-#   compose/pins.yaml  — image pins, paths, retention, ports, ACME email.
-#                        Tracked in git; Renovate-managed; PR-reviewable.
-#   config.yaml        — instance-specific values + secrets + roster.
-#                        Gitignored; operator-laptop-only.
+# Three-file split:
+#   compose/pins.yaml    — *_image_repo keys, paths, retention, ports, ACME
+#                          email. Tracked in git; Renovate-managed for repo
+#                          values, PR-reviewable; a bump here is a platform
+#                          change (its image tag comes from the root VERSION).
+#   compose/images.yaml  — externally-released container image pins (built
+#                          and released outside this repo's unified VERSION
+#                          stream). Tracked in git; Renovate-managed; kept
+#                          separate so CI can tell an image-only bump from an
+#                          infrastructure change.
+#   config.yaml          — instance-specific values + secrets + roster.
+#                          Gitignored; operator-laptop-only.
 
 # Override via LDS_PINS_FILE for tests / CI assembly.
 _default_pins_file() {
     local script_dir
     script_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
     printf '%s/../../compose/pins.yaml' "$script_dir"
+}
+
+# Override via LDS_IMAGES_FILE for tests / CI assembly.
+_default_images_file() {
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
+    printf '%s/../../compose/images.yaml' "$script_dir"
 }
 
 # Required fields in config.yaml (post-refactor: shrunk).
@@ -26,27 +40,31 @@ _REQUIRED_CONFIG_FIELDS=(
 
 # Required fields in pins.yaml.
 _REQUIRED_PINS_FIELDS=(
-    .jupyter_image
-    .chisel_image
     .chisel_listen_port
-    .loki_image
     .loki_retention_days
-    .grafana_image
     .siteapp_image_repo
     .flasher_image_repo
     .streamer_image_repo
     .caddy_image_repo
     .authelia_image_repo
-    .authelia_image
     .acme_email
     .remote_root
     .notebooks_path
     .ssh_port
+    .prometheus_retention_days
+)
+
+# Required fields in images.yaml (externally-released images).
+_REQUIRED_IMAGES_FIELDS=(
+    .jupyter_image
+    .chisel_image
+    .loki_image
+    .grafana_image
+    .studio_image
+    .authelia_image
     .prometheus_image
     .node_exporter_image
     .cadvisor_image
-    .prometheus_retention_days
-    .studio_image
 )
 
 # Optional-service selection (spec: 2026-07-17-service-selection-design.md).
@@ -64,6 +82,7 @@ _yq() { yq "$@" 2>/dev/null; }
 validate_config() {
     local config_path="${1:?validate_config: missing path arg}"
     local pins_path="${LDS_PINS_FILE:-$(_default_pins_file)}"
+    local images_path="${LDS_IMAGES_FILE:-$(_default_images_file)}"
     local errors=()
 
     if [[ ! -f "$config_path" ]]; then
@@ -74,6 +93,10 @@ validate_config() {
         printf 'pins file not found: %s (set LDS_PINS_FILE or place at compose/pins.yaml)\n' "$pins_path" >&2
         return 1
     fi
+    if [[ ! -f "$images_path" ]]; then
+        printf 'images file not found: %s (set LDS_IMAGES_FILE or place at compose/images.yaml)\n' "$images_path" >&2
+        return 1
+    fi
 
     if ! _yq e '.' "$config_path" >/dev/null; then
         printf 'config is not valid YAML: %s\n' "$config_path" >&2
@@ -81,6 +104,10 @@ validate_config() {
     fi
     if ! _yq e '.' "$pins_path" >/dev/null; then
         printf 'pins is not valid YAML: %s\n' "$pins_path" >&2
+        return 1
+    fi
+    if ! _yq e '.' "$images_path" >/dev/null; then
+        printf 'images is not valid YAML: %s\n' "$images_path" >&2
         return 1
     fi
 
@@ -95,6 +122,12 @@ validate_config() {
         val="$(_yq e "$field // \"\"" "$pins_path")"
         if [[ -z "$val" || "$val" == "null" ]]; then
             errors+=("pins: missing required field: ${field#.}")
+        fi
+    done
+    for field in "${_REQUIRED_IMAGES_FIELDS[@]}"; do
+        val="$(_yq e "$field // \"\"" "$images_path")"
+        if [[ -z "$val" || "$val" == "null" ]]; then
+            errors+=("images: missing required field: ${field#.}")
         fi
     done
 
@@ -177,10 +210,12 @@ validate_config() {
 load_config() {
     local config_path="${1:?load_config: missing path arg}"
     local pins_path="${LDS_PINS_FILE:-$(_default_pins_file)}"
+    local images_path="${LDS_IMAGES_FILE:-$(_default_images_file)}"
     validate_config "$config_path" || return 1
 
     export CONFIG_PATH="$config_path"
     export PINS_PATH="$pins_path"
+    export IMAGES_PATH="$images_path"
 
     # Instance values from config.yaml.
     export VPS_HOST          ; VPS_HOST="$(_yq e '.vps.host' "$config_path")"
@@ -193,23 +228,23 @@ load_config() {
     export VPS_REMOTE_ROOT   ; VPS_REMOTE_ROOT="$(_yq e '.remote_root' "$pins_path")"
     export VPS_NOTEBOOKS_PATH; VPS_NOTEBOOKS_PATH="$(_yq e '.notebooks_path' "$pins_path")"
     export CADDY_ACME_EMAIL  ; CADDY_ACME_EMAIL="$(_yq e '.acme_email' "$pins_path")"
-    export JUPYTER_IMAGE         ; JUPYTER_IMAGE="$(_yq e '.jupyter_image' "$pins_path")"
-    export CHISEL_IMAGE          ; CHISEL_IMAGE="$(_yq e '.chisel_image' "$pins_path")"
+    export JUPYTER_IMAGE         ; JUPYTER_IMAGE="$(_yq e '.jupyter_image' "$images_path")"
+    export CHISEL_IMAGE          ; CHISEL_IMAGE="$(_yq e '.chisel_image' "$images_path")"
     export CHISEL_LISTEN_PORT    ; CHISEL_LISTEN_PORT="$(_yq e '.chisel_listen_port' "$pins_path")"
-    export LOKI_IMAGE            ; LOKI_IMAGE="$(_yq e '.loki_image' "$pins_path")"
+    export LOKI_IMAGE            ; LOKI_IMAGE="$(_yq e '.loki_image' "$images_path")"
     export LOKI_RETENTION_DAYS   ; LOKI_RETENTION_DAYS="$(_yq e '.loki_retention_days' "$pins_path")"
-    export GRAFANA_IMAGE         ; GRAFANA_IMAGE="$(_yq e '.grafana_image' "$pins_path")"
-    export STUDIO_IMAGE          ; STUDIO_IMAGE="$(_yq e '.studio_image' "$pins_path")"
-    export PROMETHEUS_IMAGE      ; PROMETHEUS_IMAGE="$(_yq e '.prometheus_image' "$pins_path")"
-    export NODE_EXPORTER_IMAGE   ; NODE_EXPORTER_IMAGE="$(_yq e '.node_exporter_image' "$pins_path")"
-    export CADVISOR_IMAGE        ; CADVISOR_IMAGE="$(_yq e '.cadvisor_image' "$pins_path")"
+    export GRAFANA_IMAGE         ; GRAFANA_IMAGE="$(_yq e '.grafana_image' "$images_path")"
+    export STUDIO_IMAGE          ; STUDIO_IMAGE="$(_yq e '.studio_image' "$images_path")"
+    export PROMETHEUS_IMAGE      ; PROMETHEUS_IMAGE="$(_yq e '.prometheus_image' "$images_path")"
+    export NODE_EXPORTER_IMAGE   ; NODE_EXPORTER_IMAGE="$(_yq e '.node_exporter_image' "$images_path")"
+    export CADVISOR_IMAGE        ; CADVISOR_IMAGE="$(_yq e '.cadvisor_image' "$images_path")"
     export PROMETHEUS_RETENTION_DAYS ; PROMETHEUS_RETENTION_DAYS="$(_yq e '.prometheus_retention_days' "$pins_path")"
     export SITEAPP_IMAGE_REPO    ; SITEAPP_IMAGE_REPO="$(_yq e '.siteapp_image_repo' "$pins_path")"
     export FLASHER_IMAGE_REPO    ; FLASHER_IMAGE_REPO="$(_yq e '.flasher_image_repo' "$pins_path")"
     export STREAMER_IMAGE_REPO   ; STREAMER_IMAGE_REPO="$(_yq e '.streamer_image_repo' "$pins_path")"
     export CADDY_IMAGE_REPO      ; CADDY_IMAGE_REPO="$(_yq e '.caddy_image_repo' "$pins_path")"
     export AUTHELIA_IMAGE_REPO   ; AUTHELIA_IMAGE_REPO="$(_yq e '.authelia_image_repo' "$pins_path")"
-    export AUTHELIA_IMAGE        ; AUTHELIA_IMAGE="$(_yq e '.authelia_image' "$pins_path")"
+    export AUTHELIA_IMAGE        ; AUTHELIA_IMAGE="$(_yq e '.authelia_image' "$images_path")"
     export AUTHELIA_GRAFANA_OIDC_SECRET_HASH ; AUTHELIA_GRAFANA_OIDC_SECRET_HASH="$(_yq e '.authelia.grafana_oidc_secret_hash // ""' "$config_path")"
 
     # Optional-service selection. DISABLED_SERVICES carries the raw group

@@ -228,7 +228,7 @@ bootstrap_authelia_for_tests() {
     export LDS_AUTHELIA_SECRETS_DIR="$TMPDIR/authelia_secrets"
     export LDS_GRAFANA_OIDC_SECRET_FILE="$TMPDIR/grafana_oidc_secret"
     export AUTHELIA_IMAGE
-    AUTHELIA_IMAGE="$(yq e '.authelia_image' "$ROOT/compose/pins.yaml")"
+    AUTHELIA_IMAGE="$(yq e '.authelia_image' "$ROOT/compose/images.yaml")"
     bash "$ROOT/scripts/secrets.sh" bootstrap-authelia
     export AUTHELIA_GRAFANA_OIDC_SECRET_HASH
     AUTHELIA_GRAFANA_OIDC_SECRET_HASH="$(yq e '.authelia.grafana_oidc_secret_hash' "$LDS_CONFIG")"
@@ -287,6 +287,7 @@ USERSEOF
 #   FAKE_VPS_HOST     — host:port for curl (127.0.0.1:2443)
 #   LDS_CONFIG        — path to the rendered config.yaml
 #   LDS_PINS_FILE     — path to the rendered pins.yaml
+#   LDS_IMAGES_FILE   — path to the rendered images.yaml
 #   LDS_USERS_DB      — path to the populated users_database.yml
 fake_vps_up_with_users() {
     if ! compose_images_available; then
@@ -305,6 +306,8 @@ fake_vps_up_with_users() {
     yq -i ".ssh_port = 2222" "$TMPDIR/pins.yaml"
     export LDS_CONFIG="$TMPDIR/config.yaml"
     export LDS_PINS_FILE="$TMPDIR/pins.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_images.yaml" "$TMPDIR/images.yaml"
+    export LDS_IMAGES_FILE="$TMPDIR/images.yaml"
 
     # ── Bootstrap Authelia secrets ─────────────────────────────────────────
     # Use the real Authelia image for PBKDF2 hashing so the rendered

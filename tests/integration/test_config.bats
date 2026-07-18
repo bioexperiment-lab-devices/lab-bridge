@@ -42,24 +42,13 @@ teardown() { teardown_tmpdir; }
 }
 
 @test "validate_config: rejects pins.yaml missing loki/grafana fields" {
-    cat > "$TMPDIR/cfg.yaml" <<'CFG'
-vps: {host: 1.2.3.4, ssh_user: u}
-jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
-siteapp: {admin_password_hash: "$2a$14$HO81PFKmfx2eOcpGyeogN.ct3M9SzgDmvXYHaeNrlTzV66aFbPK2y"}
-chisel_clients: []
-CFG
-    # Pins file is present but missing loki_image, loki_retention_days, grafana_image.
-    cat > "$TMPDIR/bad_pins.yaml" <<'PINS'
-jupyter_image: quay.io/jupyter/scipy-notebook:2026-04-20
-chisel_image: jpillora/chisel:1.10.1
-chisel_listen_port: 8080
-siteapp_image_repo: ghcr.io/test/lab-bridge-siteapp
-acme_email: ops@example.com
-remote_root: /srv/lab-bridge
-notebooks_path: /srv/jupyterlab/work
-ssh_port: 22
-PINS
-    run bash -c "export LDS_PINS_FILE=$TMPDIR/bad_pins.yaml; source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/cfg.yaml"
+    # loki_retention_days is a pins field; loki_image/grafana_image moved to
+    # images.yaml in the pins/images split — exercise both files' validation.
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/bad_pins.yaml"
+    yq -i 'del(.loki_retention_days)' "$TMPDIR/bad_pins.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_images.yaml" "$TMPDIR/bad_images.yaml"
+    yq -i 'del(.loki_image, .grafana_image)' "$TMPDIR/bad_images.yaml"
+    run bash -c "export LDS_PINS_FILE=$TMPDIR/bad_pins.yaml LDS_IMAGES_FILE=$TMPDIR/bad_images.yaml; source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/integration/fixtures/valid_config.yaml"
     [ "$status" -ne 0 ]
     [[ "$output" == *"loki_image"* ]]
     [[ "$output" == *"loki_retention_days"* ]]
@@ -67,28 +56,13 @@ PINS
 }
 
 @test "validate_config: rejects pins.yaml missing prometheus stack fields" {
-    cat > "$TMPDIR/cfg.yaml" <<'CFG'
-vps: {host: 1.2.3.4, ssh_user: u}
-jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
-siteapp: {admin_password_hash: "$2a$14$HO81PFKmfx2eOcpGyeogN.ct3M9SzgDmvXYHaeNrlTzV66aFbPK2y"}
-chisel_clients: []
-CFG
-    cat > "$TMPDIR/bad_pins.yaml" <<'PINS'
-jupyter_image: quay.io/jupyter/scipy-notebook:2026-04-20
-chisel_image: jpillora/chisel:1.10.1
-chisel_listen_port: 8080
-loki_image: grafana/loki:3.2.1
-loki_retention_days: 30
-grafana_image: grafana/grafana:11.3.0
-siteapp_image_repo: ghcr.io/test/lab-bridge-siteapp
-flasher_image_repo: ghcr.io/test/lab-bridge-flasher
-caddy_image_repo: ghcr.io/test/lab-bridge-caddy
-acme_email: ops@example.com
-remote_root: /srv/lab-bridge
-notebooks_path: /srv/jupyterlab/work
-ssh_port: 22
-PINS
-    run bash -c "export LDS_PINS_FILE=$TMPDIR/bad_pins.yaml; source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/cfg.yaml"
+    # prometheus_retention_days is a pins field; prometheus_image/
+    # node_exporter_image/cadvisor_image moved to images.yaml in the split.
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/bad_pins.yaml"
+    yq -i 'del(.prometheus_retention_days)' "$TMPDIR/bad_pins.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_images.yaml" "$TMPDIR/bad_images.yaml"
+    yq -i 'del(.prometheus_image, .node_exporter_image, .cadvisor_image)' "$TMPDIR/bad_images.yaml"
+    run bash -c "export LDS_PINS_FILE=$TMPDIR/bad_pins.yaml LDS_IMAGES_FILE=$TMPDIR/bad_images.yaml; source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/integration/fixtures/valid_config.yaml"
     [ "$status" -ne 0 ]
     [[ "$output" == *"prometheus_image"* ]]
     [[ "$output" == *"node_exporter_image"* ]]
@@ -169,4 +143,40 @@ CFG
     run bash -c "export LDS_PINS_FILE=$TMPDIR/compose/pins.yaml; source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/config.yaml"
     [ "$status" -ne 0 ]
     [[ "$output" == *"pins file not found"* ]]
+}
+
+@test "validate_config: accepts valid config with split images file" {
+    run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/integration/fixtures/valid_config.yaml"
+    [ "$status" -eq 0 ]
+}
+
+@test "validate_config: missing images file gives clear error" {
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
+    run bash -c "source $ROOT/scripts/lib/config.sh; LDS_PINS_FILE=$TMPDIR/pins.yaml LDS_IMAGES_FILE=$TMPDIR/nope.yaml validate_config $ROOT/tests/integration/fixtures/valid_config.yaml"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"images file not found"* ]]
+}
+
+@test "validate_config: rejects images file missing a required image key" {
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_images.yaml" "$TMPDIR/images.yaml"
+    yq -i 'del(.studio_image)' "$TMPDIR/images.yaml"
+    run bash -c "source $ROOT/scripts/lib/config.sh; LDS_PINS_FILE=$TMPDIR/pins.yaml LDS_IMAGES_FILE=$TMPDIR/images.yaml validate_config $ROOT/tests/integration/fixtures/valid_config.yaml"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"studio_image"* ]]
+}
+
+@test "load_config: exports image vars sourced from images.yaml" {
+    run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/integration/fixtures/valid_config.yaml; echo \$STUDIO_IMAGE \$GRAFANA_IMAGE \$CADVISOR_IMAGE"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"experiment-studio"* ]]
+    [[ "$output" == *"grafana"* ]]
+    [[ "$output" == *"cadvisor"* ]]
+}
+
+@test "pins.yaml no longer carries external image keys" {
+    run yq e '.studio_image // "absent"' "$ROOT/compose/pins.yaml"
+    [ "$output" = "absent" ]
+    run yq e '.siteapp_image_repo' "$ROOT/compose/pins.yaml"
+    [[ "$output" == *"lab-bridge-siteapp"* ]]
 }
