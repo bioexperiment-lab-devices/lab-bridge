@@ -31,3 +31,5 @@ node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
 # Registry: from v0.56 onwards cadvisor only publishes to ghcr.io/google/cadvisor
 # (the legacy gcr.io/cadvisor/cadvisor mirror stopped at v0.54.x).
 cadvisor_image: ghcr.io/google/cadvisor:v0.57.0
+
+# Fast-path verification: an images.yaml-only edit must skip bats-heavy.
