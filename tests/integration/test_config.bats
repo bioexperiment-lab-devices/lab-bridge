@@ -200,3 +200,10 @@ CFG
     run yq e '.siteapp_image_repo' "$ROOT/compose/pins.yaml"
     [[ "$output" == *"lab-bridge-siteapp"* ]]
 }
+
+@test "renovate tracks compose/images.yaml, not pins.yaml" {
+    run yq -o=json e '.customManagers[0].fileMatch[0]' "$ROOT/renovate.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"images"* ]] || false
+    [[ "$output" != *"pins"* ]]
+}

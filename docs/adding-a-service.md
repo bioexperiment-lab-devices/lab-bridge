@@ -163,7 +163,7 @@ on `inputs.verify_version != ''`.
 
 ## 10. pins.yaml + Taskfile
 
-`compose/pins.yaml`: add `<name>_image_repo: ghcr.io/<owner>/lab-bridge-<name>`.
+`compose/pins.yaml`: add `<name>_image_repo: ghcr.io/<owner>/lab-bridge-<name>`. This is for a repo-built service, whose image *tag* is this repo's own VERSION — `*_image_repo` keys stay in `pins.yaml`. Externally-released images (built and released outside this repo, e.g. jupyter, chisel, loki, grafana, studio, authelia, prometheus, node_exporter, cadvisor) are pinned in `compose/images.yaml` instead; see CLAUDE.md's "Config split". A new service added via this checklist is repo-built, so it belongs in `pins.yaml`, not `images.yaml`.
 
 `Taskfile.yml`: add a `<name>:build-and-push` task (mirror `siteapp:build-and-push`) and an `ops:logs:<name>` task.
 
