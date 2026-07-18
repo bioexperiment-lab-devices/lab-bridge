@@ -207,3 +207,27 @@ CFG
     [[ "$output" == *"images"* ]] || false
     [[ "$output" != *"pins"* ]]
 }
+
+@test "pr-platform: heavy filter excludes compose/images.yaml" {
+    run yq e '.jobs.changes.steps[] | select(.id == "changed") | .with.filters' \
+        "$ROOT/.github/workflows/pr-platform.yml"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"'!compose/images.yaml'"* ]]
+}
+
+@test "pr-platform: has separate cheap and heavy bats jobs" {
+    run yq e '.jobs | keys | .[]' "$ROOT/.github/workflows/pr-platform.yml"
+    [[ "$output" == *"bats-cheap"* ]] || false
+    [[ "$output" == *"bats-heavy"* ]]
+}
+
+@test "pr-platform: platform aggregator still needs both bats jobs" {
+    run yq e '.jobs.platform.needs | .[]' "$ROOT/.github/workflows/pr-platform.yml"
+    [[ "$output" == *"bats-cheap"* ]] || false
+    [[ "$output" == *"bats-heavy"* ]]
+}
+
+@test "pr-platform: release-please refs still force the heavy suite" {
+    run grep -c 'release-please--' "$ROOT/.github/workflows/pr-platform.yml"
+    [ "$output" -ge 1 ]
+}

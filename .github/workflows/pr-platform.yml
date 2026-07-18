@@ -17,7 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      run: ${{ steps.should-run.outputs.run }}
+      heavy: ${{ steps.should-run.outputs.heavy }}
+      any: ${{ steps.should-run.outputs.any }}
       shell: ${{ steps.changed.outputs.shell }}
     steps:
       - uses: actions/checkout@v4
@@ -26,30 +27,40 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            src:
+            heavy:
               - 'compose/**'
+              - '!compose/images.yaml'
               - 'scripts/**'
               - 'tests/integration/**'
               - 'config.example.yaml'
               - 'Taskfile.yml'
               - '.github/workflows/pr-platform.yml'
+            images:
+              - 'compose/images.yaml'
             shell:
               - 'scripts/**/*.sh'
 
       - id: should-run
-        name: determine if suite should run
+        name: determine which suites should run
         run: |
           set -e
+          heavy="${{ steps.changed.outputs.heavy }}"
+          images="${{ steps.changed.outputs.images }}"
           if [[ "${{ github.head_ref }}" == release-please--* ]]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
+            heavy=true
             echo "::notice::release-please PR — running full platform suite"
-          else
-            echo "run=${{ steps.changed.outputs.src }}" >> "$GITHUB_OUTPUT"
           fi
+          any=false
+          if [[ "$heavy" == "true" || "$images" == "true" ]]; then
+            any=true
+          fi
+          echo "heavy=$heavy" >> "$GITHUB_OUTPUT"
+          echo "any=$any"     >> "$GITHUB_OUTPUT"
+          echo "heavy=$heavy any=$any"
 
   shellcheck:
     needs: changes
-    if: needs.changes.outputs.run == 'true' && needs.changes.outputs.shell == 'true'
+    if: needs.changes.outputs.heavy == 'true' && needs.changes.outputs.shell == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -60,9 +71,40 @@ jobs:
           sudo apt-get install -y shellcheck
           shellcheck -x --severity=warning scripts/*.sh scripts/lib/*.sh
 
-  bats:
+  bats-cheap:
     needs: changes
-    if: needs.changes.outputs.run == 'true'
+    if: needs.changes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: bats (cheap)
+    steps:
+      - uses: actions/checkout@v4
+      - name: install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: install yq v4
+        run: |
+          sudo wget -q https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+      - name: install bats
+        uses: bats-core/bats-action@3.0.1
+      - name: bats cheap
+        run: |
+          bats tests/integration/test_common.bats \
+               tests/integration/test_config.bats \
+               tests/integration/test_crypto.bats \
+               tests/integration/test_render.bats \
+               tests/integration/test_secrets.bats \
+               tests/integration/test_grafana_provisioning.bats \
+               tests/integration/test_deploy_stack_only.bats \
+               tests/integration/test_service_selection_render.bats
+
+  bats-heavy:
+    needs: changes
+    if: needs.changes.outputs.heavy == 'true'
     runs-on: ubuntu-latest
     # Each cell brings up the fake VPS (compose pull + render + bringup) before
     # its bats file runs. On the slowest GitHub runner allocations the `ops`
@@ -75,16 +117,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - suite: cheap
-            files: >-
-              tests/integration/test_common.bats
-              tests/integration/test_config.bats
-              tests/integration/test_crypto.bats
-              tests/integration/test_render.bats
-              tests/integration/test_secrets.bats
-              tests/integration/test_grafana_provisioning.bats
-              tests/integration/test_deploy_stack_only.bats
-              tests/integration/test_service_selection_render.bats
           - suite: deploy
             files: tests/integration/test_deploy.bats
           - suite: ops
@@ -105,14 +137,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Heavy cells (everything except `cheap`) build 4 local service images
-      # and side-load them — plus the multi-GB scipy-notebook image — into the
-      # fake-VPS DinD. GitHub-hosted ubuntu-latest runners ship with ~14 GB
-      # free, which has been observed to run out (e.g. PR #105 hit
-      # "no space left on device" during scipy-notebook layer extraction).
-      # Reclaim ~20 GB by removing pre-installed SDKs we never use.
+      # Every remaining cell builds 4 local service images and side-loads
+      # them — plus the multi-GB scipy-notebook image — into the fake-VPS
+      # DinD. GitHub-hosted ubuntu-latest runners ship with ~14 GB free,
+      # which has been observed to run out (e.g. PR #105 hit "no space left
+      # on device" during scipy-notebook layer extraction). Reclaim ~20 GB
+      # by removing pre-installed SDKs we never use.
       - name: free disk space
-        if: matrix.suite != 'cheap'
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
           tool-cache: false
@@ -143,9 +174,10 @@ jobs:
 
   # Aggregator: the single required check for branch protection. Succeeds
   # when changes ran and every dependent job either passed or was skipped
-  # (e.g., docs-only PRs where changes.outputs.run=='false').
+  # (e.g., docs-only PRs where changes.outputs.any=='false', or image-only
+  # PRs where heavy=='false' but any=='true' so only bats-cheap runs).
   platform:
-    needs: [changes, shellcheck, bats]
+    needs: [changes, shellcheck, bats-cheap, bats-heavy]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -155,15 +187,17 @@ jobs:
           set -e
           changes="${{ needs.changes.result }}"
           shellcheck="${{ needs.shellcheck.result }}"
-          bats="${{ needs.bats.result }}"
+          cheap="${{ needs.bats-cheap.result }}"
+          heavy="${{ needs.bats-heavy.result }}"
           echo "changes:    $changes"
           echo "shellcheck: $shellcheck"
-          echo "bats:       $bats"
+          echo "bats-cheap: $cheap"
+          echo "bats-heavy: $heavy"
           if [[ "$changes" != "success" ]]; then
             echo "::error::changes job did not succeed: $changes"
             exit 1
           fi
-          for r in "$shellcheck" "$bats"; do
+          for r in "$shellcheck" "$cheap" "$heavy"; do
             case "$r" in
               success|skipped) ;;
               *)
