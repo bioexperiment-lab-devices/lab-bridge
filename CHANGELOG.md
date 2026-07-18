@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.24.0...v0.25.0) (2026-07-18)
+
+
+### Features
+
+* ship experiment-studio 0.7.0 (builder W8/W9) to the stack ([#177](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/177)) ([a2183a0](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/a2183a0af280465403e62adc34d8b57c033fb07c))
+
 ## [0.24.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.23.0...v0.24.0) (2026-07-17)
 
 
