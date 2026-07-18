@@ -79,18 +79,42 @@ teardown() { teardown_tmpdir; }
     [[ "$output" != *"null"* ]]
 }
 
-@test "compose_images_available: aborts hard (not a graceful skip) when _profile_images fails" {
-    # Stub out _profile_images after sourcing helpers.bash so this exercises
-    # compose_images_available's own propagation logic without needing
-    # docker or a broken fixture on disk. A `return 1` here would be
-    # indistinguishable to callers from "Docker Hub rate-limited, skip
-    # gracefully" — the exact false-green class this fix closes — so the
-    # real function must exit the process instead.
+@test "compose_images_available: aborts hard so the caller's skip-guard idiom can't swallow it as a graceful skip" {
+    # Every heavy bats suite calls this as
+    # `if ! compose_images_available; then <write skip marker>; fi`. Stub out
+    # _profile_images after sourcing helpers.bash (no docker or broken
+    # fixture needed) and put the guard call itself inside that same `if`
+    # idiom, so this test proves the real regression class: a `return 1`
+    # here is indistinguishable to that `if` from "Docker Hub rate-limited,
+    # skip gracefully" and gets swallowed silently, while the required
+    # `exit 1` blows past the `if` entirely and is never reached.
     run bash -c "
         source $ROOT/tests/integration/helpers.bash
         _profile_images() { echo 'yq error: key not found' >&2; return 1; }
-        compose_images_available
+        if ! compose_images_available; then echo SWALLOWED_AS_SKIP; fi
+        echo REACHED_AFTER_GUARD
     "
     [ "$status" -ne 0 ] || false
-    [[ "$output" == *"test-infra bug"* ]]
+    [[ "$output" == *"test-infra bug"* ]] || false
+    [[ "$output" != *"SWALLOWED_AS_SKIP"* ]] || false
+    [[ "$output" != *"REACHED_AFTER_GUARD"* ]]
+}
+
+@test "preload_fake_vps_images: aborts hard so the caller's skip-guard idiom can't swallow it as a graceful skip" {
+    # Mirror of the compose_images_available test above: preload_fake_vps_images
+    # is the guard's sibling consumer of _profile_images and must exit the
+    # process on the same failure, for the same reason — a `return 1` here
+    # would be indistinguishable to an `if ! preload_fake_vps_images; then
+    # skip; fi` caller from a benign miss, silently turning a broken fixture
+    # into a permanent, undetected skip.
+    run bash -c "
+        source $ROOT/tests/integration/helpers.bash
+        _profile_images() { echo 'yq error: key not found' >&2; return 1; }
+        if ! preload_fake_vps_images; then echo SWALLOWED_AS_SKIP; fi
+        echo REACHED_AFTER_GUARD
+    "
+    [ "$status" -ne 0 ] || false
+    [[ "$output" == *"aborting rather than silently preloading"* ]] || false
+    [[ "$output" != *"SWALLOWED_AS_SKIP"* ]] || false
+    [[ "$output" != *"REACHED_AFTER_GUARD"* ]]
 }
