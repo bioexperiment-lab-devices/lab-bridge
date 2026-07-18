@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.26.0...v0.27.0) (2026-07-18)
+
+
+### Features
+
+* cut external-image bump cost from ~55min/3 PRs to ~1 PR ([#182](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/182)) ([0a08d20](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/0a08d20f60cf9207230b0b751ef8288e2372c0aa))
+
 ## [0.26.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.25.0...v0.26.0) (2026-07-18)
 
 
