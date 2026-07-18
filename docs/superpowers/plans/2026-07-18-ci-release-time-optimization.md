@@ -417,8 +417,14 @@ Replace `.github/workflows/pr-platform.yml` lines 19-48 with:
         with:
           filters: |
             heavy:
-              - 'compose/**'
-              - '!compose/images.yaml'
+              # NOT '!compose/images.yaml' as a separate entry:
+              # dorny/paths-filter@v3 combines a rule's patterns with some(),
+              # so a bare negation matches every path that ISN'T images.yaml —
+              # a catch-all that makes heavy true for every PR (including
+              # docs-only ones, regressing their <30s fast-skip). Keep the
+              # '/**' too: 'compose/!(images.yaml)' does not cross '/' and
+              # would drop compose/grafana/** and compose/loki/**.
+              - 'compose/**/!(images.yaml)'
               - 'scripts/**'
               - 'tests/integration/**'
               - 'config.example.yaml'

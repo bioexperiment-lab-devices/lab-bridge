@@ -101,13 +101,18 @@ aggregator:
 - **`bats-heavy`** — the fake-VPS matrix. Runs only when **non-image** paths
   change, or on a release-please head ref.
 
-paths-filter gains a negation so image-only edits don't trip the heavy gate:
+The `heavy` filter excludes `images.yaml` with an **extglob**, so image-only edits
+don't trip the heavy gate:
 
 ```yaml
 filters: |
   heavy:
-    - 'compose/**'
-    - '!compose/images.yaml'
+    # NOT '!compose/images.yaml' as a separate entry: dorny/paths-filter@v3
+    # combines a rule's patterns with some(), so a bare negation matches every
+    # path that ISN'T images.yaml — a catch-all that makes heavy always true.
+    # The extglob must keep '/**' or it stops crossing '/' and drops
+    # compose/grafana/** and compose/loki/** from the gate.
+    - 'compose/**/!(images.yaml)'
     - 'scripts/**'
     - 'tests/integration/**'
     - 'config.example.yaml'
@@ -118,6 +123,21 @@ filters: |
   shell:
     - 'scripts/**/*.sh'
 ```
+
+Verified empirically against `picomatch` with `{dot: true}` + `some()` (the
+action's own matching logic) over this truth table — `heavy` must be:
+
+| changed | heavy |
+| --- | --- |
+| `compose/images.yaml` only | false |
+| `compose/pins.yaml` only | true |
+| `images.yaml` + `scripts/**` | true |
+| `README.md` only | false |
+| `services/siteapp/**` only | false |
+| `compose/grafana/**`, `compose/loki/**` | true |
+
+The docs-only and services-only rows matter as much as the images row: a bare
+negation regressed them from a <30 s fast-skip to the full ~21 min matrix.
 
 `should-run` keeps the release-please bypass, forcing `heavy=true` for
 `release-please--*` head refs so the release PR remains the full pre-deploy
