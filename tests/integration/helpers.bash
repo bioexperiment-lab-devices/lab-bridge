@@ -111,26 +111,96 @@ _save_and_load_into_fake_vps() {
     rm -f "$tar"
 }
 
+# Read a single scalar field from a YAML file. Wraps `yq -e` (which already
+# fails on a missing/null/false result) so a caller can chain `|| return 1`
+# instead of getting yq's default behaviour of printing the literal string
+# "null" and exiting 0 — the exact failure mode that let a renamed/missing
+# fixture key silently masquerade as a real (bogus) image name.
+_yq_field() {
+    local val
+    val="$(yq -e "$1" "$2")" || return 1
+    printf '%s\n' "$val"
+}
+
+# Image set the active suite profile needs, derived from the test fixture so
+# a fixture bump can never silently desync the preload list.
+#
+#   full (default) — the whole stack, including the multi-GB scipy-notebook
+#                    and the studio image
+#   core           — caddy/chisel/authelia only
+#
+# Every fixture read below goes through _yq_field (`yq -e`) and returns
+# non-zero on failure instead of emitting the literal string "null" for a
+# missing/renamed key. See preload_fake_vps_images/compose_images_available
+# below for how that failure propagates to callers.
+#
+# CONTRACT — what `core` does and does NOT do: it trims the PRELOAD set and
+# the compose_images_available SKIP-GUARD coverage only. It has NO effect on
+# scripts/lib/config.sh's `disabled_services`, so by itself it does NOT stop
+# deploy.sh from bringing jupyter/studio/monitoring up. `core` is only safe
+# for a suite that additionally satisfies one of:
+#   (a) it brings the stack up via fake_vps_up_with_users() below, which
+#       applies its own disabled_services override for this profile;
+#   (b) it sets `disabled_services` itself in its own inline bring-up;
+#   (c) it never deploys the stack at all.
+# See the `profile` comment block in .github/workflows/pr-platform.yml for
+# which of the current 8 heavy suites satisfy which condition. A suite that
+# wires bring-up inline without (b) or a deploy step gets NO free pass from
+# `core`: deploy.sh would still bring the trimmed-out services up, just
+# without preload or skip-guard coverage for them — trading a graceful
+# rate-limit skip for a hard mid-deploy pull failure.
+#
+# authelia_image is deliberately read from the PRODUCTION images file
+# (compose/images.yaml), NOT the fixture: the fixture's authelia_image
+# (fixtures/valid_images.yaml) is a placeholder tag
+# (ghcr.io/test/lab-bridge-authelia:0.0.0) that only satisfies config
+# validation and is never pulled or built — the real upstream
+# authelia/authelia:<version> pin (compose/images.yaml) is what
+# bootstrap_authelia_for_tests / scripts/users.sh actually need on the host to
+# build the local authelia test image FROM. Probing the fixture's fake tag
+# here would 404 every run and make compose_images_available skip every
+# heavy suite unconditionally.
+#
+# $1 (optional): override the fixture path. Production callers
+# (preload_fake_vps_images, compose_images_available) always call this with
+# no arguments; the override exists only so tests can point at a
+# deliberately-broken fixture copy without touching the tracked one.
+_profile_images() {
+    local fixture="${1:-$ROOT/tests/integration/fixtures/valid_images.yaml}"
+    local profile="${LDS_SUITE_PROFILE:-full}"
+    printf '%s\n' caddy:2
+    _yq_field '.chisel_image' "$fixture" || return 1
+    _yq_field '.authelia_image' "$ROOT/compose/images.yaml" || return 1
+    [[ "$profile" == "core" ]] && return 0
+    _yq_field '.loki_image' "$fixture" || return 1
+    _yq_field '.grafana_image' "$fixture" || return 1
+    _yq_field '.jupyter_image' "$fixture" || return 1
+    _yq_field '.studio_image' "$fixture" || return 1
+}
+
 # Pre-load any images already cached on the host into the fake-VPS. This
 # sidesteps Docker Hub anonymous-pull rate limits during repeated test runs:
 # `docker compose pull --ignore-pull-failures` then no-ops when the image is
 # already present in the DinD's cache. Skips any image that isn't on the host.
+#
+# _profile_images's output is captured into a variable rather than fed
+# straight into `while ... < <(_profile_images)`: process substitution
+# discards the producer's exit status, so a failed read would otherwise
+# silently preload a short/null list instead of failing. See
+# compose_images_available below for why that failure aborts the process
+# instead of just returning 1.
 preload_fake_vps_images() {
-    local imgs=(
-        caddy:2
-        jpillora/chisel:1.10.1
-        grafana/loki:3.2.1
-        grafana/grafana:11.3.0
-        quay.io/jupyter/scipy-notebook:2026-04-20
-        authelia/authelia:4.38.10
-        ghcr.io/bioexperiment-lab-devices/experiment-studio:0.3.0
-    )
-    local img
-    for img in "${imgs[@]}"; do
+    local images img
+    if ! images="$(_profile_images)"; then
+        echo "preload_fake_vps_images: _profile_images failed — likely a missing/renamed fixture key (see yq error above); aborting rather than silently preloading a short/null list" >&2
+        exit 1
+    fi
+    while IFS= read -r img; do
+        [[ -z "$img" ]] && continue
         if docker image inspect "$img" >/dev/null 2>&1; then
             _save_and_load_into_fake_vps "$img" || true
         fi
-    done
+    done <<< "$images"
 }
 
 # Returns 0 when every compose-service image listed in the fixture is either
@@ -138,24 +208,27 @@ preload_fake_vps_images() {
 # locally. Returns 1 when the host environment can't satisfy the test —
 # typically a Docker Hub anonymous-pull rate limit on the CI runner. Use as
 # `compose_images_available || skip "host docker can't reach all images"`.
+#
+# A `_profile_images` failure (broken fixture) is deliberately NOT reported
+# via this function's ordinary `return 1`: every caller treats `return 1` as
+# "rate limited, skip gracefully", which would turn a fixture-desync bug into
+# a permanently silent skip — green CI, heavy suite never actually runs. So
+# that failure mode aborts the whole process instead of returning, and can't
+# be swallowed by an `if ! compose_images_available; then skip; fi` guard.
 compose_images_available() {
-    local imgs=(
-        caddy:2
-        jpillora/chisel:1.10.1
-        grafana/loki:3.2.1
-        grafana/grafana:11.3.0
-        quay.io/jupyter/scipy-notebook:2026-04-20
-        authelia/authelia:4.38.10
-        ghcr.io/bioexperiment-lab-devices/experiment-studio:0.3.0
-    )
-    local img
-    for img in "${imgs[@]}"; do
+    local images img
+    if ! images="$(_profile_images)"; then
+        echo "compose_images_available: _profile_images failed — likely a missing/renamed fixture key (see yq error above); this is a test-infra bug, not a rate limit, so failing hard instead of returning the ordinary skip-worthy 1" >&2
+        exit 1
+    fi
+    while IFS= read -r img; do
+        [[ -z "$img" ]] && continue
         if ! docker image inspect "$img" >/dev/null 2>&1; then
             if ! docker pull "$img" >/dev/null 2>&1; then
                 return 1
             fi
         fi
-    done
+    done <<< "$images"
     return 0
 }
 
@@ -228,7 +301,7 @@ bootstrap_authelia_for_tests() {
     export LDS_AUTHELIA_SECRETS_DIR="$TMPDIR/authelia_secrets"
     export LDS_GRAFANA_OIDC_SECRET_FILE="$TMPDIR/grafana_oidc_secret"
     export AUTHELIA_IMAGE
-    AUTHELIA_IMAGE="$(yq e '.authelia_image' "$ROOT/compose/pins.yaml")"
+    AUTHELIA_IMAGE="$(yq e '.authelia_image' "$ROOT/compose/images.yaml")"
     bash "$ROOT/scripts/secrets.sh" bootstrap-authelia
     export AUTHELIA_GRAFANA_OIDC_SECRET_HASH
     AUTHELIA_GRAFANA_OIDC_SECRET_HASH="$(yq e '.authelia.grafana_oidc_secret_hash' "$LDS_CONFIG")"
@@ -287,6 +360,7 @@ USERSEOF
 #   FAKE_VPS_HOST     — host:port for curl (127.0.0.1:2443)
 #   LDS_CONFIG        — path to the rendered config.yaml
 #   LDS_PINS_FILE     — path to the rendered pins.yaml
+#   LDS_IMAGES_FILE   — path to the rendered images.yaml
 #   LDS_USERS_DB      — path to the populated users_database.yml
 fake_vps_up_with_users() {
     if ! compose_images_available; then
@@ -301,10 +375,21 @@ fake_vps_up_with_users() {
     # ── Config + pins ──────────────────────────────────────────────────────
     cp "$ROOT/tests/integration/fixtures/valid_config.yaml" "$TMPDIR/config.yaml"
     yq -i ".vps.host = \"127.0.0.1\"" "$TMPDIR/config.yaml"
+    # This is mechanism (a) from the CONTRACT note above _profile_images:
+    # a `core` profile suite that brings the stack up via THIS helper gets
+    # jupyter/studio/monitoring disabled here, so deploy.sh skips both their
+    # preload and their startup. Suites that wire bring-up inline instead of
+    # calling this helper do NOT get this override for free — see the
+    # CONTRACT note for the other two ways a suite can safely use `core`.
+    if [[ "${LDS_SUITE_PROFILE:-full}" == "core" ]]; then
+        yq -i '.disabled_services = ["jupyter", "studio", "monitoring"]' "$TMPDIR/config.yaml"
+    fi
     cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
     yq -i ".ssh_port = 2222" "$TMPDIR/pins.yaml"
     export LDS_CONFIG="$TMPDIR/config.yaml"
     export LDS_PINS_FILE="$TMPDIR/pins.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_images.yaml" "$TMPDIR/images.yaml"
+    export LDS_IMAGES_FILE="$TMPDIR/images.yaml"
 
     # ── Bootstrap Authelia secrets ─────────────────────────────────────────
     # Use the real Authelia image for PBKDF2 hashing so the rendered

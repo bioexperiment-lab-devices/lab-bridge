@@ -35,3 +35,86 @@ teardown() { teardown_tmpdir; }
     [ "$status" -ne 0 ]
     [[ "$output" == *"definitely_not_a_command_xyz"* ]]
 }
+
+@test "_profile_images: core profile omits the heavy optional images" {
+    local fixture_chisel fixture_authelia
+    fixture_chisel="$(yq e '.chisel_image' "$ROOT/tests/integration/fixtures/valid_images.yaml")"
+    fixture_authelia="$(yq e '.authelia_image' "$ROOT/compose/images.yaml")"
+    run bash -c "source $ROOT/tests/integration/helpers.bash; LDS_SUITE_PROFILE=core _profile_images"
+    [ "$status" -eq 0 ] || false
+    [[ "$output" != *"scipy-notebook"* ]] || false
+    [[ "$output" != *"experiment-studio"* ]] || false
+    [[ "$output" == *"caddy"* ]] || false
+    [[ "$output" == *"$fixture_chisel"* ]] || false
+    [[ "$output" == *"$fixture_authelia"* ]]
+}
+
+@test "_profile_images: full profile includes every fixture image" {
+    local fixture_loki fixture_grafana
+    fixture_loki="$(yq e '.loki_image' "$ROOT/tests/integration/fixtures/valid_images.yaml")"
+    fixture_grafana="$(yq e '.grafana_image' "$ROOT/tests/integration/fixtures/valid_images.yaml")"
+    run bash -c "source $ROOT/tests/integration/helpers.bash; LDS_SUITE_PROFILE=full _profile_images"
+    [ "$status" -eq 0 ] || false
+    [[ "$output" == *"scipy-notebook"* ]] || false
+    [[ "$output" == *"experiment-studio"* ]] || false
+    [[ "$output" == *"$fixture_loki"* ]] || false
+    [[ "$output" == *"$fixture_grafana"* ]]
+}
+
+@test "_profile_images: reads tags from the fixture, not hardcoded values" {
+    local fixture_studio
+    fixture_studio="$(yq e '.studio_image' "$ROOT/tests/integration/fixtures/valid_images.yaml")"
+    run bash -c "source $ROOT/tests/integration/helpers.bash; LDS_SUITE_PROFILE=full _profile_images"
+    [[ "$output" == *"$fixture_studio"* ]]
+}
+
+@test "_profile_images: fails loudly instead of emitting 'null' when a fixture key is renamed" {
+    local broken="$BATS_TEST_TMPDIR/broken_images.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_images.yaml" "$broken"
+    # Mirror the reviewer's exact repro: rename a required key so yq's plain
+    # `.loki_image` lookup would print the literal string "null" and exit 0.
+    yq -i 'del(.loki_image)' "$broken"
+    run bash -c "source $ROOT/tests/integration/helpers.bash; _profile_images '$broken'"
+    [ "$status" -ne 0 ] || false
+    [[ "$output" != *"null"* ]]
+}
+
+@test "compose_images_available: aborts hard so the caller's skip-guard idiom can't swallow it as a graceful skip" {
+    # Every heavy bats suite calls this as
+    # `if ! compose_images_available; then <write skip marker>; fi`. Stub out
+    # _profile_images after sourcing helpers.bash (no docker or broken
+    # fixture needed) and put the guard call itself inside that same `if`
+    # idiom, so this test proves the real regression class: a `return 1`
+    # here is indistinguishable to that `if` from "Docker Hub rate-limited,
+    # skip gracefully" and gets swallowed silently, while the required
+    # `exit 1` blows past the `if` entirely and is never reached.
+    run bash -c "
+        source $ROOT/tests/integration/helpers.bash
+        _profile_images() { echo 'yq error: key not found' >&2; return 1; }
+        if ! compose_images_available; then echo SWALLOWED_AS_SKIP; fi
+        echo REACHED_AFTER_GUARD
+    "
+    [ "$status" -ne 0 ] || false
+    [[ "$output" == *"test-infra bug"* ]] || false
+    [[ "$output" != *"SWALLOWED_AS_SKIP"* ]] || false
+    [[ "$output" != *"REACHED_AFTER_GUARD"* ]]
+}
+
+@test "preload_fake_vps_images: aborts hard so the caller's skip-guard idiom can't swallow it as a graceful skip" {
+    # Mirror of the compose_images_available test above: preload_fake_vps_images
+    # is the guard's sibling consumer of _profile_images and must exit the
+    # process on the same failure, for the same reason — a `return 1` here
+    # would be indistinguishable to an `if ! preload_fake_vps_images; then
+    # skip; fi` caller from a benign miss, silently turning a broken fixture
+    # into a permanent, undetected skip.
+    run bash -c "
+        source $ROOT/tests/integration/helpers.bash
+        _profile_images() { echo 'yq error: key not found' >&2; return 1; }
+        if ! preload_fake_vps_images; then echo SWALLOWED_AS_SKIP; fi
+        echo REACHED_AFTER_GUARD
+    "
+    [ "$status" -ne 0 ] || false
+    [[ "$output" == *"aborting rather than silently preloading"* ]] || false
+    [[ "$output" != *"SWALLOWED_AS_SKIP"* ]] || false
+    [[ "$output" != *"REACHED_AFTER_GUARD"* ]]
+}

@@ -37,62 +37,36 @@ teardown() { teardown_tmpdir; }
 @test "load_config: exports VPS_HOST, JUPYTER_PASSWORD_HASH, etc." {
     run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/integration/fixtures/valid_config.yaml; echo \$VPS_HOST \$VPS_SSH_USER \$VPS_SSH_PORT \$JUPYTER_PASSWORD_HASH"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"192.0.2.10 khamit 22"* ]]
+    [[ "$output" == *"192.0.2.10 khamit 22"* ]] || false
     [[ "$output" == *"sha1:abcdef012345:"* ]]
 }
 
 @test "validate_config: rejects pins.yaml missing loki/grafana fields" {
-    cat > "$TMPDIR/cfg.yaml" <<'CFG'
-vps: {host: 1.2.3.4, ssh_user: u}
-jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
-siteapp: {admin_password_hash: "$2a$14$HO81PFKmfx2eOcpGyeogN.ct3M9SzgDmvXYHaeNrlTzV66aFbPK2y"}
-chisel_clients: []
-CFG
-    # Pins file is present but missing loki_image, loki_retention_days, grafana_image.
-    cat > "$TMPDIR/bad_pins.yaml" <<'PINS'
-jupyter_image: quay.io/jupyter/scipy-notebook:2026-04-20
-chisel_image: jpillora/chisel:1.10.1
-chisel_listen_port: 8080
-siteapp_image_repo: ghcr.io/test/lab-bridge-siteapp
-acme_email: ops@example.com
-remote_root: /srv/lab-bridge
-notebooks_path: /srv/jupyterlab/work
-ssh_port: 22
-PINS
-    run bash -c "export LDS_PINS_FILE=$TMPDIR/bad_pins.yaml; source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/cfg.yaml"
+    # loki_retention_days is a pins field; loki_image/grafana_image moved to
+    # images.yaml in the pins/images split — exercise both files' validation.
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/bad_pins.yaml"
+    yq -i 'del(.loki_retention_days)' "$TMPDIR/bad_pins.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_images.yaml" "$TMPDIR/bad_images.yaml"
+    yq -i 'del(.loki_image, .grafana_image)' "$TMPDIR/bad_images.yaml"
+    run bash -c "export LDS_PINS_FILE=$TMPDIR/bad_pins.yaml LDS_IMAGES_FILE=$TMPDIR/bad_images.yaml; source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/integration/fixtures/valid_config.yaml"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"loki_image"* ]]
-    [[ "$output" == *"loki_retention_days"* ]]
+    [[ "$output" == *"loki_image"* ]] || false
+    [[ "$output" == *"loki_retention_days"* ]] || false
     [[ "$output" == *"grafana_image"* ]]
 }
 
 @test "validate_config: rejects pins.yaml missing prometheus stack fields" {
-    cat > "$TMPDIR/cfg.yaml" <<'CFG'
-vps: {host: 1.2.3.4, ssh_user: u}
-jupyter: {password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567"}
-siteapp: {admin_password_hash: "$2a$14$HO81PFKmfx2eOcpGyeogN.ct3M9SzgDmvXYHaeNrlTzV66aFbPK2y"}
-chisel_clients: []
-CFG
-    cat > "$TMPDIR/bad_pins.yaml" <<'PINS'
-jupyter_image: quay.io/jupyter/scipy-notebook:2026-04-20
-chisel_image: jpillora/chisel:1.10.1
-chisel_listen_port: 8080
-loki_image: grafana/loki:3.2.1
-loki_retention_days: 30
-grafana_image: grafana/grafana:11.3.0
-siteapp_image_repo: ghcr.io/test/lab-bridge-siteapp
-flasher_image_repo: ghcr.io/test/lab-bridge-flasher
-caddy_image_repo: ghcr.io/test/lab-bridge-caddy
-acme_email: ops@example.com
-remote_root: /srv/lab-bridge
-notebooks_path: /srv/jupyterlab/work
-ssh_port: 22
-PINS
-    run bash -c "export LDS_PINS_FILE=$TMPDIR/bad_pins.yaml; source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/cfg.yaml"
+    # prometheus_retention_days is a pins field; prometheus_image/
+    # node_exporter_image/cadvisor_image moved to images.yaml in the split.
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/bad_pins.yaml"
+    yq -i 'del(.prometheus_retention_days)' "$TMPDIR/bad_pins.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_images.yaml" "$TMPDIR/bad_images.yaml"
+    yq -i 'del(.prometheus_image, .node_exporter_image, .cadvisor_image)' "$TMPDIR/bad_images.yaml"
+    run bash -c "export LDS_PINS_FILE=$TMPDIR/bad_pins.yaml LDS_IMAGES_FILE=$TMPDIR/bad_images.yaml; source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/integration/fixtures/valid_config.yaml"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"prometheus_image"* ]]
-    [[ "$output" == *"node_exporter_image"* ]]
-    [[ "$output" == *"cadvisor_image"* ]]
+    [[ "$output" == *"prometheus_image"* ]] || false
+    [[ "$output" == *"node_exporter_image"* ]] || false
+    [[ "$output" == *"cadvisor_image"* ]] || false
     [[ "$output" == *"prometheus_retention_days"* ]]
 }
 
@@ -107,15 +81,28 @@ PINS
 @test "load_config: exports LOKI_IMAGE, LOKI_RETENTION_DAYS, GRAFANA_IMAGE" {
     run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/integration/fixtures/valid_config.yaml; echo \$LOKI_IMAGE \$LOKI_RETENTION_DAYS \$GRAFANA_IMAGE"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"grafana/loki:3.2.1 30 grafana/grafana:11.3.0"* ]]
+    # No LDS_IMAGES_FILE override in this test — load_config falls back to the
+    # real compose/images.yaml, so derive the expected refs from that same
+    # file instead of hardcoding upstream versions (a routine Renovate bump
+    # of grafana/loki must not break this cheap-tier test).
+    local loki_image grafana_image
+    loki_image="$(yq e '.loki_image' "$ROOT/compose/images.yaml")"
+    grafana_image="$(yq e '.grafana_image' "$ROOT/compose/images.yaml")"
+    [ "$output" = "$loki_image 30 $grafana_image" ]
 }
 
 @test "load_config: exports PROMETHEUS_IMAGE, NODE_EXPORTER_IMAGE, CADVISOR_IMAGE, PROMETHEUS_RETENTION_DAYS" {
     run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/integration/fixtures/valid_config.yaml; echo \$PROMETHEUS_IMAGE \$NODE_EXPORTER_IMAGE \$CADVISOR_IMAGE \$PROMETHEUS_RETENTION_DAYS"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"prom/prometheus:v3.0.1"* ]]
-    [[ "$output" == *"quay.io/prometheus/node-exporter:v1.8.2"* ]]
-    [[ "$output" == *"ghcr.io/google/cadvisor:v0.57.0"* ]]
+    # No LDS_IMAGES_FILE override — falls back to the real compose/images.yaml;
+    # derive expected refs from that file instead of hardcoding versions.
+    local prometheus_image node_exporter_image cadvisor_image
+    prometheus_image="$(yq e '.prometheus_image' "$ROOT/compose/images.yaml")"
+    node_exporter_image="$(yq e '.node_exporter_image' "$ROOT/compose/images.yaml")"
+    cadvisor_image="$(yq e '.cadvisor_image' "$ROOT/compose/images.yaml")"
+    [[ "$output" == *"$prometheus_image"* ]] || false
+    [[ "$output" == *"$node_exporter_image"* ]] || false
+    [[ "$output" == *"$cadvisor_image"* ]] || false
     [[ "$output" == *"30"* ]]
 }
 
@@ -123,28 +110,32 @@ PINS
     # Pins live in compose/pins.yaml; instance values live in config.yaml.
     mkdir -p "$TMPDIR/compose"
     cat > "$TMPDIR/compose/pins.yaml" <<'PINS'
-jupyter_image: quay.io/jupyter/scipy-notebook:2026-04-20
-chisel_image: jpillora/chisel:1.10.1
 chisel_listen_port: 8080
-loki_image: grafana/loki:3.2.1
 loki_retention_days: 30
-grafana_image: grafana/grafana:11.3.0
-studio_image: ghcr.io/example/experiment-studio:0.3.0
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
 streamer_image_repo: ghcr.io/example/lab-bridge-streamer
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
 caddy_image_repo: ghcr.io/example/lab-bridge-caddy
 authelia_image_repo: ghcr.io/example/lab-bridge-authelia
-authelia_image: ghcr.io/example/lab-bridge-authelia:latest
 acme_email: ops@example.com
 remote_root: /srv/lab-bridge
 notebooks_path: /srv/jupyterlab/work
 ssh_port: 22
+prometheus_retention_days: 30
+PINS
+    # Externally-released image pins moved to images.yaml in the split; keep
+    # them here so this test stays isolated from the repo's real images.yaml.
+    cat > "$TMPDIR/compose/images.yaml" <<'IMAGES'
+jupyter_image: quay.io/jupyter/scipy-notebook:2026-04-20
+chisel_image: jpillora/chisel:1.10.1
+loki_image: grafana/loki:3.2.1
+grafana_image: grafana/grafana:11.3.0
+studio_image: ghcr.io/example/experiment-studio:0.3.0
+authelia_image: ghcr.io/example/lab-bridge-authelia:latest
 prometheus_image: prom/prometheus:v3.0.1
 node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
 cadvisor_image: gcr.io/cadvisor/cadvisor:v0.49.1
-prometheus_retention_days: 30
-PINS
+IMAGES
     cat > "$TMPDIR/config.yaml" <<'CFG'
 vps:
   host: 1.2.3.4
@@ -154,7 +145,7 @@ jupyter:
 chisel_clients: []
 CFG
 
-    run bash -c "export LDS_PINS_FILE=$TMPDIR/compose/pins.yaml; source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/config.yaml"
+    run bash -c "export LDS_PINS_FILE=$TMPDIR/compose/pins.yaml LDS_IMAGES_FILE=$TMPDIR/compose/images.yaml; source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/config.yaml"
     [ "$status" -eq 0 ]
 }
 
@@ -169,4 +160,118 @@ CFG
     run bash -c "export LDS_PINS_FILE=$TMPDIR/compose/pins.yaml; source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/config.yaml"
     [ "$status" -ne 0 ]
     [[ "$output" == *"pins file not found"* ]]
+}
+
+@test "validate_config: accepts valid config with split images file" {
+    run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/integration/fixtures/valid_config.yaml"
+    [ "$status" -eq 0 ]
+}
+
+@test "validate_config: missing images file gives clear error" {
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
+    run bash -c "source $ROOT/scripts/lib/config.sh; LDS_PINS_FILE=$TMPDIR/pins.yaml LDS_IMAGES_FILE=$TMPDIR/nope.yaml validate_config $ROOT/tests/integration/fixtures/valid_config.yaml"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"images file not found"* ]]
+}
+
+@test "validate_config: rejects images file missing a required image key" {
+    cp "$ROOT/tests/integration/fixtures/valid_pins.yaml" "$TMPDIR/pins.yaml"
+    cp "$ROOT/tests/integration/fixtures/valid_images.yaml" "$TMPDIR/images.yaml"
+    yq -i 'del(.studio_image)' "$TMPDIR/images.yaml"
+    run bash -c "source $ROOT/scripts/lib/config.sh; LDS_PINS_FILE=$TMPDIR/pins.yaml LDS_IMAGES_FILE=$TMPDIR/images.yaml validate_config $ROOT/tests/integration/fixtures/valid_config.yaml"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"studio_image"* ]]
+}
+
+@test "load_config: exports image vars sourced from images.yaml" {
+    # A substring check on the default fixture can't distinguish reading from
+    # images.yaml vs (accidentally) pins.yaml. Use a distinct sentinel tag and
+    # assert exact equality so the test actually proves the file redirect.
+    cp "$ROOT/tests/integration/fixtures/valid_images.yaml" "$TMPDIR/images.yaml"
+    yq -i '.studio_image = "sentinel/studio:9.9.9"' "$TMPDIR/images.yaml"
+    run bash -c "export LDS_IMAGES_FILE=$TMPDIR/images.yaml; source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/integration/fixtures/valid_config.yaml; echo \$STUDIO_IMAGE"
+    [ "$status" -eq 0 ]
+    [ "$output" = "sentinel/studio:9.9.9" ]
+}
+
+@test "pins.yaml no longer carries external image keys" {
+    run yq e '.studio_image // "absent"' "$ROOT/compose/pins.yaml"
+    [ "$output" = "absent" ]
+    run yq e '.siteapp_image_repo' "$ROOT/compose/pins.yaml"
+    [[ "$output" == *"lab-bridge-siteapp"* ]]
+}
+
+@test "renovate tracks compose/images.yaml, not pins.yaml" {
+    run yq -o=json e '.customManagers[0].fileMatch[0]' "$ROOT/renovate.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"images"* ]] || false
+    [[ "$output" != *"pins"* ]]
+}
+
+@test "pr-platform: heavy filter uses the extglob exclusion, not a bare negation entry" {
+    # dorny/paths-filter@v3 combines a rule's patterns with `some()`
+    # semantics (predicateQuantifier defaults to "some") — there is no
+    # ordered last-match-wins and no negation-as-exclusion. A bare
+    # '!compose/images.yaml' entry is NOT an exclusion of 'compose/**'; it's
+    # an independent matcher that is true for every path that isn't that
+    # file (a catch-all). The real fix is the 'compose/**/!(images.yaml)'
+    # extglob. Bash/yq cannot evaluate picomatch glob semantics, so this
+    # test only pins the pattern text — the actual matching behavior (that
+    # compose/images.yaml-only PRs get heavy=false, and README.md/services/**
+    # PRs stay heavy=false) is verified out-of-band with a real picomatch
+    # run against a truth table; see the task-3 report for that evidence.
+    run bash -c "yq e '.jobs.changes.steps[] | select(.id == \"changed\") | .with.filters' \
+        '$ROOT/.github/workflows/pr-platform.yml' | yq e '.heavy | .[]' -"
+    [ "$status" -eq 0 ] || false
+
+    # No bare `!`-prefixed entry anywhere in the heavy rule (the bug pattern).
+    [[ "$output" != *$'\n!'* ]] || false
+    [[ "$output" != '!'* ]] || false
+
+    # The extglob exclusion entry must be present, verbatim.
+    [[ "$output" == *'compose/**/!(images.yaml)'* ]]
+}
+
+@test "pr-platform: images filter targets only compose/images.yaml" {
+    run bash -c "yq e '.jobs.changes.steps[] | select(.id == \"changed\") | .with.filters' \
+        '$ROOT/.github/workflows/pr-platform.yml' | yq e '.images | .[]' -"
+    [ "$status" -eq 0 ] || false
+    [ "$output" = "compose/images.yaml" ]
+}
+
+@test "pr-platform: has separate cheap and heavy bats jobs" {
+    run yq e '.jobs | keys | .[]' "$ROOT/.github/workflows/pr-platform.yml"
+    [ "$status" -eq 0 ] || false
+    local IFS=$'\n'
+    local -a job_names=($output)
+    unset IFS
+    local name
+    local found_cheap=0 found_heavy=0
+    for name in "${job_names[@]}"; do
+        [[ "$name" == "bats-cheap" ]] && found_cheap=1
+        [[ "$name" == "bats-heavy" ]] && found_heavy=1
+    done
+    [ "$found_cheap" -eq 1 ] || false
+    [ "$found_heavy" -eq 1 ]
+}
+
+@test "pr-platform: platform aggregator still needs both bats jobs" {
+    run yq e '.jobs.platform.needs | .[]' "$ROOT/.github/workflows/pr-platform.yml"
+    [ "$status" -eq 0 ] || false
+    local IFS=$'\n'
+    local -a needs=($output)
+    unset IFS
+    local name
+    local found_cheap=0 found_heavy=0
+    for name in "${needs[@]}"; do
+        [[ "$name" == "bats-cheap" ]] && found_cheap=1
+        [[ "$name" == "bats-heavy" ]] && found_heavy=1
+    done
+    [ "$found_cheap" -eq 1 ] || false
+    [ "$found_heavy" -eq 1 ]
+}
+
+@test "pr-platform: release-please refs still force the heavy suite" {
+    run grep -c 'release-please--' "$ROOT/.github/workflows/pr-platform.yml"
+    [ "$output" -ge 1 ]
 }

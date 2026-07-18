@@ -156,15 +156,15 @@ jobs:
 
       # services/authelia is a passthrough re-publish of authelia/authelia
       # under our GHCR namespace (uniform Sigstore attestation chain). The
-      # upstream tag lives in compose/pins.yaml so Renovate can bump it
+      # upstream tag lives in compose/images.yaml so Renovate can bump it
       # without touching the Dockerfile ARG default.
       - name: derive authelia upstream version
         if: steps.ref.outputs.mode == 'release'
         id: authelia-pin
         run: |
           set -euo pipefail
-          version="$(awk -F': ' '/^authelia_image:/ {sub(/.*:/, "", $2); print $2}' compose/pins.yaml)"
-          [[ -n "$version" ]] || { echo "::error::authelia_image not found in compose/pins.yaml"; exit 1; }
+          version="$(awk -F': ' '/^authelia_image:/ {sub(/.*:/, "", $2); print $2}' compose/images.yaml)"
+          [[ -n "$version" ]] || { echo "::error::authelia_image not found in compose/images.yaml"; exit 1; }
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: build & push authelia image

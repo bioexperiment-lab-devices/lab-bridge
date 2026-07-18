@@ -204,8 +204,8 @@ See [docs/adding-a-user.md](docs/adding-a-user.md). Users are managed via
   `Dockerfile`, `app/` (or `config/` for authelia), `tests/`, `tests/e2e/`, and
   `build.sh`.
 - `compose/` — `docker-compose.yml.tmpl`, `Caddyfile.tmpl`, `pins.yaml` (image
-  pins, paths, retention), `grafana/`, `loki/`, `prometheus/`, `shell/` (shared
-  navbar assets).
+  repos, paths, retention), `images.yaml` (externally-released image pins),
+  `grafana/`, `loki/`, `prometheus/`, `shell/` (shared navbar assets).
 - `scripts/` — `provision.sh`, `deploy.sh`, `secrets.sh`, `users.sh`, `ops.sh`,
   `doctor.sh`, `security_audit.sh`, plus `lib/` helpers and a `fake_vps/` test
   container.

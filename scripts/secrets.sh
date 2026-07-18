@@ -225,7 +225,7 @@ cmd_bootstrap_authelia() {
     chmod 600 "$secrets_dir/oidc_jwks_key.pem"
 
     # Raw Grafana OIDC client secret + its PBKDF2 hash. The image pin comes
-    # from compose/pins.yaml via $AUTHELIA_IMAGE, which is exported by config.sh.
+    # from compose/images.yaml via $AUTHELIA_IMAGE, which is exported by config.sh.
     local raw hash
     raw="$(openssl rand -base64 32 | tr -d '+/=' | head -c 48)"
     printf '%s' "$raw" > "$grafana_oidc_secret_file"
@@ -239,16 +239,16 @@ cmd_bootstrap_authelia() {
         require_cmd docker
         # Honour AUTHELIA_IMAGE if the caller already exported it (the bats
         # bootstrap helper sets it to the upstream pin from the *real*
-        # compose/pins.yaml; the fixture pins.yaml under tests/integration/
+        # compose/images.yaml; the fixture images.yaml under tests/integration/
         # uses an unpullable ghcr.io/test/... tag). Otherwise read straight
-        # from compose/pins.yaml rather than depending on `load_config`
+        # from compose/images.yaml rather than depending on `load_config`
         # (which validates the full config and is overkill here).
         local authelia_image="${AUTHELIA_IMAGE:-}"
         if [[ -z "$authelia_image" ]]; then
-            local pins_path="${LDS_PINS_FILE:-$SCRIPT_DIR/../compose/pins.yaml}"
-            authelia_image="$(yq e '.authelia_image' "$pins_path")"
+            local images_path="${LDS_IMAGES_FILE:-$SCRIPT_DIR/../compose/images.yaml}"
+            authelia_image="$(yq e '.authelia_image' "$images_path")"
             [[ -n "$authelia_image" && "$authelia_image" != "null" ]] \
-                || die "authelia_image not set in $pins_path"
+                || die "authelia_image not set in $images_path"
         fi
         # `authelia crypto hash generate pbkdf2 --password <p>` prints the
         # hash after a label prefix. Older builds used "Password hash: " while

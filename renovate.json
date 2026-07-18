@@ -17,7 +17,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^compose/pins\\.yaml$"],
+      "fileMatch": ["^compose/images\\.yaml$"],
       "matchStrings": [
         "(?<depName>[^:\\s]+/[^:\\s]+):(?<currentValue>[^\\s]+)"
       ],

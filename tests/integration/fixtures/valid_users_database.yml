@@ -1,0 +1,6 @@
+users:
+  _stub:
+    displayname: Stub
+    password: '$argon2id$v=19$m=65536,t=3,p=4$iNzLZUasKgeeGpEP6ugJBA$59JMNV5RK+f4FPe/XZh+pljt5iEuzt8P4CcLBKp/izQ'
+    email: stub@example.invalid
+    groups: []

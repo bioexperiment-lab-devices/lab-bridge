@@ -1,8 +1,9 @@
 # config.example.yaml — copy to config.yaml and fill in.
 # config.yaml is gitignored; never commit secrets.
 #
-# Stack-level pins (image tags, paths, retention, ports, ACME email) live
-# in compose/pins.yaml — tracked in git, PR-reviewable, Renovate-managed.
+# Stack-level pins live in two tracked, PR-reviewable, Renovate-managed
+# files: paths, retention, ports, and ACME email in compose/pins.yaml;
+# externally-released image tags in compose/images.yaml.
 # This file carries only instance-specific values + secrets + the chisel
 # client roster.
 

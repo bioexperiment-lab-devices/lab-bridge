@@ -7,6 +7,7 @@ load helpers
 setup() {
     setup_tmpdir
     export LDS_PINS_FILE="$ROOT/tests/integration/fixtures/valid_pins.yaml"
+    export LDS_IMAGES_FILE="$ROOT/tests/integration/fixtures/valid_images.yaml"
 }
 teardown() { teardown_tmpdir; }
 

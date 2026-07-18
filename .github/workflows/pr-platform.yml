@@ -17,7 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      run: ${{ steps.should-run.outputs.run }}
+      heavy: ${{ steps.should-run.outputs.heavy }}
+      any: ${{ steps.should-run.outputs.any }}
       shell: ${{ steps.changed.outputs.shell }}
     steps:
       - uses: actions/checkout@v4
@@ -26,30 +27,51 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            src:
-              - 'compose/**'
+            # dorny/paths-filter@v3 combines a rule's patterns with `some()`
+            # semantics (predicateQuantifier defaults to "some") — there is NO
+            # ordered last-match-wins and no negation-as-exclusion. A bare
+            # '!compose/images.yaml' entry is NOT an exclusion of
+            # 'compose/**': it is an independent matcher that is true for
+            # every path that is not compose/images.yaml, i.e. a catch-all
+            # that matches README.md, services/**, etc. Do not "simplify"
+            # this back to the two-entry form — use the extglob below, which
+            # matches every compose/** file except images.yaml in one
+            # pattern. (Do not shrink it to 'compose/!(images.yaml)' either —
+            # that doesn't cross '/', so it would drop compose/grafana/**
+            # and compose/loki/** from the heavy gate.)
+            heavy:
+              - 'compose/**/!(images.yaml)'
               - 'scripts/**'
               - 'tests/integration/**'
               - 'config.example.yaml'
               - 'Taskfile.yml'
               - '.github/workflows/pr-platform.yml'
+            images:
+              - 'compose/images.yaml'
             shell:
               - 'scripts/**/*.sh'
 
       - id: should-run
-        name: determine if suite should run
+        name: determine which suites should run
         run: |
           set -e
+          heavy="${{ steps.changed.outputs.heavy }}"
+          images="${{ steps.changed.outputs.images }}"
           if [[ "${{ github.head_ref }}" == release-please--* ]]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
+            heavy=true
             echo "::notice::release-please PR — running full platform suite"
-          else
-            echo "run=${{ steps.changed.outputs.src }}" >> "$GITHUB_OUTPUT"
           fi
+          any=false
+          if [[ "$heavy" == "true" || "$images" == "true" ]]; then
+            any=true
+          fi
+          echo "heavy=$heavy" >> "$GITHUB_OUTPUT"
+          echo "any=$any"     >> "$GITHUB_OUTPUT"
+          echo "heavy=$heavy any=$any"
 
   shellcheck:
     needs: changes
-    if: needs.changes.outputs.run == 'true' && needs.changes.outputs.shell == 'true'
+    if: needs.changes.outputs.heavy == 'true' && needs.changes.outputs.shell == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -60,9 +82,42 @@ jobs:
           sudo apt-get install -y shellcheck
           shellcheck -x --severity=warning scripts/*.sh scripts/lib/*.sh
 
-  bats:
+  bats-cheap:
     needs: changes
-    if: needs.changes.outputs.run == 'true'
+    if: needs.changes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: bats (cheap)
+    steps:
+      - uses: actions/checkout@v4
+      - name: install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: install yq v4
+        run: |
+          sudo wget -q https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+      - name: install bats
+        uses: bats-core/bats-action@3.0.1
+      - name: bats cheap
+        run: |
+          bats tests/integration/test_common.bats \
+               tests/integration/test_config.bats \
+               tests/integration/test_crypto.bats \
+               tests/integration/test_render.bats \
+               tests/integration/test_secrets.bats \
+               tests/integration/test_grafana_provisioning.bats \
+               tests/integration/test_deploy_stack_only.bats \
+               tests/integration/test_service_selection_render.bats \
+               tests/integration/test_images_cli.bats \
+               tests/integration/test_deploy_preflight.bats
+
+  bats-heavy:
+    needs: changes
+    if: needs.changes.outputs.heavy == 'true'
     runs-on: ubuntu-latest
     # Each cell brings up the fake VPS (compose pull + render + bringup) before
     # its bats file runs. On the slowest GitHub runner allocations the `ops`
@@ -75,44 +130,71 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - suite: cheap
-            files: >-
-              tests/integration/test_common.bats
-              tests/integration/test_config.bats
-              tests/integration/test_crypto.bats
-              tests/integration/test_render.bats
-              tests/integration/test_secrets.bats
-              tests/integration/test_grafana_provisioning.bats
-              tests/integration/test_deploy_stack_only.bats
-              tests/integration/test_service_selection_render.bats
+          # profile (LDS_SUITE_PROFILE) picks how much of the stack
+          # preload_fake_vps_images/compose_images_available bring up — see
+          # the CONTRACT note above _profile_images in
+          # tests/integration/helpers.bash. `core` trims the PRELOAD set and
+          # the skip-guard's image coverage ONLY — it does NOT by itself stop
+          # deploy.sh from bringing jupyter/studio/monitoring up. A cell is
+          # only safe at `core` if its suite also satisfies one of:
+          #   (a) it brings the stack up via fake_vps_up_with_users(), which
+          #       applies its own disabled_services override for this
+          #       profile — `auth` is the only cell that calls this helper,
+          #       and it still needs `full` (see below), so no cell uses
+          #       `core` via path (a) today;
+          #   (b) it sets disabled_services itself in its own inline
+          #       bring-up — `service-selection` (it already disables
+          #       jupyter/monitoring/studio/streamer/flasher, so trimming
+          #       preload to caddy/chisel/authelia matches what's actually
+          #       deployed);
+          #   (c) it never deploys the stack at all — `provision` (its
+          #       setup_file only exercises provision.sh, never deploy.sh).
+          # deploy/ops/routes-smoke/metrics-smoke/navbar wire bring-up inline
+          # WITHOUT touching disabled_services and each assert something
+          # about jupyter, studio, or the monitoring group, so they MUST stay
+          # `full`: `core` would still let deploy.sh bring those services up
+          # unpreloaded and unguarded, trading a graceful rate-limit skip for
+          # a hard mid-deploy pull failure. `auth` satisfies path (a) above
+          # but still needs `full`: it exercises the forward_auth gate on
+          # /jupyter/ and /grafana/, and those routes are deleted outright by
+          # render_caddyfile's svc:jupyter/svc:monitoring block-stripping
+          # when the service is disabled — a `core` auth cell would fail
+          # hard, not just skip less.
           - suite: deploy
             files: tests/integration/test_deploy.bats
+            profile: full
           - suite: ops
             files: tests/integration/test_ops.bats
+            profile: full
           - suite: provision
             files: tests/integration/test_provision.bats
+            profile: core
           - suite: routes-smoke
             files: tests/integration/test_routes_smoke.bats
+            profile: full
           - suite: metrics-smoke
             files: tests/integration/test_metrics_smoke.bats
+            profile: full
           - suite: navbar
             files: tests/integration/test_navbar_smoke.bats
+            profile: full
           - suite: auth
             files: tests/integration/test_auth_smoke.bats
+            profile: full
           - suite: service-selection
             files: tests/integration/test_service_selection.bats
+            profile: core
     name: bats (${{ matrix.suite }})
     steps:
       - uses: actions/checkout@v4
 
-      # Heavy cells (everything except `cheap`) build 4 local service images
-      # and side-load them — plus the multi-GB scipy-notebook image — into the
-      # fake-VPS DinD. GitHub-hosted ubuntu-latest runners ship with ~14 GB
-      # free, which has been observed to run out (e.g. PR #105 hit
-      # "no space left on device" during scipy-notebook layer extraction).
-      # Reclaim ~20 GB by removing pre-installed SDKs we never use.
+      # Every remaining cell builds 4 local service images and side-loads
+      # them — plus the multi-GB scipy-notebook image — into the fake-VPS
+      # DinD. GitHub-hosted ubuntu-latest runners ship with ~14 GB free,
+      # which has been observed to run out (e.g. PR #105 hit "no space left
+      # on device" during scipy-notebook layer extraction). Reclaim ~20 GB
+      # by removing pre-installed SDKs we never use.
       - name: free disk space
-        if: matrix.suite != 'cheap'
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
           tool-cache: false
@@ -139,13 +221,16 @@ jobs:
         uses: bats-core/bats-action@3.0.1
 
       - name: bats ${{ matrix.suite }}
+        env:
+          LDS_SUITE_PROFILE: ${{ matrix.profile }}
         run: bats ${{ matrix.files }}
 
   # Aggregator: the single required check for branch protection. Succeeds
   # when changes ran and every dependent job either passed or was skipped
-  # (e.g., docs-only PRs where changes.outputs.run=='false').
+  # (e.g., docs-only PRs where changes.outputs.any=='false', or image-only
+  # PRs where heavy=='false' but any=='true' so only bats-cheap runs).
   platform:
-    needs: [changes, shellcheck, bats]
+    needs: [changes, shellcheck, bats-cheap, bats-heavy]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -155,15 +240,17 @@ jobs:
           set -e
           changes="${{ needs.changes.result }}"
           shellcheck="${{ needs.shellcheck.result }}"
-          bats="${{ needs.bats.result }}"
+          cheap="${{ needs.bats-cheap.result }}"
+          heavy="${{ needs.bats-heavy.result }}"
           echo "changes:    $changes"
           echo "shellcheck: $shellcheck"
-          echo "bats:       $bats"
+          echo "bats-cheap: $cheap"
+          echo "bats-heavy: $heavy"
           if [[ "$changes" != "success" ]]; then
             echo "::error::changes job did not succeed: $changes"
             exit 1
           fi
-          for r in "$shellcheck" "$bats"; do
+          for r in "$shellcheck" "$cheap" "$heavy"; do
             case "$r" in
               success|skipped) ;;
               *)
