@@ -331,28 +331,32 @@ EOF
 @test "render_compose: SITEAPP_IMAGE is composed from pins.yaml + root VERSION" {
     mkdir -p "$BATS_TEST_TMPDIR/compose"
     cat > "$BATS_TEST_TMPDIR/compose/pins.yaml" <<'PINS'
-jupyter_image: jup:1
-chisel_image: chi:1
 chisel_listen_port: 8080
-loki_image: lok:1
 loki_retention_days: 30
-grafana_image: gra:1
-studio_image: stu:1
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
 streamer_image_repo: ghcr.io/example/lab-bridge-streamer
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
 caddy_image_repo: ghcr.io/example/lab-bridge-caddy
 authelia_image_repo: ghcr.io/example/lab-bridge-authelia
-authelia_image: ghcr.io/example/lab-bridge-authelia:latest
 acme_email: x@example.com
 remote_root: /srv/lb
 notebooks_path: /srv/lb/nb
 ssh_port: 22
+prometheus_retention_days: 30
+PINS
+    # Externally-released image pins moved to images.yaml in the split; keep
+    # them here so this test stays isolated from the repo's real images.yaml.
+    cat > "$BATS_TEST_TMPDIR/compose/images.yaml" <<'IMAGES'
+jupyter_image: jup:1
+chisel_image: chi:1
+loki_image: lok:1
+grafana_image: gra:1
+studio_image: stu:1
+authelia_image: ghcr.io/example/lab-bridge-authelia:latest
 prometheus_image: prom/prometheus:v3.0.1
 node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
 cadvisor_image: gcr.io/cadvisor/cadvisor:v0.49.1
-prometheus_retention_days: 30
-PINS
+IMAGES
     echo "1.2.3 # x-release-please-version" > "$BATS_TEST_TMPDIR/VERSION"
     cat > "$BATS_TEST_TMPDIR/config.yaml" <<'CFG'
 vps: { host: 1.2.3.4, ssh_user: deploy }
@@ -370,6 +374,7 @@ CFG
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
         export LDS_PINS_FILE='$BATS_TEST_TMPDIR/compose/pins.yaml'
+        export LDS_IMAGES_FILE='$BATS_TEST_TMPDIR/compose/images.yaml'
         export LDS_VERSION_FILE='$BATS_TEST_TMPDIR/VERSION'
         load_config '$BATS_TEST_TMPDIR/config.yaml'
         render_compose '$BATS_TEST_TMPDIR/compose.tmpl' '$BATS_TEST_TMPDIR/out'
@@ -382,28 +387,32 @@ CFG
 @test "render_compose: FLASHER_IMAGE is composed from pins.yaml + root VERSION" {
     mkdir -p "$BATS_TEST_TMPDIR/compose"
     cat > "$BATS_TEST_TMPDIR/compose/pins.yaml" <<'PINS'
-jupyter_image: jup:1
-chisel_image: chi:1
 chisel_listen_port: 8080
-loki_image: lok:1
 loki_retention_days: 30
-grafana_image: gra:1
-studio_image: stu:1
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
 streamer_image_repo: ghcr.io/example/lab-bridge-streamer
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
 caddy_image_repo: ghcr.io/example/lab-bridge-caddy
 authelia_image_repo: ghcr.io/example/lab-bridge-authelia
-authelia_image: ghcr.io/example/lab-bridge-authelia:latest
 acme_email: x@example.com
 remote_root: /srv/lb
 notebooks_path: /srv/lb/nb
 ssh_port: 22
+prometheus_retention_days: 30
+PINS
+    # Externally-released image pins moved to images.yaml in the split; keep
+    # them here so this test stays isolated from the repo's real images.yaml.
+    cat > "$BATS_TEST_TMPDIR/compose/images.yaml" <<'IMAGES'
+jupyter_image: jup:1
+chisel_image: chi:1
+loki_image: lok:1
+grafana_image: gra:1
+studio_image: stu:1
+authelia_image: ghcr.io/example/lab-bridge-authelia:latest
 prometheus_image: prom/prometheus:v3.0.1
 node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
 cadvisor_image: gcr.io/cadvisor/cadvisor:v0.49.1
-prometheus_retention_days: 30
-PINS
+IMAGES
     echo "1.2.3 # x-release-please-version" > "$BATS_TEST_TMPDIR/VERSION"
     cat > "$BATS_TEST_TMPDIR/config.yaml" <<'CFG'
 vps: { host: 1.2.3.4, ssh_user: deploy }
@@ -420,6 +429,7 @@ CFG
         source $ROOT/scripts/lib/config.sh
         source $ROOT/scripts/lib/render.sh
         export LDS_PINS_FILE='$BATS_TEST_TMPDIR/compose/pins.yaml'
+        export LDS_IMAGES_FILE='$BATS_TEST_TMPDIR/compose/images.yaml'
         export LDS_VERSION_FILE='$BATS_TEST_TMPDIR/VERSION'
         load_config '$BATS_TEST_TMPDIR/config.yaml'
         render_compose '$BATS_TEST_TMPDIR/compose.tmpl' '$BATS_TEST_TMPDIR/out'
@@ -538,28 +548,32 @@ EOF
     # Minimal pins with authelia fields.
     mkdir -p "$BATS_TEST_TMPDIR/compose"
     cat > "$BATS_TEST_TMPDIR/compose/pins.yaml" <<'PINS'
-jupyter_image: jup:1
-chisel_image: chi:1
 chisel_listen_port: 8080
-loki_image: lok:1
 loki_retention_days: 30
-grafana_image: gra:1
-studio_image: stu:1
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
 streamer_image_repo: ghcr.io/example/lab-bridge-streamer
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
 caddy_image_repo: ghcr.io/example/lab-bridge-caddy
 authelia_image_repo: ghcr.io/test/authelia
-authelia_image: ghcr.io/test/authelia:latest
 acme_email: x@example.com
 remote_root: /srv/lb
 notebooks_path: /srv/lb/nb
 ssh_port: 22
+prometheus_retention_days: 30
+PINS
+    # Externally-released image pins moved to images.yaml in the split; keep
+    # them here so this test stays isolated from the repo's real images.yaml.
+    cat > "$BATS_TEST_TMPDIR/compose/images.yaml" <<'IMAGES'
+jupyter_image: jup:1
+chisel_image: chi:1
+loki_image: lok:1
+grafana_image: gra:1
+studio_image: stu:1
+authelia_image: ghcr.io/test/authelia:latest
 prometheus_image: prom/prometheus:v3.0.1
 node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
 cadvisor_image: gcr.io/cadvisor/cadvisor:v0.49.1
-prometheus_retention_days: 30
-PINS
+IMAGES
     cat > "$BATS_TEST_TMPDIR/config.yaml" <<'EOF'
 vps: { host: vps.example, ssh_user: root }
 jupyter: { password_hash: "sha1:abcdef012345:0123456789abcdef0123456789abcdef01234567" }
@@ -570,6 +584,7 @@ EOF
     echo "9.9.9" > "$LDS_VERSION_FILE"
     export LDS_VERSION_FILE
     export LDS_PINS_FILE="$BATS_TEST_TMPDIR/compose/pins.yaml"
+    export LDS_IMAGES_FILE="$BATS_TEST_TMPDIR/compose/images.yaml"
     export AUTHELIA_IMAGE_REPO="ghcr.io/test/authelia"
 
     CONFIG_PATH="$BATS_TEST_TMPDIR/config.yaml" load_config "$BATS_TEST_TMPDIR/config.yaml"

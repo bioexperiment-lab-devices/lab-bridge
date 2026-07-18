@@ -50,8 +50,8 @@ teardown() { teardown_tmpdir; }
     yq -i 'del(.loki_image, .grafana_image)' "$TMPDIR/bad_images.yaml"
     run bash -c "export LDS_PINS_FILE=$TMPDIR/bad_pins.yaml LDS_IMAGES_FILE=$TMPDIR/bad_images.yaml; source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/integration/fixtures/valid_config.yaml"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"loki_image"* ]]
-    [[ "$output" == *"loki_retention_days"* ]]
+    [[ "$output" == *"loki_image"* ]] || false
+    [[ "$output" == *"loki_retention_days"* ]] || false
     [[ "$output" == *"grafana_image"* ]]
 }
 
@@ -64,9 +64,9 @@ teardown() { teardown_tmpdir; }
     yq -i 'del(.prometheus_image, .node_exporter_image, .cadvisor_image)' "$TMPDIR/bad_images.yaml"
     run bash -c "export LDS_PINS_FILE=$TMPDIR/bad_pins.yaml LDS_IMAGES_FILE=$TMPDIR/bad_images.yaml; source $ROOT/scripts/lib/config.sh; validate_config $ROOT/tests/integration/fixtures/valid_config.yaml"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"prometheus_image"* ]]
-    [[ "$output" == *"node_exporter_image"* ]]
-    [[ "$output" == *"cadvisor_image"* ]]
+    [[ "$output" == *"prometheus_image"* ]] || false
+    [[ "$output" == *"node_exporter_image"* ]] || false
+    [[ "$output" == *"cadvisor_image"* ]] || false
     [[ "$output" == *"prometheus_retention_days"* ]]
 }
 
@@ -97,28 +97,32 @@ teardown() { teardown_tmpdir; }
     # Pins live in compose/pins.yaml; instance values live in config.yaml.
     mkdir -p "$TMPDIR/compose"
     cat > "$TMPDIR/compose/pins.yaml" <<'PINS'
-jupyter_image: quay.io/jupyter/scipy-notebook:2026-04-20
-chisel_image: jpillora/chisel:1.10.1
 chisel_listen_port: 8080
-loki_image: grafana/loki:3.2.1
 loki_retention_days: 30
-grafana_image: grafana/grafana:11.3.0
-studio_image: ghcr.io/example/experiment-studio:0.3.0
 siteapp_image_repo: ghcr.io/example/lab-bridge-siteapp
 streamer_image_repo: ghcr.io/example/lab-bridge-streamer
 flasher_image_repo: ghcr.io/example/lab-bridge-flasher
 caddy_image_repo: ghcr.io/example/lab-bridge-caddy
 authelia_image_repo: ghcr.io/example/lab-bridge-authelia
-authelia_image: ghcr.io/example/lab-bridge-authelia:latest
 acme_email: ops@example.com
 remote_root: /srv/lab-bridge
 notebooks_path: /srv/jupyterlab/work
 ssh_port: 22
+prometheus_retention_days: 30
+PINS
+    # Externally-released image pins moved to images.yaml in the split; keep
+    # them here so this test stays isolated from the repo's real images.yaml.
+    cat > "$TMPDIR/compose/images.yaml" <<'IMAGES'
+jupyter_image: quay.io/jupyter/scipy-notebook:2026-04-20
+chisel_image: jpillora/chisel:1.10.1
+loki_image: grafana/loki:3.2.1
+grafana_image: grafana/grafana:11.3.0
+studio_image: ghcr.io/example/experiment-studio:0.3.0
+authelia_image: ghcr.io/example/lab-bridge-authelia:latest
 prometheus_image: prom/prometheus:v3.0.1
 node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
 cadvisor_image: gcr.io/cadvisor/cadvisor:v0.49.1
-prometheus_retention_days: 30
-PINS
+IMAGES
     cat > "$TMPDIR/config.yaml" <<'CFG'
 vps:
   host: 1.2.3.4
@@ -128,7 +132,7 @@ jupyter:
 chisel_clients: []
 CFG
 
-    run bash -c "export LDS_PINS_FILE=$TMPDIR/compose/pins.yaml; source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/config.yaml"
+    run bash -c "export LDS_PINS_FILE=$TMPDIR/compose/pins.yaml LDS_IMAGES_FILE=$TMPDIR/compose/images.yaml; source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/config.yaml"
     [ "$status" -eq 0 ]
 }
 
@@ -167,11 +171,14 @@ CFG
 }
 
 @test "load_config: exports image vars sourced from images.yaml" {
-    run bash -c "source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/integration/fixtures/valid_config.yaml; echo \$STUDIO_IMAGE \$GRAFANA_IMAGE \$CADVISOR_IMAGE"
+    # A substring check on the default fixture can't distinguish reading from
+    # images.yaml vs (accidentally) pins.yaml. Use a distinct sentinel tag and
+    # assert exact equality so the test actually proves the file redirect.
+    cp "$ROOT/tests/integration/fixtures/valid_images.yaml" "$TMPDIR/images.yaml"
+    yq -i '.studio_image = "sentinel/studio:9.9.9"' "$TMPDIR/images.yaml"
+    run bash -c "export LDS_IMAGES_FILE=$TMPDIR/images.yaml; source $ROOT/scripts/lib/config.sh; load_config $ROOT/tests/integration/fixtures/valid_config.yaml; echo \$STUDIO_IMAGE"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"experiment-studio"* ]]
-    [[ "$output" == *"grafana"* ]]
-    [[ "$output" == *"cadvisor"* ]]
+    [ "$output" = "sentinel/studio:9.9.9" ]
 }
 
 @test "pins.yaml no longer carries external image keys" {
