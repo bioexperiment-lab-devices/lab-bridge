@@ -103,14 +103,6 @@ teardown() { teardown_tmpdir; }
     docker exec lds-fake-vps test -f /srv/lab-bridge/caddy_data/marker
 }
 
-@test "deploy: rejects config with invalid hash before touching VPS" {
-    cp "$ROOT/tests/integration/fixtures/bad_hash_config.yaml" "$LDS_CONFIG"
-    yq -i ".vps.host = \"127.0.0.1\"" "$LDS_CONFIG"
-    run bash "$ROOT/scripts/deploy.sh"
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"password_hash"* ]] || [[ "$output" == *"sha1"* ]]
-}
-
 @test "deploy: stages loki config, grafana provisioning, and admin_password" {
     run bash "$ROOT/scripts/deploy.sh"
     [ "$status" -eq 0 ]
@@ -132,14 +124,6 @@ teardown() { teardown_tmpdir; }
     bash "$ROOT/scripts/deploy.sh"
     docker exec lds-fake-vps test -f /srv/lab-bridge/loki_data/marker
     docker exec lds-fake-vps test -f /srv/lab-bridge/grafana_data/marker
-}
-
-@test "deploy: fails fast when grafana admin_password is missing" {
-    # Override shared setup's password file so the lookup fails.
-    export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/does-not-exist"
-    run bash "$ROOT/scripts/deploy.sh"
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"set-grafana-password"* ]] || [[ "$output" == *"admin_password"* ]]
 }
 
 @test "deploy: loki and grafana come up healthy on the fake VPS" {
@@ -164,27 +148,6 @@ teardown() { teardown_tmpdir; }
     docker exec lds-fake-vps bash -c '
         cd /srv/lab-bridge && docker compose exec -T loki wget -q -O - http://localhost:3100/ready
     ' >/dev/null
-}
-
-@test "deploy: fails fast when agent_upload_token is missing" {
-    export LDS_AGENT_TOKEN_FILE="$TMPDIR/does-not-exist"
-    run bash "$ROOT/scripts/deploy.sh"
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"rotate-agent-upload-token"* ]]
-}
-
-@test "deploy: fails fast when authelia users_database.yml is missing" {
-    export LDS_USERS_DB="$TMPDIR/does-not-exist-users.yml"
-    run bash "$ROOT/scripts/deploy.sh"
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"users:add"* ]]
-}
-
-@test "deploy: fails fast when authelia users_database.yml has zero users" {
-    printf 'users: {}\n' > "$LDS_USERS_DB"
-    run bash "$ROOT/scripts/deploy.sh"
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"users:add"* ]]
 }
 
 @test "deploy: stages siteapp/agent_upload_token" {

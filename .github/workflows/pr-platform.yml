@@ -112,7 +112,8 @@ jobs:
                tests/integration/test_grafana_provisioning.bats \
                tests/integration/test_deploy_stack_only.bats \
                tests/integration/test_service_selection_render.bats \
-               tests/integration/test_images_cli.bats
+               tests/integration/test_images_cli.bats \
+               tests/integration/test_deploy_preflight.bats
 
   bats-heavy:
     needs: changes
