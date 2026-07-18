@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.25.0...v0.26.0) (2026-07-18)
+
+
+### Features
+
+* ship experiment-studio 0.8.0 (UI-audit fixes W10) to the stack ([#180](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/180)) ([4dddb65](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/4dddb651fafa2a42aff8c94cc8237fbb8b9d3eec))
+
 ## [0.25.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.24.0...v0.25.0) (2026-07-18)
 
 
