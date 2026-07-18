@@ -42,7 +42,7 @@ Three defects drive that cost:
 | --- | --- |
 | Pin-PR gate for image-only bumps | **Skip the fake-VPS matrix entirely.** Keep the no-fake-VPS `cheap` tier (~40 s) so typos/bad renders are still caught. The release PR remains the full pre-deploy gate. |
 | How CI detects "image-only" | **Split external image pins into `compose/images.yaml`** so paths-filter separates image bumps from infra changes cleanly. Rejected an in-workflow diff heuristic (fragile bash parsing of `*_image:` lines). |
-| Release trigger for a bump | **One `feat:` PR** created by `task bump-service`. Renovate keeps emitting grouped `chore` PRs (no unattended 6am auto-deploy); `task ship-images` cuts the release for those. |
+| Release trigger for a bump | **One `feat:` PR** created by `task images:bump`. Renovate keeps emitting grouped `chore` PRs (no unattended 6am auto-deploy); `task images:ship` cuts the release for those. |
 | Bringup reduction | **Per-suite stack trimming via the existing `disabled_services` mechanism** plus profile-driven preload. |
 | Long-pole handling | **Extract no-bringup tests** from `test_deploy.bats`/`test_ops.bats` into the `cheap` tier. Explicitly *not* gratuitous cell-splitting — every new cell re-pays bringup. |
 
@@ -130,11 +130,11 @@ check; it already treats `skipped` dependents as passing, and gains
 **Net effect:** an `images.yaml`-only PR runs `pr-title` + `bats-cheap` (~40 s)
 and skips the entire fake-VPS matrix.
 
-## B. One-PR bumps: `task bump-service` / `task ship-images`
+## B. One-PR bumps: `task images:bump` / `task images:ship`
 
-### B1. `task bump-service -- <service> <version>`
+### B1. `task images:bump -- <service> <version>`
 
-Backed by a new `scripts/bump_service.sh`:
+Backed by a new `scripts/images.sh` (subcommand style, mirroring `scripts/secrets.sh` and `scripts/users.sh`):
 
 1. Validate `<service>` against the known external-image keys in `images.yaml`
    (reject unknown names with the allowed list, mirroring `disabled_services`
@@ -155,14 +155,14 @@ stranding failure mode.
 this flow already set (0.24.0 → 0.25.0 for the studio 0.7.0 ship). Keeping the
 type releasable is the whole point — a `chore` here would recreate the bug.
 
-### B2. Renovate unchanged; `task ship-images` for its bumps
+### B2. Renovate unchanged; `task images:ship` for its bumps
 
 Renovate keeps opening grouped `chore` PRs against `images.yaml`. They land
 without cutting a release (hidden type) and without tripping the heavy gate
 (A3) — cheap to merge, and deliberately **not** an unattended production
 deploy.
 
-`task ship-images` creates the empty `feat: ship pinned images to the stack`
+`task images:ship` creates the empty `feat: ship pinned images to the stack`
 commit + PR that cuts the release for whatever `images.yaml` currently holds.
 This is today's manual pattern reduced to one command, and it is the
 supported way to deploy Renovate-landed bumps.
@@ -187,9 +187,12 @@ Two correctness notes:
 
 - `compose_images_available` (the skip guard at `helpers.bash:141`) must be
   trimmed to the same profile, or suites will skip on images they no longer use.
-- Both lists currently hardcode `experiment-studio:0.3.0` while the real pin is
-  `0.8.0` — a **stale reference** that silently defeats studio preloading today.
-  Profiles must read the tag from `images.yaml`, not hardcode it.
+- Both lists hardcode their image set (including `experiment-studio:0.3.0`).
+  That tag currently *matches* `fixtures/valid_pins.yaml`, which is what the
+  fake-VPS actually deploys, so preloading works today — but the set is
+  duplicated in three places and must be hand-synced. Profiles must derive the
+  image set from the test fixture rather than hardcode it, so a fixture bump
+  can never silently disable preloading.
 
 ### C2. Extract no-bringup tests
 
@@ -231,7 +234,7 @@ new structure end-to-end.
 | Release PR still runs the full suite | The release PR for this work must show every heavy cell running (release-please bypass intact) |
 | Config split is behaviour-preserving | Existing `test_config.bats` / `test_render.bats` extended for the two-file load, `LDS_IMAGES_FILE` override, and a missing-images-file error |
 | Renovate still tracks images | `renovate.json` customManager regex validated against the new path |
-| `bump-service` works | Unit-level bats coverage for service-name validation and tag rewriting; the manifest check exercised against a known-good and known-bad tag |
+| `images:bump` works | Unit-level bats coverage for service-name validation and tag rewriting; the manifest check exercised against a known-good and known-bad tag |
 | Bringup actually got faster | Compare per-cell wall-clock on this PR against the 2026-07-18 baseline recorded above |
 
 ## Risks & mitigations
@@ -246,7 +249,7 @@ new structure end-to-end.
 
 ## Expected outcome
 
-External image bump: `task bump-service` → **one** PR → `bats-cheap` (~40 s) →
+External image bump: `task images:bump` → **one** PR → `bats-cheap` (~40 s) →
 merge → release PR (full suite, each cell faster after C) → deploy.
 
 **~55 min / 3 PRs → ~12–15 min / 1 PR + release.** The C work additionally
@@ -255,6 +258,6 @@ speeds up every platform PR, not just image bumps.
 ## Out of scope
 
 - The stranded 0.8.0 studio pin (explicitly deferred by the operator; it will
-  ride the next release or a `task ship-images` run).
+  ride the next release or a `task images:ship` run).
 - Changing the release-please component model or the single-`VERSION` stream.
 - Reworking `pr-<service>.yml` workflows — they already fast-skip correctly.
