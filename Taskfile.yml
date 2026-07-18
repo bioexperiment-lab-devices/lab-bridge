@@ -27,6 +27,9 @@ tasks:
   "deploy:rollback":
     desc: Trigger a CI rollback to a prior tag (e.g. task deploy:rollback -- v0.4.1)
     cmd: gh workflow run release-please.yml -f rollback_to={{.CLI_ARGS}}
+  "images:bump":
+    desc: "Bump an external image pin and open a releasable PR (e.g. task images:bump -- studio 0.9.0)"
+    cmd: bash scripts/images.sh bump {{.CLI_ARGS}}
   restart:  { desc: "docker compose restart",                        cmd: "bash scripts/ops.sh restart" }
   down:     { desc: "docker compose down",                           cmd: "bash scripts/ops.sh down" }
   destroy:  { desc: "docker compose down -v (DANGEROUS)",            cmd: "bash scripts/ops.sh destroy" }
