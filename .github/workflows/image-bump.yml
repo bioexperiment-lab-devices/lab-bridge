@@ -30,9 +30,9 @@ concurrency:
   group: image-bump-${{ inputs.service }}
   cancel-in-progress: false
 
-# Minimal: the App token below carries what git and gh actually need.
-permissions:
-  contents: read
+# Empty: the ambient GITHUB_TOKEN is unused — the App token carries
+# everything checkout and gh need.
+permissions: {}
 
 jobs:
   bump:
@@ -55,14 +55,20 @@ jobs:
 
       - name: install yq v4
         run: |
+          set -euo pipefail
           sudo wget -q https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -O /usr/local/bin/yq
           sudo chmod +x /usr/local/bin/yq
           yq --version
 
       - name: configure git identity
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          git config user.name  "bioexperiment-release-please[bot]"
-          git config user.email "bioexperiment-release-please[bot]@users.noreply.github.com"
+          set -euo pipefail
+          login="$(gh api /user --jq .login)"
+          id="$(gh api /user --jq .id)"
+          git config user.name  "$login"
+          git config user.email "${id}+${login}@users.noreply.github.com"
 
       # images.sh validates the version format and the service allowlist, and
       # verifies the tag is anonymously pullable, before it commits anything.
@@ -70,18 +76,26 @@ jobs:
       - id: bump
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: bash scripts/images.sh bump "${{ inputs.service }}" "${{ inputs.version }}"
+          SERVICE: ${{ inputs.service }}
+          VERSION: ${{ inputs.version }}
+        run: bash scripts/images.sh bump "$SERVICE" "$VERSION"
 
       - name: enable auto-merge
         if: steps.bump.outputs.pr_url != ''
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: gh pr merge --squash --auto "${{ steps.bump.outputs.pr_url }}"
+          PR_URL: ${{ steps.bump.outputs.pr_url }}
+        run: gh pr merge --squash --auto "$PR_URL"
 
       - name: summary
+        if: always()
+        env:
+          SERVICE: ${{ inputs.service }}
+          VERSION: ${{ inputs.version }}
+          PR_URL: ${{ steps.bump.outputs.pr_url }}
         run: |
-          if [ -n "${{ steps.bump.outputs.pr_url }}" ]; then
-            echo "Opened and auto-merge-enabled: ${{ steps.bump.outputs.pr_url }}" >>"$GITHUB_STEP_SUMMARY"
+          if [ -n "$PR_URL" ]; then
+            echo "Opened and auto-merge-enabled: $PR_URL" >>"$GITHUB_STEP_SUMMARY"
           else
-            echo "No PR — ${{ inputs.service }} is already pinned at ${{ inputs.version }}." >>"$GITHUB_STEP_SUMMARY"
+            echo "No PR — $SERVICE is already pinned at $VERSION, or the bump step failed before opening one." >>"$GITHUB_STEP_SUMMARY"
           fi
