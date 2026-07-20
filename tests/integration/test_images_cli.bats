@@ -27,8 +27,16 @@ teardown() {
 # this helper look dirty before the test even does anything.
 _scratch_repo() {
     git -C "$TMPDIR" init -q .
+    # Repo-local identity, NOT just `-c` on the init commit below: images.sh's
+    # _open_pr runs its own `git commit`, which inherits nothing from that.
+    # A developer laptop hides this — git auto-detects user@hostname when no
+    # identity is configured — but a CI runner cannot resolve a domain and
+    # aborts with "unable to auto-detect email address". That asymmetry made
+    # these tests pass locally and fail in CI.
+    git -C "$TMPDIR" config user.email t@t
+    git -C "$TMPDIR" config user.name t
     git -C "$TMPDIR" add -A
-    git -C "$TMPDIR" -c user.email=t@t -c user.name=t commit -q -m init
+    git -C "$TMPDIR" commit -q -m init
 }
 
 @test "images bump: rewrites the tag for a known service" {
