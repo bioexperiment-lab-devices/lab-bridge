@@ -40,8 +40,9 @@ jobs:
     timeout-minutes: 10
     steps:
       # The App token is load-bearing. A PR opened with GITHUB_TOKEN does not
-      # trigger `pull_request` workflows, so the required checks would never
-      # report and auto-merge would hang forever.
+      # trigger `pull_request` workflows, so the required checks (branch
+      # protection: `Semantic Pull Request`, `siteapp`, `flasher`, `caddy`,
+      # `platform`) would never report and auto-merge would hang forever.
       - id: app-token
         uses: actions/create-github-app-token@v3
         with:
@@ -82,21 +83,32 @@ jobs:
         run: bash scripts/images.sh bump "$SERVICE" "$VERSION"
 
       - name: enable auto-merge
+        id: automerge
         if: steps.bump.outputs.pr_url != ''
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_URL: ${{ steps.bump.outputs.pr_url }}
         run: gh pr merge --squash --auto "$PR_URL"
 
+      # steps.automerge.outcome distinguishes "PR opened AND auto-merge
+      # enabled" from "PR opened but auto-merge did NOT get enabled" (e.g.
+      # the App lacks `pull-requests: write`) — pr_url alone can't tell
+      # those apart, since it's set by the bump step regardless of whether
+      # the later auto-merge step then succeeds.
       - name: summary
         if: always()
         env:
           SERVICE: ${{ inputs.service }}
           VERSION: ${{ inputs.version }}
           PR_URL: ${{ steps.bump.outputs.pr_url }}
+          AUTOMERGE_OUTCOME: ${{ steps.automerge.outcome }}
         run: |
           if [ -n "$PR_URL" ]; then
-            echo "Opened and auto-merge-enabled: $PR_URL" >>"$GITHUB_STEP_SUMMARY"
+            if [ "$AUTOMERGE_OUTCOME" = "success" ]; then
+              echo "Opened and auto-merge-enabled: $PR_URL" >>"$GITHUB_STEP_SUMMARY"
+            else
+              echo "Opened but auto-merge did NOT get enabled (step outcome: $AUTOMERGE_OUTCOME) — check the App's pull-requests: write permission, then enable auto-merge by hand: $PR_URL" >>"$GITHUB_STEP_SUMMARY"
+            fi
           else
             echo "No PR — $SERVICE is already pinned at $VERSION, or the bump step failed before opening one." >>"$GITHUB_STEP_SUMMARY"
           fi

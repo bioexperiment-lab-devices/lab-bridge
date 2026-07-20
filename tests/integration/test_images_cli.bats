@@ -282,3 +282,20 @@ SH
     [[ "$output" == *"images/grafana-13.0.0"* ]] || false
     [[ "$output" == *"merge/close its PR"* ]] || false
 }
+
+# Drift guard: nothing else asserts that image-bump.yml's `service` choice
+# options stay in sync with _SERVICES in scripts/images.sh. A tenth pin
+# added to one without the other would silently miss the dropdown (or the
+# script's allowlist). Compared as sorted sets so list order in either file
+# is not spuriously load-bearing. Uses `tr ' ' '\n'` (not `tr -d`, which
+# would delete a character class and mangle "node_exporter") to split
+# _SERVICES' space-separated words onto their own lines before sorting.
+@test "images allowlist: image-bump.yml service options match scripts/images.sh _SERVICES" {
+    local workflow_opts services_opts
+    workflow_opts="$(yq e '.on.workflow_dispatch.inputs.service.options[]' "$ROOT/.github/workflows/image-bump.yml" | sort)"
+    services_opts="$(grep '^_SERVICES=' "$ROOT/scripts/images.sh" \
+        | sed -E 's/^_SERVICES=\(//; s/\)$//' \
+        | tr ' ' '\n' | sort)"
+
+    [ "$workflow_opts" = "$services_opts" ] || false
+}

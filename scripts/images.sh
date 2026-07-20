@@ -122,9 +122,16 @@ _checkout_new_branch() {
     git -C "$REPO_DIR" show-ref --verify --quiet "refs/heads/$branch" \
         && die "branch '$branch' already exists in $REPO_DIR — delete it (git -C '$REPO_DIR' branch -D $branch) or merge/close its PR before re-running"
     # Also check the remote. A fresh CI checkout never has the local branch,
-    # but the remote one survives a closed PR — without this the run dies on
-    # a raw `git push` rejection instead of an actionable message.
-    if git -C "$REPO_DIR" ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+    # but the remote one survives a closed PR — without this check, `git push`
+    # to a stale remote branch of the same name does not fail loudly: it
+    # exits 0 and silently fast-forwards the stale branch (and, downstream,
+    # the PR reopened against it) instead of dying with an actionable
+    # message. A silent overwrite is worse than a rejection.
+    # Pass the fully-qualified ref, not the bare branch name: `ls-remote`
+    # matches patterns on `/`-boundary suffixes, so a bare name would also
+    # false-positive on e.g. "x/images/grafana-13.0.0" when checking for
+    # "images/grafana-13.0.0".
+    if git -C "$REPO_DIR" ls-remote --exit-code --heads origin "refs/heads/$branch" >/dev/null 2>&1; then
         die "branch '$branch' already exists on origin — delete it (git -C '$REPO_DIR' push origin --delete $branch) or merge/close its PR before re-running"
     fi
     git -C "$REPO_DIR" checkout -b "$branch"

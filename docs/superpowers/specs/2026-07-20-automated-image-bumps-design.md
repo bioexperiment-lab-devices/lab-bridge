@@ -80,9 +80,9 @@ Steps:
 
 **The App token is load-bearing, not incidental.** A pull request created with
 the default `GITHUB_TOKEN` does not trigger `pull_request` workflows. The
-required checks (`pr-title`, `pr-siteapp / siteapp`, `pr-flasher / flasher`,
-`pr-streamer / streamer`, `pr-platform / platform`) would never report, and
-auto-merge would wait forever. Opening the PR as the App avoids this.
+required checks (`Semantic Pull Request`, `siteapp`, `flasher`, `caddy`,
+`platform`) would never report, and auto-merge would wait forever. Opening
+the PR as the App avoids this.
 
 ### The lab-devices side
 
@@ -144,7 +144,14 @@ Three focused changes, each covered by a bats case:
 - **Service allowlist** enforced twice: the `choice` input constrains the UI and
   the API, and `images.sh` re-checks against `_SERVICES`.
 - **Concurrency** — `concurrency: image-bump-${{ inputs.service }}` serialises
-  dispatches so two releases cannot race on the same pin.
+  *workflow runs* for the same service: a second dispatch queues behind the
+  first rather than executing in parallel. It does NOT serialise the PR
+  *lifecycle* that follows a run. If two dispatches for the same service land
+  within one CI cycle (e.g. two studio releases before the first bump PR has
+  merged), both runs branch from the same unbumped `main` and edit the same
+  line. The second PR opens as CONFLICTING; GitHub silently disables
+  auto-merge on it, and it sits open with no alert. This residual failure
+  mode is not closed by the concurrency group.
 - **Registry probe** stays on in CI; an unpullable tag fails before any commit.
 - **Least privilege** — the workflow's own `permissions:` stay minimal; the App
   token carries what the git and PR operations need.
