@@ -73,10 +73,10 @@ Steps:
    `RELEASE_PLEASE_APP_ID` / `RELEASE_PLEASE_APP_KEY`.
 2. `actions/checkout` **with that token** (persisted credentials are what let
    `images.sh`'s `git push` succeed).
-3. Validate `version` against `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$` and fail
+3. Install `yq`; run `scripts/images.sh bump "$service" "$version"`, which
+   validates `version` against `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$` and fails
    closed before the value reaches `yq` or a shell interpolation.
-4. Install `yq`; run `scripts/images.sh bump "$service" "$version"`.
-5. If a PR was opened, `gh pr merge --squash --auto "$pr_url"`.
+4. If a PR was opened, `gh pr merge --squash --auto "$pr_url"`.
 
 **The App token is load-bearing, not incidental.** A pull request created with
 the default `GITHUB_TOKEN` does not trigger `pull_request` workflows. The
@@ -140,7 +140,7 @@ Three focused changes, each covered by a bats case:
 
 ## Guardrails
 
-- **Version format** validated in the workflow before use (regex above).
+- **Version format** validated in `scripts/images.sh` before use (regex above).
 - **Service allowlist** enforced twice: the `choice` input constrains the UI and
   the API, and `images.sh` re-checks against `_SERVICES`.
 - **Concurrency** — `concurrency: image-bump-${{ inputs.service }}` serialises

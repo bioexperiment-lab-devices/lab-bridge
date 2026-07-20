@@ -12,7 +12,7 @@ Spec: `docs/superpowers/specs/2026-07-20-automated-image-bumps-design.md`
 
 ## Global Constraints
 
-- Version strings must match `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$` — validated before the value reaches `yq` or any shell interpolation.
+- Version strings must match `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$` — validated in `images.sh` before the value reaches `yq` or any shell interpolation.
 - The nine allowed services are exactly: `jupyter chisel loki grafana studio authelia prometheus node_exporter cadvisor`.
 - Bump commits are typed `feat:` — `chore` is hidden in `release-please-config.json` and would never ship.
 - The bump PR MUST be opened with the GitHub App token, never `GITHUB_TOKEN` — PRs authored by `GITHUB_TOKEN` do not trigger `pull_request` workflows, so required checks never report and auto-merge hangs forever.
@@ -444,7 +444,7 @@ jobs:
 
 ```bash
 yq e '.on.workflow_dispatch.inputs.service.options[]' .github/workflows/image-bump.yml | sort >/tmp/wf_services
-grep -o '_SERVICES=(.*)' scripts/images.sh | tr -d '_SERVICES=()' | tr ' ' '\n' | grep -v '^$' | sort >/tmp/sh_services
+grep -o '_SERVICES=(.*)' scripts/images.sh | sed -E 's/^_SERVICES=\(//; s/\)$//' | tr ' ' '\n' | grep -v '^$' | sort >/tmp/sh_services
 diff /tmp/wf_services /tmp/sh_services && echo "ALLOWLISTS MATCH"
 ```
 

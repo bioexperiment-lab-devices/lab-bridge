@@ -12,6 +12,11 @@
     {
       "matchManagers": ["pep621"],
       "groupName": "siteapp python deps"
+    },
+    {
+      "description": "experiment-studio is bumped automatically by lab-devices' release-please via the image-bump workflow. Renovate would open a competing monthly chore PR on the same line.",
+      "matchPackageNames": ["ghcr.io/bioexperiment-lab-devices/experiment-studio"],
+      "enabled": false
     }
   ],
   "customManagers": [
