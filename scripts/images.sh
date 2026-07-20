@@ -146,6 +146,12 @@ cmd_bump() {
     [[ -n "$svc" && -n "$version" ]] || die "usage: images.sh bump <service> <version>"
     _known_service "$svc" \
         || die "unknown service '$svc' (allowed: ${_SERVICES[*]})"
+    # Validate before anything touches yq, the registry probe, or git. The
+    # version arrives from a cross-repo workflow_dispatch input, so treat it
+    # as untrusted: allow exactly what a Docker tag allows (leading
+    # alphanumeric, then alphanumerics/dot/dash/underscore, max 128 chars).
+    [[ "$version" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] \
+        || die "invalid version '$version' — must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\$"
     [[ -f "$IMAGES_FILE" ]] || die "images file not found: $IMAGES_FILE"
     require_cmd yq
 

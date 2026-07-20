@@ -134,3 +134,39 @@ _scratch_repo() {
     [[ "$output" == *"images/grafana-13.0.0"* ]] || false
     [[ "$output" == *"merge/close its PR"* ]] || false
 }
+
+@test "images bump: rejects a version with shell metacharacters" {
+    run bash "$ROOT/scripts/images.sh" bump studio '1.0.0; rm -rf /'
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"invalid version"* ]] || false
+
+    # Refused before the yq write. 0.3.0 is what the fixture pins.
+    run yq e '.studio_image' "$LDS_IMAGES_FILE"
+    [[ "$output" == *":0.3.0"* ]] || false
+}
+
+@test "images bump: rejects a version starting with a separator" {
+    run bash "$ROOT/scripts/images.sh" bump studio '-1.0.0'
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"invalid version"* ]] || false
+}
+
+@test "images bump: rejects an empty-ish version of only whitespace" {
+    run bash "$ROOT/scripts/images.sh" bump studio '   '
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"invalid version"* ]] || false
+}
+
+@test "images bump: accepts a normal semver tag" {
+    run bash "$ROOT/scripts/images.sh" bump studio 1.2.3
+    [ "$status" -eq 0 ]
+    run yq e '.studio_image' "$LDS_IMAGES_FILE"
+    [[ "$output" == *":1.2.3"* ]] || false
+}
+
+@test "images bump: accepts a date-style tag with underscores and dots" {
+    run bash "$ROOT/scripts/images.sh" bump jupyter 2026-04-20_x.1
+    [ "$status" -eq 0 ]
+    run yq e '.jupyter_image' "$LDS_IMAGES_FILE"
+    [[ "$output" == *":2026-04-20_x.1"* ]] || false
+}
