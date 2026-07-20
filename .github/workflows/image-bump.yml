@@ -1,0 +1,87 @@
+name: image-bump
+
+# One entry point for both callers: the operator via the Actions UI, and
+# lab-devices' release-please via the cross-repo workflow_dispatch API.
+# repository_dispatch would only add a second payload shape to validate.
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Which external image pin to bump
+        required: true
+        type: choice
+        options:
+          - jupyter
+          - chisel
+          - loki
+          - grafana
+          - studio
+          - authelia
+          - prometheus
+          - node_exporter
+          - cadvisor
+      version:
+        description: New tag (e.g. 0.11.0). Validated by scripts/images.sh.
+        required: true
+        type: string
+
+# Serialise per service so two releases cannot race on the same pin.
+concurrency:
+  group: image-bump-${{ inputs.service }}
+  cancel-in-progress: false
+
+# Minimal: the App token below carries what git and gh actually need.
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # The App token is load-bearing. A PR opened with GITHUB_TOKEN does not
+      # trigger `pull_request` workflows, so the required checks would never
+      # report and auto-merge would hang forever.
+      - id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          # Persisted so images.sh's `git push` authenticates as the App.
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: install yq v4
+        run: |
+          sudo wget -q https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: configure git identity
+        run: |
+          git config user.name  "bioexperiment-release-please[bot]"
+          git config user.email "bioexperiment-release-please[bot]@users.noreply.github.com"
+
+      # images.sh validates the version format and the service allowlist, and
+      # verifies the tag is anonymously pullable, before it commits anything.
+      # It writes pr_url to $GITHUB_OUTPUT only when it actually opens a PR.
+      - id: bump
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: bash scripts/images.sh bump "${{ inputs.service }}" "${{ inputs.version }}"
+
+      - name: enable auto-merge
+        if: steps.bump.outputs.pr_url != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: gh pr merge --squash --auto "${{ steps.bump.outputs.pr_url }}"
+
+      - name: summary
+        run: |
+          if [ -n "${{ steps.bump.outputs.pr_url }}" ]; then
+            echo "Opened and auto-merge-enabled: ${{ steps.bump.outputs.pr_url }}" >>"$GITHUB_STEP_SUMMARY"
+          else
+            echo "No PR — ${{ inputs.service }} is already pinned at ${{ inputs.version }}." >>"$GITHUB_STEP_SUMMARY"
+          fi
