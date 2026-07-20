@@ -9,7 +9,15 @@ setup() {
     export LDS_SKIP_REGISTRY_CHECK=1
     export LDS_NO_GIT=1
 }
-teardown() { teardown_tmpdir; }
+teardown() {
+    # `if`, not `[[ ... ]] && rm`: bats runs teardown under errexit, so a
+    # false condition on a non-final line would abort teardown and fail the
+    # test whenever SIDECAR was never created.
+    if [[ -n "${SIDECAR:-}" && -d "$SIDECAR" ]]; then
+        rm -rf "$SIDECAR"
+    fi
+    teardown_tmpdir
+}
 
 # Build a throwaway git repo so the git-touching paths never act on the real
 # checkout. LDS_REPO_DIR is what points images.sh at it. Commits whatever's
@@ -169,4 +177,88 @@ _scratch_repo() {
     [ "$status" -eq 0 ]
     run yq e '.jupyter_image' "$LDS_IMAGES_FILE"
     [[ "$output" == *":2026-04-20_x.1"* ]] || false
+}
+
+# CRITICAL: both helpers write OUTSIDE $TMPDIR. $TMPDIR *is* the scratch git
+# repo, and _require_clean_tree rejects untracked files — a bare repo or a
+# bin/ dir created inside it would make every test using them fail with
+# "git working tree is not clean". SIDECAR is torn down with $TMPDIR.
+_sidecar() {
+    if [[ -z "${SIDECAR:-}" ]]; then
+        # `TMPDIR=/tmp` on this call is NOT redundant: mktemp honours $TMPDIR,
+        # and setup_tmpdir exported TMPDIR as the scratch repo itself — a bare
+        # `mktemp -d` would create the sidecar *inside* the repo, which is the
+        # exact untracked-file problem this helper exists to avoid.
+        SIDECAR="$(TMPDIR=/tmp mktemp -d)"
+        export SIDECAR
+    fi
+}
+
+# A local bare repo standing in for `origin`, so `git push` in _open_pr
+# succeeds without network. Call after _scratch_repo.
+_scratch_remote() {
+    _sidecar
+    git init -q --bare "$SIDECAR/origin.git"
+    git -C "$TMPDIR" remote add origin "$SIDECAR/origin.git"
+}
+
+# Put a fake `gh` first on PATH. It prints a PR URL on stdout, which is what
+# _open_pr captures. Real `gh` would need network and auth.
+_fake_gh() {
+    _sidecar
+    mkdir -p "$SIDECAR/bin"
+    cat >"$SIDECAR/bin/gh" <<'SH'
+#!/usr/bin/env bash
+echo "https://github.com/example/repo/pull/999"
+SH
+    chmod +x "$SIDECAR/bin/gh"
+    export PATH="$SIDECAR/bin:$PATH"
+}
+
+@test "images bump: writes pr_url to GITHUB_OUTPUT when a PR is opened" {
+    _scratch_repo
+    _scratch_remote
+    _fake_gh
+
+    run env LDS_REPO_DIR="$TMPDIR" LDS_IMAGES_FILE="$TMPDIR/images.yaml" \
+        LDS_SKIP_REGISTRY_CHECK=1 LDS_NO_GIT=0 \
+        GITHUB_OUTPUT="$SIDECAR/gh_output" \
+        PATH="$PATH" \
+        bash "$ROOT/scripts/images.sh" bump grafana 13.0.0
+    [ "$status" -eq 0 ]
+
+    run cat "$SIDECAR/gh_output"
+    [[ "$output" == *"pr_url=https://github.com/example/repo/pull/999"* ]] || false
+}
+
+@test "images bump: an already-pinned version writes no pr_url and still exits 0" {
+    _scratch_repo
+    _scratch_remote
+    _fake_gh
+    : >"$SIDECAR/gh_output"
+
+    # 11.3.0 is what the fixture already pins for grafana.
+    run env LDS_REPO_DIR="$TMPDIR" LDS_IMAGES_FILE="$TMPDIR/images.yaml" \
+        LDS_SKIP_REGISTRY_CHECK=1 LDS_NO_GIT=0 \
+        GITHUB_OUTPUT="$SIDECAR/gh_output" \
+        PATH="$PATH" \
+        bash "$ROOT/scripts/images.sh" bump grafana 11.3.0
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"already at"* ]] || false
+
+    run cat "$SIDECAR/gh_output"
+    [ -z "$output" ]
+}
+
+@test "images bump: succeeds with GITHUB_OUTPUT unset" {
+    _scratch_repo
+    _scratch_remote
+    _fake_gh
+    unset GITHUB_OUTPUT
+
+    run env -u GITHUB_OUTPUT LDS_REPO_DIR="$TMPDIR" \
+        LDS_IMAGES_FILE="$TMPDIR/images.yaml" \
+        LDS_SKIP_REGISTRY_CHECK=1 LDS_NO_GIT=0 PATH="$PATH" \
+        bash "$ROOT/scripts/images.sh" bump grafana 13.0.0
+    [ "$status" -eq 0 ]
 }

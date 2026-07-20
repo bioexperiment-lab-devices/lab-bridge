@@ -138,7 +138,18 @@ _open_pr() {
         git -C "$REPO_DIR" commit -q -m "$subject" -m "$body"
     fi
     git -C "$REPO_DIR" push -u origin "$branch"
-    ( cd "$REPO_DIR" && gh pr create --title "$subject" --body "$body" --base main --head "$branch" )
+    # Capture the PR URL so CI can auto-merge this exact PR rather than
+    # re-deriving the branch name and coupling the workflow to the naming
+    # scheme here. `gh pr create` prints the URL as its last stdout line.
+    local url
+    url="$( cd "$REPO_DIR" && gh pr create --title "$subject" --body "$body" --base main --head "$branch" | tail -n1 )"
+    printf '%s\n' "$url"
+    # `if`, not `[[ ... ]] && printf`: under `set -e` a false condition as the
+    # function's last command would make _open_pr return 1 and abort the run
+    # whenever GITHUB_OUTPUT is unset (i.e. every laptop invocation).
+    if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+        printf 'pr_url=%s\n' "$url" >>"$GITHUB_OUTPUT"
+    fi
 }
 
 cmd_bump() {
