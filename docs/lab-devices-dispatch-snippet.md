@@ -1,4 +1,4 @@
-# lab-devices → lab_devices_server bump dispatch
+# lab-devices → lab-bridge bump dispatch
 
 Applied in `bioexperiment-lab-devices/lab-devices`, not this repo. Add to that
 repo's `.github/workflows/release-please.yml`:
@@ -16,13 +16,13 @@ repo's `.github/workflows/release-please.yml`:
           private-key: ${{ secrets.RELEASE_PLEASE_APP_KEY }}
           # Required: without these the token is scoped to lab-devices only.
           owner: bioexperiment-lab-devices
-          repositories: lab_devices_server
+          repositories: lab-bridge
       - env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
         run: |
           gh workflow run image-bump.yml \
-            -R bioexperiment-lab-devices/lab_devices_server \
+            -R bioexperiment-lab-devices/lab-bridge \
             -f service=studio \
             -f version="${TAG#v}"
 ```

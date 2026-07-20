@@ -99,8 +99,8 @@ dispatch-bump:
   if: ${{ needs.release-please.outputs.release_created == 'true' }}
 ```
 
-It mints an App token scoped to `lab_devices_server` and runs
-`gh workflow run image-bump.yml -R bioexperiment-lab-devices/lab_devices_server
+It mints an App token scoped to `lab-bridge` and runs
+`gh workflow run image-bump.yml -R bioexperiment-lab-devices/lab-bridge
 -f service=studio -f version=<version>`.
 
 **`needs: image` is required, not stylistic.** `images.sh` probes the registry
@@ -112,7 +112,7 @@ tag that does not yet exist.
 ```
 lab-devices tag v0.11.0
   → image pushed to GHCR
-  → dispatch into lab_devices_server
+  → dispatch into lab-bridge
   → bump PR (App-authored, feat:)
   → CI  (image-only diff ⇒ heavy bats matrix skipped, per PR #182)
   → auto-merge (squash)
@@ -180,8 +180,8 @@ that the automated `feat:` path already moves — two PRs racing on one line.
 The org GitHub App backing `RELEASE_PLEASE_APP_ID` must have:
 
 - **Actions: read & write** (to call `workflow_dispatch` on
-  `lab_devices_server`), and
-- an installation covering **both** `lab-devices` and `lab_devices_server`.
+  `lab-bridge`), and
+- an installation covering **both** `lab-devices` and `lab-bridge`.
 
 The lab-devices `dispatch-bump` job must request the target repo explicitly:
 
@@ -191,7 +191,7 @@ The lab-devices `dispatch-bump` job must request the target repo explicitly:
     app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
     private-key: ${{ secrets.RELEASE_PLEASE_APP_KEY }}
     owner: bioexperiment-lab-devices
-    repositories: lab_devices_server
+    repositories: lab-bridge
 ```
 
 Neither the permission grant nor the installation can be made from this repo.
