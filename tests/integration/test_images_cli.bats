@@ -9,7 +9,15 @@ setup() {
     export LDS_SKIP_REGISTRY_CHECK=1
     export LDS_NO_GIT=1
 }
-teardown() { teardown_tmpdir; }
+teardown() {
+    # `if`, not `[[ ... ]] && rm`: bats runs teardown under errexit, so a
+    # false condition on a non-final line would abort teardown and fail the
+    # test whenever SIDECAR was never created.
+    if [[ -n "${SIDECAR:-}" && -d "$SIDECAR" ]]; then
+        rm -rf "$SIDECAR"
+    fi
+    teardown_tmpdir
+}
 
 # Build a throwaway git repo so the git-touching paths never act on the real
 # checkout. LDS_REPO_DIR is what points images.sh at it. Commits whatever's
@@ -19,8 +27,16 @@ teardown() { teardown_tmpdir; }
 # this helper look dirty before the test even does anything.
 _scratch_repo() {
     git -C "$TMPDIR" init -q .
+    # Repo-local identity, NOT just `-c` on the init commit below: images.sh's
+    # _open_pr runs its own `git commit`, which inherits nothing from that.
+    # A developer laptop hides this — git auto-detects user@hostname when no
+    # identity is configured — but a CI runner cannot resolve a domain and
+    # aborts with "unable to auto-detect email address". That asymmetry made
+    # these tests pass locally and fail in CI.
+    git -C "$TMPDIR" config user.email t@t
+    git -C "$TMPDIR" config user.name t
     git -C "$TMPDIR" add -A
-    git -C "$TMPDIR" -c user.email=t@t -c user.name=t commit -q -m init
+    git -C "$TMPDIR" commit -q -m init
 }
 
 @test "images bump: rewrites the tag for a known service" {
@@ -133,4 +149,161 @@ _scratch_repo() {
     [ "$status" -eq 1 ]
     [[ "$output" == *"images/grafana-13.0.0"* ]] || false
     [[ "$output" == *"merge/close its PR"* ]] || false
+}
+
+@test "images bump: rejects a version with shell metacharacters" {
+    run bash "$ROOT/scripts/images.sh" bump studio '1.0.0; rm -rf /'
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"invalid version"* ]] || false
+
+    # Refused before the yq write. 0.3.0 is what the fixture pins.
+    run yq e '.studio_image' "$LDS_IMAGES_FILE"
+    [[ "$output" == *":0.3.0"* ]] || false
+}
+
+@test "images bump: rejects a version starting with a separator" {
+    run bash "$ROOT/scripts/images.sh" bump studio '-1.0.0'
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"invalid version"* ]] || false
+}
+
+@test "images bump: rejects an empty-ish version of only whitespace" {
+    run bash "$ROOT/scripts/images.sh" bump studio '   '
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"invalid version"* ]] || false
+}
+
+@test "images bump: accepts a normal semver tag" {
+    run bash "$ROOT/scripts/images.sh" bump studio 1.2.3
+    [ "$status" -eq 0 ]
+    run yq e '.studio_image' "$LDS_IMAGES_FILE"
+    [[ "$output" == *":1.2.3"* ]] || false
+}
+
+@test "images bump: accepts a date-style tag with underscores and dots" {
+    run bash "$ROOT/scripts/images.sh" bump jupyter 2026-04-20_x.1
+    [ "$status" -eq 0 ]
+    run yq e '.jupyter_image' "$LDS_IMAGES_FILE"
+    [[ "$output" == *":2026-04-20_x.1"* ]] || false
+}
+
+# CRITICAL: both helpers write OUTSIDE $TMPDIR. $TMPDIR *is* the scratch git
+# repo, and _require_clean_tree rejects untracked files — a bare repo or a
+# bin/ dir created inside it would make every test using them fail with
+# "git working tree is not clean". SIDECAR is torn down with $TMPDIR.
+_sidecar() {
+    if [[ -z "${SIDECAR:-}" ]]; then
+        # `TMPDIR=/tmp` on this call is NOT redundant: mktemp honours $TMPDIR,
+        # and setup_tmpdir exported TMPDIR as the scratch repo itself — a bare
+        # `mktemp -d` would create the sidecar *inside* the repo, which is the
+        # exact untracked-file problem this helper exists to avoid.
+        SIDECAR="$(TMPDIR=/tmp mktemp -d)"
+        export SIDECAR
+    fi
+}
+
+# A local bare repo standing in for `origin`, so `git push` in _open_pr
+# succeeds without network. Call after _scratch_repo.
+_scratch_remote() {
+    _sidecar
+    git init -q --bare "$SIDECAR/origin.git"
+    git -C "$TMPDIR" remote add origin "$SIDECAR/origin.git"
+}
+
+# Put a fake `gh` first on PATH. It prints a PR URL on stdout, which is what
+# _open_pr captures. Real `gh` would need network and auth.
+_fake_gh() {
+    _sidecar
+    mkdir -p "$SIDECAR/bin"
+    cat >"$SIDECAR/bin/gh" <<'SH'
+#!/usr/bin/env bash
+echo "https://github.com/example/repo/pull/999"
+SH
+    chmod +x "$SIDECAR/bin/gh"
+    export PATH="$SIDECAR/bin:$PATH"
+}
+
+@test "images bump: writes pr_url to GITHUB_OUTPUT when a PR is opened" {
+    _scratch_repo
+    _scratch_remote
+    _fake_gh
+
+    run env LDS_REPO_DIR="$TMPDIR" LDS_IMAGES_FILE="$TMPDIR/images.yaml" \
+        LDS_SKIP_REGISTRY_CHECK=1 LDS_NO_GIT=0 \
+        GITHUB_OUTPUT="$SIDECAR/gh_output" \
+        PATH="$PATH" \
+        bash "$ROOT/scripts/images.sh" bump grafana 13.0.0
+    [ "$status" -eq 0 ]
+
+    run cat "$SIDECAR/gh_output"
+    [[ "$output" == *"pr_url=https://github.com/example/repo/pull/999"* ]] || false
+}
+
+@test "images bump: an already-pinned version writes no pr_url and still exits 0" {
+    _scratch_repo
+    _scratch_remote
+    _fake_gh
+    : >"$SIDECAR/gh_output"
+
+    # 11.3.0 is what the fixture already pins for grafana.
+    run env LDS_REPO_DIR="$TMPDIR" LDS_IMAGES_FILE="$TMPDIR/images.yaml" \
+        LDS_SKIP_REGISTRY_CHECK=1 LDS_NO_GIT=0 \
+        GITHUB_OUTPUT="$SIDECAR/gh_output" \
+        PATH="$PATH" \
+        bash "$ROOT/scripts/images.sh" bump grafana 11.3.0
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"already at"* ]] || false
+
+    run cat "$SIDECAR/gh_output"
+    [ -z "$output" ]
+}
+
+@test "images bump: succeeds with GITHUB_OUTPUT unset" {
+    _scratch_repo
+    _scratch_remote
+    _fake_gh
+    unset GITHUB_OUTPUT
+
+    run env -u GITHUB_OUTPUT LDS_REPO_DIR="$TMPDIR" \
+        LDS_IMAGES_FILE="$TMPDIR/images.yaml" \
+        LDS_SKIP_REGISTRY_CHECK=1 LDS_NO_GIT=0 PATH="$PATH" \
+        bash "$ROOT/scripts/images.sh" bump grafana 13.0.0
+    [ "$status" -eq 0 ]
+}
+
+@test "images bump: a pre-existing REMOTE branch dies with an actionable message" {
+    _scratch_repo
+    _scratch_remote
+    _fake_gh
+
+    # Simulate a prior run whose PR was closed but whose branch still exists
+    # on the remote. A fresh CI checkout has no local branch, so only the
+    # remote check can catch this.
+    git -C "$TMPDIR" push -q origin HEAD:refs/heads/images/grafana-13.0.0
+
+    run env LDS_REPO_DIR="$TMPDIR" LDS_IMAGES_FILE="$TMPDIR/images.yaml" \
+        LDS_SKIP_REGISTRY_CHECK=1 LDS_NO_GIT=0 PATH="$PATH" \
+        bash "$ROOT/scripts/images.sh" bump grafana 13.0.0
+    # die()'s exit 1, not a raw git push rejection (exit 128 / 1 with
+    # "rejected" text). Require the guidance string only our message has.
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"images/grafana-13.0.0"* ]] || false
+    [[ "$output" == *"merge/close its PR"* ]] || false
+}
+
+# Drift guard: nothing else asserts that image-bump.yml's `service` choice
+# options stay in sync with _SERVICES in scripts/images.sh. A tenth pin
+# added to one without the other would silently miss the dropdown (or the
+# script's allowlist). Compared as sorted sets so list order in either file
+# is not spuriously load-bearing. Uses `tr ' ' '\n'` (not `tr -d`, which
+# would delete a character class and mangle "node_exporter") to split
+# _SERVICES' space-separated words onto their own lines before sorting.
+@test "images allowlist: image-bump.yml service options match scripts/images.sh _SERVICES" {
+    local workflow_opts services_opts
+    workflow_opts="$(yq e '.on.workflow_dispatch.inputs.service.options[]' "$ROOT/.github/workflows/image-bump.yml" | sort)"
+    services_opts="$(grep '^_SERVICES=' "$ROOT/scripts/images.sh" \
+        | sed -E 's/^_SERVICES=\(//; s/\)$//' \
+        | tr ' ' '\n' | sort)"
+
+    [ "$workflow_opts" = "$services_opts" ] || false
 }

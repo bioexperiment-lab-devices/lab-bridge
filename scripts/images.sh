@@ -121,6 +121,19 @@ _checkout_new_branch() {
     local branch="$1"
     git -C "$REPO_DIR" show-ref --verify --quiet "refs/heads/$branch" \
         && die "branch '$branch' already exists in $REPO_DIR — delete it (git -C '$REPO_DIR' branch -D $branch) or merge/close its PR before re-running"
+    # Also check the remote. A fresh CI checkout never has the local branch,
+    # but the remote one survives a closed PR — without this check, `git push`
+    # to a stale remote branch of the same name does not fail loudly: it
+    # exits 0 and silently fast-forwards the stale branch (and, downstream,
+    # the PR reopened against it) instead of dying with an actionable
+    # message. A silent overwrite is worse than a rejection.
+    # Pass the fully-qualified ref, not the bare branch name: `ls-remote`
+    # matches patterns on `/`-boundary suffixes, so a bare name would also
+    # false-positive on e.g. "x/images/grafana-13.0.0" when checking for
+    # "images/grafana-13.0.0".
+    if git -C "$REPO_DIR" ls-remote --exit-code --heads origin "refs/heads/$branch" >/dev/null 2>&1; then
+        die "branch '$branch' already exists on origin — delete it (git -C '$REPO_DIR' push origin --delete $branch) or merge/close its PR before re-running"
+    fi
     git -C "$REPO_DIR" checkout -b "$branch"
 }
 
@@ -138,7 +151,18 @@ _open_pr() {
         git -C "$REPO_DIR" commit -q -m "$subject" -m "$body"
     fi
     git -C "$REPO_DIR" push -u origin "$branch"
-    ( cd "$REPO_DIR" && gh pr create --title "$subject" --body "$body" --base main --head "$branch" )
+    # Capture the PR URL so CI can auto-merge this exact PR rather than
+    # re-deriving the branch name and coupling the workflow to the naming
+    # scheme here. `gh pr create` prints the URL as its last stdout line.
+    local url
+    url="$( cd "$REPO_DIR" && gh pr create --title "$subject" --body "$body" --base main --head "$branch" | tail -n1 )"
+    printf '%s\n' "$url"
+    # `if`, not `[[ ... ]] && printf`: under `set -e` a false condition as the
+    # function's last command would make _open_pr return 1 and abort the run
+    # whenever GITHUB_OUTPUT is unset (i.e. every laptop invocation).
+    if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+        printf 'pr_url=%s\n' "$url" >>"$GITHUB_OUTPUT"
+    fi
 }
 
 cmd_bump() {
@@ -146,6 +170,12 @@ cmd_bump() {
     [[ -n "$svc" && -n "$version" ]] || die "usage: images.sh bump <service> <version>"
     _known_service "$svc" \
         || die "unknown service '$svc' (allowed: ${_SERVICES[*]})"
+    # Validate before anything touches yq, the registry probe, or git. The
+    # version arrives from a cross-repo workflow_dispatch input, so treat it
+    # as untrusted: allow exactly what a Docker tag allows (leading
+    # alphanumeric, then alphanumerics/dot/dash/underscore, max 128 chars).
+    [[ "$version" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] \
+        || die "invalid version '$version' — must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\$"
     [[ -f "$IMAGES_FILE" ]] || die "images file not found: $IMAGES_FILE"
     require_cmd yq
 

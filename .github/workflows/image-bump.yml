@@ -1,0 +1,114 @@
+name: image-bump
+
+# One entry point for both callers: the operator via the Actions UI, and
+# lab-devices' release-please via the cross-repo workflow_dispatch API.
+# repository_dispatch would only add a second payload shape to validate.
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Which external image pin to bump
+        required: true
+        type: choice
+        options:
+          - jupyter
+          - chisel
+          - loki
+          - grafana
+          - studio
+          - authelia
+          - prometheus
+          - node_exporter
+          - cadvisor
+      version:
+        description: New tag (e.g. 0.11.0). Validated by scripts/images.sh.
+        required: true
+        type: string
+
+# Serialise per service so two releases cannot race on the same pin.
+concurrency:
+  group: image-bump-${{ inputs.service }}
+  cancel-in-progress: false
+
+# Empty: the ambient GITHUB_TOKEN is unused — the App token carries
+# everything checkout and gh need.
+permissions: {}
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # The App token is load-bearing. A PR opened with GITHUB_TOKEN does not
+      # trigger `pull_request` workflows, so the required checks (branch
+      # protection: `Semantic Pull Request`, `siteapp`, `flasher`, `caddy`,
+      # `platform`) would never report and auto-merge would hang forever.
+      - id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          # Persisted so images.sh's `git push` authenticates as the App.
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: install yq v4
+        run: |
+          set -euo pipefail
+          sudo wget -q https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: configure git identity
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          login="${APP_SLUG}[bot]"
+          id="$(gh api "/users/${login}" --jq .id)"
+          git config user.name  "$login"
+          git config user.email "${id}+${login}@users.noreply.github.com"
+
+      # images.sh validates the version format and the service allowlist, and
+      # verifies the tag is anonymously pullable, before it commits anything.
+      # It writes pr_url to $GITHUB_OUTPUT only when it actually opens a PR.
+      - id: bump
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          SERVICE: ${{ inputs.service }}
+          VERSION: ${{ inputs.version }}
+        run: bash scripts/images.sh bump "$SERVICE" "$VERSION"
+
+      - name: enable auto-merge
+        id: automerge
+        if: steps.bump.outputs.pr_url != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_URL: ${{ steps.bump.outputs.pr_url }}
+        run: gh pr merge --squash --auto "$PR_URL"
+
+      # steps.automerge.outcome distinguishes "PR opened AND auto-merge
+      # enabled" from "PR opened but auto-merge did NOT get enabled" (e.g.
+      # the App lacks `pull-requests: write`) — pr_url alone can't tell
+      # those apart, since it's set by the bump step regardless of whether
+      # the later auto-merge step then succeeds.
+      - name: summary
+        if: always()
+        env:
+          SERVICE: ${{ inputs.service }}
+          VERSION: ${{ inputs.version }}
+          PR_URL: ${{ steps.bump.outputs.pr_url }}
+          AUTOMERGE_OUTCOME: ${{ steps.automerge.outcome }}
+        run: |
+          if [ -n "$PR_URL" ]; then
+            if [ "$AUTOMERGE_OUTCOME" = "success" ]; then
+              echo "Opened and auto-merge-enabled: $PR_URL" >>"$GITHUB_STEP_SUMMARY"
+            else
+              echo "Opened but auto-merge did NOT get enabled (step outcome: $AUTOMERGE_OUTCOME) — check the App's pull-requests: write permission, then enable auto-merge by hand: $PR_URL" >>"$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            echo "No PR — $SERVICE is already pinned at $VERSION, or the bump step failed before opening one." >>"$GITHUB_STEP_SUMMARY"
+          fi

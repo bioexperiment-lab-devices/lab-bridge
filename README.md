@@ -167,6 +167,14 @@ task ops:loki-disk                            # show Loki retention/size
 
 `task --list` shows the full menu.
 
+### Bumping image pins
+
+Image pins can also be bumped without a laptop: run the **image-bump** workflow
+from the Actions tab (or `gh workflow run image-bump.yml -f service=<name> -f
+version=<tag>`). It opens the same `feat:` PR and enables auto-merge, so a green
+CI run lands it. Experiment Studio does this automatically on every lab-devices
+release.
+
 ### Optional services
 
 Low-budget instances can skip heavy containers via `disabled_services` in

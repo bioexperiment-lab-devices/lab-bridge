@@ -26,7 +26,7 @@ The repo is a "Swiss-knife" lab platform: a set of independent containerised ser
 
 ## Branch & release rules
 
-- **`main` is protected. Squash-merge only, linear history.** No direct pushes, no merge-commit, no rebase-merge — release-please depends on squash. Required checks: `pr-title`, `pr-siteapp / siteapp`, `pr-flasher / flasher`, `pr-streamer / streamer`, `pr-platform / platform`. Adding a service adds another required check; update branch protection in lockstep.
+- **`main` is protected. Squash-merge only, linear history.** No direct pushes, no merge-commit, no rebase-merge — release-please depends on squash. Required checks (as configured on branch protection): `Semantic Pull Request`, `siteapp`, `flasher`, `caddy`, `platform`. Adding a service adds another required check; update branch protection in lockstep (`streamer` has a `pr-streamer` workflow but is not currently a required check — a known gap, not an oversight to silently drop).
 - **PR titles follow Conventional Commits** (`feat fix chore docs refactor test perf build ci revert`, scope optional). The title becomes the squash subject and is what release-please scans for the version bump.
 - **Don't bump the version by hand.** release-please owns root `VERSION`. Don't strip the `# x-release-please-version` annotation — it's the rewrite anchor.
 - **Don't manually push release-tagged images to GHCR.** CI is the only path; manual pushes break the Sigstore attestation.
@@ -34,7 +34,7 @@ The repo is a "Swiss-knife" lab platform: a set of independent containerised ser
 
 ## Config split
 
-- **External image pins → `compose/images.yaml`** (tracked). Nine externally-released images (jupyter, chisel, loki, grafana, studio, authelia, prometheus, node_exporter, cadvisor). Bump with `task images:bump -- <service> <version>`, which lands one releasable `feat:` PR. Image-only edits skip the fake-VPS bats matrix.
+- **External image pins → `compose/images.yaml`** (tracked). Nine externally-released images (jupyter, chisel, loki, grafana, studio, authelia, prometheus, node_exporter, cadvisor). Bump with `task images:bump -- <service> <version>`, which lands one releasable `feat:` PR. Image-only edits skip the fake-VPS bats matrix. **`studio` bumps itself**: lab-devices' release-please dispatches `.github/workflows/image-bump.yml` after its GHCR push, which opens the `feat:` PR and enables auto-merge — Renovate is disabled for that one pin to avoid a competing PR (see `renovate.json`'s `packageRules` entry for `experiment-studio`; `docs/lab-devices-dispatch-snippet.md` covers the lab-devices dispatch side, not Renovate). The other eight stay on Renovate's monthly grouped `chore` bumps, shipped with `task images:ship`. Any pin can also be moved by hand from the Actions UI via the `image-bump` workflow.
 - **Paths, ports, retention, `*_image_repo` → `compose/pins.yaml`** (tracked). Not `config.yaml`. A change here DOES trigger the full platform suite.
 - **Instance values + secrets + chisel roster → `config.yaml`** (gitignored, laptop only).
 - **Optional-service selection → `disabled_services` in `config.yaml`** (allowed names + monitoring-group expansion live in `scripts/lib/config.sh`). CI mirrors it via the `LDS_DISABLED_SERVICES` GH variable — dual-managed like secrets.
