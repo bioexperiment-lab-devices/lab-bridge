@@ -121,6 +121,12 @@ _checkout_new_branch() {
     local branch="$1"
     git -C "$REPO_DIR" show-ref --verify --quiet "refs/heads/$branch" \
         && die "branch '$branch' already exists in $REPO_DIR — delete it (git -C '$REPO_DIR' branch -D $branch) or merge/close its PR before re-running"
+    # Also check the remote. A fresh CI checkout never has the local branch,
+    # but the remote one survives a closed PR — without this the run dies on
+    # a raw `git push` rejection instead of an actionable message.
+    if git -C "$REPO_DIR" ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+        die "branch '$branch' already exists on origin — delete it (git -C '$REPO_DIR' push origin --delete $branch) or merge/close its PR before re-running"
+    fi
     git -C "$REPO_DIR" checkout -b "$branch"
 }
 

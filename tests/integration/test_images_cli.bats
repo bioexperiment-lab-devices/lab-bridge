@@ -262,3 +262,23 @@ SH
         bash "$ROOT/scripts/images.sh" bump grafana 13.0.0
     [ "$status" -eq 0 ]
 }
+
+@test "images bump: a pre-existing REMOTE branch dies with an actionable message" {
+    _scratch_repo
+    _scratch_remote
+    _fake_gh
+
+    # Simulate a prior run whose PR was closed but whose branch still exists
+    # on the remote. A fresh CI checkout has no local branch, so only the
+    # remote check can catch this.
+    git -C "$TMPDIR" push -q origin HEAD:refs/heads/images/grafana-13.0.0
+
+    run env LDS_REPO_DIR="$TMPDIR" LDS_IMAGES_FILE="$TMPDIR/images.yaml" \
+        LDS_SKIP_REGISTRY_CHECK=1 LDS_NO_GIT=0 PATH="$PATH" \
+        bash "$ROOT/scripts/images.sh" bump grafana 13.0.0
+    # die()'s exit 1, not a raw git push rejection (exit 128 / 1 with
+    # "rejected" text). Require the guidance string only our message has.
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"images/grafana-13.0.0"* ]] || false
+    [[ "$output" == *"merge/close its PR"* ]] || false
+}
