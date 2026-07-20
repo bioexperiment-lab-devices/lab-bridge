@@ -63,10 +63,11 @@ jobs:
       - name: configure git identity
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
         run: |
           set -euo pipefail
-          login="$(gh api /user --jq .login)"
-          id="$(gh api /user --jq .id)"
+          login="${APP_SLUG}[bot]"
+          id="$(gh api "/users/${login}" --jq .id)"
           git config user.name  "$login"
           git config user.email "${id}+${login}@users.noreply.github.com"
 
