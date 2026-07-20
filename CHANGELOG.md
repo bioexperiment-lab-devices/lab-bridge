@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.29.0...v0.30.0) (2026-07-20)
+
+
+### Features
+
+* **ci:** automate third-party image bumps via dispatchable workflow ([#189](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/189)) ([ca24c6e](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/ca24c6e0660c437f5c177d5e48a9852d21645ca2))
+
 ## [0.29.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.28.0...v0.29.0) (2026-07-19)
 
 
