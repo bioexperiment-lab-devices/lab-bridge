@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.34.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.33.0...v0.34.0) (2026-07-21)
+
+
+### Features
+
+* admin-gated remote agent-update proxy (SerialHop v2.4.0 server side) ([#198](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/198)) ([035d842](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/035d8428c140624f0dbf015024b4faac2b4ac0e0))
+* bump studio image to 1.0.0 ([#200](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/200)) ([933c691](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/933c69121440a4d1e9182274b5b6a36ce2f83b0e))
+
 ## [0.33.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.32.0...v0.33.0) (2026-07-21)
 
 
