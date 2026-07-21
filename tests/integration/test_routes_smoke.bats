@@ -98,6 +98,12 @@ _through_caddy() {
     [[ "$code" == "302" ]] || { echo "got: $code"; false; }
 }
 
+@test "/api/admin/ is gated by forward_auth (302 to /login)" {
+    # SerialHop remote-update proxy — admins only, gated exactly like /flash.
+    code="$(_through_caddy 'https://127.0.0.1/api/admin/labs/pc-1/update')"
+    [[ "$code" == "302" ]] || { echo "got: $code"; false; }
+}
+
 @test "/studio/ is gated by forward_auth (302 to /login)" {
     code="$(_through_caddy 'https://127.0.0.1/studio/')"
     [[ "$code" == "302" ]] || { echo "got: $code"; false; }
