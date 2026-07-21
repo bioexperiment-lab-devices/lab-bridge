@@ -140,6 +140,18 @@ https://__VPS_HOST__ {
         }
     }
 
+    # ─── siteapp admin surface (admins only — forward_auth gate) ─────────
+    # Reachability for the SerialHop remote-update proxy
+    # (POST/GET /api/admin/labs/{name}/update[/status]). Gated exactly like
+    # /flash: forward_auth pins the verify sub-request to GET, so a researcher
+    # POST resolves to 403 while an admin POST proceeds with its body intact.
+    handle /api/admin/* {
+        import authelia_required
+        reverse_proxy siteapp:8000 {
+            header_up -Accept-Encoding
+        }
+    }
+
     # --- BEGIN svc:flasher ---
     # ─── Flasher (admins only — forward_auth replaces basic_auth) ────────
     handle /flash/api/v1/* {
