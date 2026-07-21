@@ -22,6 +22,21 @@ def test_researcher_denied_on_flash(http: httpx.Client) -> None:
     assert r.status_code == 403
 
 
+def test_researcher_denied_on_api_admin(http: httpx.Client) -> None:
+    cookie = _login(http, "bob", "bob-password")
+    r = http.get(
+        "/api/verify",
+        headers={
+            "Cookie": cookie,
+            "X-Forwarded-Host": "test.local",
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Uri": "/api/admin/labs/pc-1/update",
+            "X-Forwarded-Method": "GET",
+        },
+    )
+    assert r.status_code == 403
+
+
 def test_researcher_allowed_on_jupyter(http: httpx.Client) -> None:
     cookie = _login(http, "bob", "bob-password")
     r = http.get(

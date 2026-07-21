@@ -39,6 +39,11 @@ access_control:
       subject: 'group:admins'
     - domain: test.local
       resources:
+        - '^/api/admin/.*'
+      policy: one_factor
+      subject: 'group:admins'
+    - domain: test.local
+      resources:
         - '^/jupyter.*'
       policy: one_factor
       subject:

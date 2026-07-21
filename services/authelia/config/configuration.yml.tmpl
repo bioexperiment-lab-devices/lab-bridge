@@ -59,6 +59,11 @@ access_control:
       subject: 'group:admins'
     - domain: __VPS_HOST__
       resources:
+        - '^/api/admin/.*'
+      policy: one_factor
+      subject: 'group:admins'
+    - domain: __VPS_HOST__
+      resources:
         - '^/jupyter.*'
       policy: one_factor
       subject:

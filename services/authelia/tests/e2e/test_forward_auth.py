@@ -54,3 +54,32 @@ def test_verify_with_admin_session_returns_200_and_remote_headers(http: httpx.Cl
     assert r.status_code == 200
     assert r.headers.get("remote-user") == "alice"
     assert "admins" in r.headers.get("remote-groups", "")
+
+
+def test_verify_admin_allowed_on_api_admin(http: httpx.Client) -> None:
+    cookie = _login(http, "alice", "alice-password")
+    r = http.get(
+        "/api/verify",
+        headers={
+            "Cookie": cookie,
+            "X-Forwarded-Host": "test.local",
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Uri": "/api/admin/labs/pc-1/update",
+            "X-Forwarded-Method": "GET",
+        },
+    )
+    assert r.status_code == 200
+    assert "admins" in r.headers.get("remote-groups", "")
+
+
+def test_verify_without_cookie_denied_on_api_admin(http: httpx.Client) -> None:
+    r = http.get(
+        "/api/verify",
+        headers={
+            "X-Forwarded-Host": "test.local",
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Uri": "/api/admin/labs/pc-1/update",
+            "X-Forwarded-Method": "GET",
+        },
+    )
+    assert r.status_code == 401
