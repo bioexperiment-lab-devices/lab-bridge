@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.agent import make_router as make_agent_router
+from app.agent_update import make_router as make_agent_update_router
 from app.api import make_router as make_api_router
 from app.auth import make_router as make_auth_router
 from app.config import load_settings
@@ -37,6 +38,7 @@ app.include_router(make_api_router(settings))
 app.include_router(make_public_clients_router(settings))
 app.include_router(make_server_info_router(settings))
 app.include_router(make_labs_router(settings))
+app.include_router(make_agent_update_router(settings))
 app.include_router(make_auth_router(settings))
 
 
