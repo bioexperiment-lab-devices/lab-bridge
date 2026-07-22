@@ -1,6 +1,8 @@
 # Sidebar order for /docs/. Visiting /docs/ redirects to the first entry.
 - name: overview
 - name: researcher
+- name: studio
+  title: Experiment Studio
 - name: operator
 - name: admin
 - name: architecture

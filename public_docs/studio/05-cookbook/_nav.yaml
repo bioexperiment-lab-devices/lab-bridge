@@ -1,0 +1,8 @@
+- name: 01-add-dye-read-od
+- name: 02-hold-temperature-log
+- name: 03-timed-dosing
+- name: 04-dilute-when-high
+- name: 05-operator-dose
+- name: 06-parallel-vials
+- name: 07-service-group
+- name: 08-safety-guard
