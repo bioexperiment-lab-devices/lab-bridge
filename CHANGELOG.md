@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.38.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.37.0...v0.38.0) (2026-07-22)
+
+
+### Features
+
+* bump studio image to 1.4.0 ([#207](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/207)) ([4bf0c12](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/4bf0c12631c5df3ef7e5b69ffb37dbb0068aacba))
+
 ## [0.37.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.36.0...v0.37.0) (2026-07-21)
 
 
