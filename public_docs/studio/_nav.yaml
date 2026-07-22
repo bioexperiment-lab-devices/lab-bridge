@@ -1,0 +1,7 @@
+# Experiment Studio user guide — vendored from bioexperiment-lab-devices/lab-devices
+# (docs/studio-guide/). Snapshot; edit upstream, then re-vendor.
+- name: 01-overview
+- name: 02-quickstart
+- name: 03-concepts
+- name: 04-blocks
+- name: 05-cookbook
