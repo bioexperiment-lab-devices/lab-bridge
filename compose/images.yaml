@@ -16,7 +16,7 @@ grafana_image: grafana/grafana:11.3.0
 # released by the bioexperiment-lab-devices/lab-devices repo. MUST be >= 0.3.0
 # (sub-path portability behind the stripped /studio route; 0.2.0 emits absolute
 # URLs and breaks).
-studio_image: ghcr.io/bioexperiment-lab-devices/experiment-studio:1.5.2
+studio_image: ghcr.io/bioexperiment-lab-devices/experiment-studio:1.5.3
 # Authelia identity provider.
 authelia_image: authelia/authelia:4.38.10
 prometheus_image: prom/prometheus:v3.0.1
