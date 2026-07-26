@@ -10,7 +10,7 @@ docs/superpowers/specs/2026-07-26-authelia-session-persistence-design.md).
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
 
 import httpx
@@ -112,12 +112,11 @@ def test_remember_me_extends_the_cookie_beyond_the_default_expiration(
     remembered = _cookie_expiry(http, keep_me_logged_in=True)
     ordinary = _cookie_expiry(http, keep_me_logged_in=False)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     assert remembered - now > timedelta(days=30), (
         f"remember-me cookie expires at {remembered}, well short of the "
         f"configured remember_me_duration of 90 days"
     )
     assert ordinary - now < timedelta(days=1), (
-        f"non-remembered cookie expires at {ordinary}, expected the 1h "
-        f"session.expiration"
+        f"non-remembered cookie expires at {ordinary}, expected the 1h session.expiration"
     )
