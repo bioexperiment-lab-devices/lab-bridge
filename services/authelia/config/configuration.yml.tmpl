@@ -5,11 +5,10 @@
 # compose/docker-compose.yml.tmpl.
 
 theme: light
-default_redirection_url: https://__VPS_HOST__/
 
 server:
-  host: 0.0.0.0
-  port: 9091
+  # Replaces the deprecated server.host / server.port pair.
+  address: tcp://0.0.0.0:9091/
 
 log:
   level: info
@@ -78,12 +77,24 @@ access_control:
         - 'group:researchers'
 
 session:
-  name: authelia_session
-  domain: __VPS_HOST__
-  same_site: lax
-  expiration: 1h
-  inactivity: 5m
-  remember_me_duration: 2160h    # 90 days
+  # 4.38 multi-domain form. The flat `session.domain` / `name` / `expiration`
+  # / `inactivity` / `remember_me_duration` keys still auto-map, but Authelia
+  # warns that the mapping goes away in 5.0 — and `authelia_url` only exists
+  # in this form.
+  cookies:
+    - domain: __VPS_HOST__
+      # Authelia's own portal, as reached through Caddy's `uri strip_prefix
+      # /auth` route. Note the host is an IP here: the new form is happy with
+      # that as long as authelia_url sits on the same host, which rules out
+      # the usual auth.<domain> subdomain layout.
+      authelia_url: https://__VPS_HOST__/auth
+      # Replaces the deprecated top-level `default_redirection_url`.
+      default_redirection_url: https://__VPS_HOST__/
+      name: authelia_session
+      same_site: lax
+      expiration: 1h
+      inactivity: 5m
+      remember_me: 2160h    # 90 days
   # Sessions live in Redis, not in Authelia's process memory. deploy.sh
   # restarts authelia on every full deploy (a single-file bind mount pins the
   # original inode, so a rsynced configuration.yml / users_database.yml stays
@@ -91,7 +102,7 @@ session:
   # provider that restart silently destroyed every session, remembered ones
   # included. Note `expiration` and `inactivity` above apply only to sessions
   # where the user did NOT tick "keep me signed in": a remembered session
-  # ignores both and lives for remember_me_duration. Verified against 4.38.10;
+  # ignores both and lives for remember_me. Verified against 4.38.10;
   # spec: docs/superpowers/specs/2026-07-26-authelia-session-persistence-design.md
   redis:
     host: redis
@@ -113,6 +124,14 @@ notifier:
 
 identity_providers:
   oidc:
+    # Replaces the deprecated `issuer_private_key`. This is a list, and
+    # Authelia's env-var mapping cannot express list entries — so unlike the
+    # other secrets this one is read here via the template filter
+    # (X_AUTHELIA_CONFIG_FILTERS=template in compose). The key material still
+    # comes from the docker secret and is never written into a rendered file.
+    jwks:
+      - key: |
+          {{- secret "/run/secrets/authelia_oidc_jwks_key" | nindent 10 }}
     cors:
       endpoints:
         - authorization
@@ -121,9 +140,9 @@ identity_providers:
         - introspection
         - userinfo
     clients:
-      - id: grafana
-        description: Grafana
-        secret: '__GRAFANA_OIDC_SECRET_HASH__'
+      - client_id: grafana
+        client_name: Grafana
+        client_secret: '__GRAFANA_OIDC_SECRET_HASH__'
         public: false
         authorization_policy: one_factor
         # Skip the consent prompt: Authelia's React SPA is broken under our
@@ -142,9 +161,12 @@ identity_providers:
           - profile
           - email
           - groups
+          # Required alongside the refresh_token grant below — Authelia warns
+          # today and will reject the client outright in a future version.
+          - offline_access
         grant_types:
           - authorization_code
           - refresh_token
         response_types:
           - code
-        userinfo_signing_algorithm: none
+        userinfo_signed_response_alg: none

@@ -108,10 +108,10 @@ def test_remember_me_extends_the_cookie_beyond_the_default_expiration(
 ) -> None:
     """Ticking "keep me signed in" must be visible in the cookie itself.
 
-    `remember_me_duration` is set via a key deprecated in 4.38
-    (`session.remember_me_duration`, auto-mapped to `session.remember_me`);
-    if that mapping ever goes away the cookie silently falls back to the
-    1-hour `expiration` and users start getting logged out again.
+    Guards the 90-day `session.cookies[].remember_me` value: if it is ever
+    lost — a typo, a bad migration, a future Authelia dropping the key — the
+    cookie silently falls back to the 1-hour `expiration` and users start
+    getting logged out again, which is the original bug.
     """
     remembered = _cookie_expiry(http, keep_me_logged_in=True)
     ordinary = _cookie_expiry(http, keep_me_logged_in=False)
@@ -119,7 +119,7 @@ def test_remember_me_extends_the_cookie_beyond_the_default_expiration(
     now = datetime.now(UTC)
     assert remembered - now > timedelta(days=30), (
         f"remember-me cookie expires at {remembered}, well short of the "
-        f"configured remember_me_duration of 90 days"
+        f"configured remember_me of 90 days"
     )
     assert ordinary - now < timedelta(days=1), (
         f"non-remembered cookie expires at {ordinary}, expected the 1h session.expiration"

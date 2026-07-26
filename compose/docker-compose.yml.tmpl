@@ -42,11 +42,21 @@ services:
       - authelia_oidc_hmac_secret
       - authelia_oidc_jwks_key
     environment:
-      AUTHELIA_JWT_SECRET_FILE: /run/secrets/authelia_jwt_secret
+      # Runs configuration.yml through Authelia's template filter. Needed
+      # because the OIDC signing key moved from the deprecated
+      # `identity_providers.oidc.issuer_private_key` to `jwks`, which is a
+      # LIST — and Authelia's env-var mapping cannot express list entries
+      # (AUTHELIA_..._JWKS_0_KEY_FILE is rejected outright:
+      # "configuration environment variable not expected"). The filter lets
+      # the config read the key back out of its docker secret with
+      # `{{ secret "..." }}`, so the private key still never lands in a
+      # rendered file on disk. The config contains no other `{{ }}`.
+      X_AUTHELIA_CONFIG_FILTERS: template
+      # Was AUTHELIA_JWT_SECRET_FILE (deprecated in 4.38).
+      AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE: /run/secrets/authelia_jwt_secret
       AUTHELIA_SESSION_SECRET_FILE: /run/secrets/authelia_session_secret
       AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE: /run/secrets/authelia_storage_encryption_key
       AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET_FILE: /run/secrets/authelia_oidc_hmac_secret
-      AUTHELIA_IDENTITY_PROVIDERS_OIDC_ISSUER_PRIVATE_KEY_FILE: /run/secrets/authelia_oidc_jwks_key
     networks: [labnet]
     # Authelia refuses to start when its session provider is unreachable, and
     # deploy.sh bounces authelia on every full deploy — so ordering has to be
