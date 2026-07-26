@@ -7,6 +7,15 @@ dependencies = [
   "pytest>=8",
 ]
 
+# Same range siteapp/flasher/caddy/streamer pin, so all five services lint with
+# the same ruff. The [tool.ruff] section below predates this: the config was
+# here from the start but nothing ever ran it — pr-authelia.yml had no ruff
+# step, alone among the service workflows.
+[dependency-groups]
+dev = [
+  "ruff>=0.6,<0.13",
+]
+
 [tool.pytest.ini_options]
 addopts = "-q"
 # E2E tests have their own setup (docker compose) and are invoked

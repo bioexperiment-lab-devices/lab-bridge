@@ -58,6 +58,20 @@ jobs:
         working-directory: services/authelia
         run: uv sync --frozen
 
+      # This service had no lint step at all, alone among the five — even
+      # though its pyproject.toml already carried a [tool.ruff] section. Only
+      # `tests` here: unlike siteapp/flasher/streamer there is no `app`, the
+      # image just re-publishes upstream authelia.
+      - name: ruff check
+        if: steps.should-run.outputs.run == 'true'
+        working-directory: services/authelia
+        run: uv run ruff check tests
+
+      - name: ruff format check
+        if: steps.should-run.outputs.run == 'true'
+        working-directory: services/authelia
+        run: uv run ruff format --check tests
+
       - name: docker buildx setup
         if: steps.should-run.outputs.run == 'true'
         uses: docker/setup-buildx-action@v3
