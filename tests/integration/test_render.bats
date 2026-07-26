@@ -188,6 +188,48 @@ EOF
     ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
 }
 
+# Authelia 4.38 auto-maps its deprecated keys and warns that the mapping goes
+# away in 5.0 — and for the OIDC client keys it says outright that the warnings
+# become errors. A silent regression here would only surface as a total auth
+# outage on the next authelia_image bump, so assert the shape directly.
+@test "render_authelia_config: uses 4.38 key names, no deprecated ones" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
+        export AUTHELIA_GRAFANA_OIDC_SECRET_HASH='\$pbkdf2-sha512\$test\$hash'
+        render_authelia_config $ROOT/services/authelia/config/configuration.yml.tmpl $TMPDIR/configuration.yml
+        cat $TMPDIR/configuration.yml
+    "
+    [ "$status" -eq 0 ]
+    local out="$TMPDIR/configuration.yml"
+
+    # New names present.
+    [ "$(yq e '.server.address' "$out")" = "tcp://0.0.0.0:9091/" ]
+    [ "$(yq e '.session.cookies[0].domain' "$out")" = "192.0.2.10" ]
+    [ "$(yq e '.session.cookies[0].authelia_url' "$out")" = "https://192.0.2.10/auth" ]
+    [ "$(yq e '.session.cookies[0].name' "$out")" = "authelia_session" ]
+    [ "$(yq e '.session.cookies[0].remember_me' "$out")" = "2160h" ]
+    [ "$(yq e '.identity_providers.oidc.clients[0].client_id' "$out")" = "grafana" ]
+    [ "$(yq e '.identity_providers.oidc.clients[0].userinfo_signed_response_alg' "$out")" = "none" ]
+    # refresh_token grant requires the offline_access scope.
+    yq e '.identity_providers.oidc.clients[0].scopes[]' "$out" | grep -qx 'offline_access'
+    # OIDC signing key comes from the docker secret via the template filter,
+    # never inlined into the rendered file.
+    yq e '.identity_providers.oidc.jwks[0].key' "$out" | grep -q 'secret "/run/secrets/authelia_oidc_jwks_key"'
+    ! grep -q 'BEGIN .*PRIVATE KEY' "$out"
+
+    # Deprecated names absent. grep on the rendered YAML, not yq — a key that
+    # yq reports as null reads the same as one that is simply missing.
+    ! grep -qE '^\s*(host|port): (0\.0\.0\.0|9091)\s*$' "$out"
+    ! grep -qE '^default_redirection_url:' "$out"
+    ! grep -qE '^\s*remember_me_duration:' "$out"
+    ! grep -qE '^\s*issuer_private_key:' "$out"
+    ! grep -qE '^\s*userinfo_signing_algorithm:' "$out"
+    ! grep -qE '^\s+- id: grafana\s*$' "$out"
+}
+
 @test "render_compose: loki has no published ports (only labnet)" {
     bash -c "
         source $ROOT/scripts/lib/common.sh

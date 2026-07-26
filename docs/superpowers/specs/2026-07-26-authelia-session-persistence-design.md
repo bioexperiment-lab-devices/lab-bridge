@@ -125,6 +125,17 @@ platform, both caught by CI rather than by review:
    invariant (every compose data bind-mount has a matching exclude), so the next
    service to add a volume cannot repeat it.
 
+## Follow-up: the deprecated key names above are gone
+
+This document describes the config as it stood when the session store was
+fixed — still on `session.remember_me_duration` and the other keys Authelia
+4.38 auto-maps. A follow-up PR migrated every one of them to its 4.38 name
+(`session.cookies[].remember_me`, `server.address`, `client_id` /
+`client_secret`, `jwks`, …), because Authelia states the auto-mapping
+disappears in 5.0 and that the OIDC client warnings become hard errors — so
+the next `authelia_image` bump would have taken auth down. Behaviour is
+unchanged and the semantics measured in the table above still hold.
+
 ## Tests
 
 - **Service e2e** (`services/authelia/tests/e2e/test_session_persistence.py`) —

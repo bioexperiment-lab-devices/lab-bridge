@@ -3,11 +3,9 @@
 # __GRAFANA_OIDC_SECRET_HASH__ = PBKDF2-SHA512 of "grafana-test-secret"
 
 theme: light
-default_redirection_url: https://test.local/
 
 server:
-  host: 0.0.0.0
-  port: 9091
+  address: tcp://0.0.0.0:9091/
 
 log:
   level: info
@@ -58,12 +56,15 @@ access_control:
         - 'group:researchers'
 
 session:
-  name: authelia_session
-  domain: test.local
-  same_site: lax
-  expiration: 1h
-  inactivity: 5m
-  remember_me_duration: 2160h    # 90 days
+  cookies:
+    - domain: test.local
+      authelia_url: https://test.local/auth
+      default_redirection_url: https://test.local/
+      name: authelia_session
+      same_site: lax
+      expiration: 1h
+      inactivity: 5m
+      remember_me: 2160h    # 90 days
   # Keep in step with services/authelia/config/configuration.yml.tmpl —
   # test_session_persistence.py depends on sessions living outside the
   # Authelia process.
@@ -87,6 +88,13 @@ notifier:
 
 identity_providers:
   oidc:
+    # Mirrors the prod template: the OIDC signing key moved to `jwks`, a list,
+    # which Authelia's env-var mapping cannot express — so it is read from its
+    # mounted secret via the template filter (X_AUTHELIA_CONFIG_FILTERS in
+    # compose.yaml).
+    jwks:
+      - key: |
+          {{- secret "/run/secrets/oidc_jwks_key.pem" | nindent 10 }}
     cors:
       endpoints:
         - authorization
@@ -95,9 +103,9 @@ identity_providers:
         - introspection
         - userinfo
     clients:
-      - id: grafana
-        description: Grafana
-        secret: '$pbkdf2-sha512$310000$6dRXBdgWEAAM7jMll77TNA$nYmyVgHgaNAudIuHdfXqgmUnx36Eqbx.af2365otaXJrIkimFl5icbCa6jnFIWNWS0VY0nu68rA16rr83lWqug'
+      - client_id: grafana
+        client_name: Grafana
+        client_secret: '$pbkdf2-sha512$310000$6dRXBdgWEAAM7jMll77TNA$nYmyVgHgaNAudIuHdfXqgmUnx36Eqbx.af2365otaXJrIkimFl5icbCa6jnFIWNWS0VY0nu68rA16rr83lWqug'
         public: false
         authorization_policy: one_factor
         consent_mode: implicit
@@ -108,9 +116,10 @@ identity_providers:
           - profile
           - email
           - groups
+          - offline_access
         grant_types:
           - authorization_code
           - refresh_token
         response_types:
           - code
-        userinfo_signing_algorithm: none
+        userinfo_signed_response_alg: none
