@@ -102,6 +102,29 @@ attack surface. If Redis ever gets published or shared, add
 | `docker compose down -v` / volume wipe | no — by design |
 | Session secret rotation | no — by design |
 
+## Two bugs the new service surfaced
+
+Adding redis was not self-contained — it tripped two latent assumptions in the
+platform, both caught by CI rather than by review:
+
+1. **`filter_compose` mangled the long-form `depends_on`.** It pruned every
+   `depends_on` with `map(select(. != name))`, which is right for the short form
+   (a sequence of names) but not the long form (a map keyed by name). yq's
+   `map()` over a mapping returns a sequence of its *values*, so authelia's
+   `depends_on: {redis: {condition: service_healthy}}` came out as
+   `depends_on: [{condition: service_healthy}]` — invalid compose. Any instance
+   with a non-empty `disabled_services` would have failed to come up. Latent
+   until now: this is the file's first long-form `depends_on`. Fixed by
+   branching on the node tag and using `with_entries` for the map form.
+
+2. **`rsync --delete` wiped `redis_data`.** Every other runtime data dir is in
+   `deploy.sh`'s exclude list; a new one is easy to forget. Without it the
+   deploy deleted the session store mid-flight — redis went unhealthy and took
+   authelia down with it — which would have reproduced the original bug through
+   a different mechanism. There is now a cheap-tier test asserting the general
+   invariant (every compose data bind-mount has a matching exclude), so the next
+   service to add a volume cannot repeat it.
+
 ## Tests
 
 - **Service e2e** (`services/authelia/tests/e2e/test_session_persistence.py`) —
