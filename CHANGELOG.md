@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.41.0...v0.41.1) (2026-07-26)
+
+
+### Bug Fixes
+
+* **authelia:** persist sessions in redis so deploys stop logging users out ([#218](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/218)) ([683a87c](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/683a87c1be54c0bd6b0f553d98336a43c113563d))
+
 ## [0.41.0](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.40.0...v0.41.0) (2026-07-26)
 
 
