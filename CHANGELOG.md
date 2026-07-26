@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.2](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.41.1...v0.41.2) (2026-07-26)
+
+
+### Bug Fixes
+
+* **authelia:** migrate every deprecated 4.38 config key ([#222](https://github.com/bioexperiment-lab-devices/lab-bridge/issues/222)) ([31dcd4a](https://github.com/bioexperiment-lab-devices/lab-bridge/commit/31dcd4aca32f1e573141f16c49593976ead45454))
+
 ## [0.41.1](https://github.com/bioexperiment-lab-devices/lab-bridge/compare/v0.41.0...v0.41.1) (2026-07-26)
 
 
