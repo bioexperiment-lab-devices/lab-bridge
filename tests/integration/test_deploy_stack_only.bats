@@ -57,16 +57,16 @@ CFG
     [ "$status" -eq 0 ]
 
     run cat "$rsync_log"
-    [[ "$output" == *"--exclude=chisel/users.json"* ]]
-    [[ "$output" == *"--exclude=siteapp/clients.json"* ]]
+    [[ "$output" == *"--exclude=chisel/users.json"* ]] || false
+    [[ "$output" == *"--exclude=siteapp/clients.json"* ]] || false
     # Authelia config + users + secrets are laptop-managed; CI rsync preserves
     # the on-disk VPS copies. Without these excludes, --delete would remove
     # them on the first stack-only deploy (no source files = "extra" in dest).
-    [[ "$output" == *"--exclude=authelia/configuration.yml"* ]]
-    [[ "$output" == *"--exclude=authelia/users_database.yml"* ]]
-    [[ "$output" == *"--exclude=authelia/secrets/"* ]]
-    [[ "$output" == *"--exclude=grafana/oidc_secret"* ]]
-    [[ "$output" == *"--exclude=authelia_data/"* ]]
+    [[ "$output" == *"--exclude=authelia/configuration.yml"* ]] || false
+    [[ "$output" == *"--exclude=authelia/users_database.yml"* ]] || false
+    [[ "$output" == *"--exclude=authelia/secrets/"* ]] || false
+    [[ "$output" == *"--exclude=grafana/oidc_secret"* ]] || false
+    [[ "$output" == *"--exclude=authelia_data/"* ]] || false
     # streamer_data holds recorded streams on the VPS; without the exclude,
     # rsync --delete wipes it on every deploy (no source dir = "extra" in dest).
     [[ "$output" == *"--exclude=streamer_data/"* ]]
@@ -97,6 +97,6 @@ CFG
     LDS_CONFIG="$spy_config" \
         run bash "$ROOT/scripts/deploy.sh"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"LDS_REQUIRE_VAULT"* ]]
+    [[ "$output" == *"LDS_REQUIRE_VAULT"* ]] || false
     [[ "$output" == *"chisel_clients must be empty"* ]]
 }

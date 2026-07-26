@@ -69,8 +69,8 @@ teardown() { teardown_tmpdir; }
     PASSWORD=secret bash "$TMPDIR/scripts/users.sh" add alice admins
     PASSWORD=secret bash "$TMPDIR/scripts/users.sh" add bob researchers
     run bash "$TMPDIR/scripts/users.sh" list
-    [[ "$output" =~ alice ]]
-    [[ "$output" =~ bob ]]
-    [[ "$output" =~ admins ]]
+    [[ "$output" =~ alice ]] || false
+    [[ "$output" =~ bob ]] || false
+    [[ "$output" =~ admins ]] || false
     [[ "$output" =~ researchers ]]
 }

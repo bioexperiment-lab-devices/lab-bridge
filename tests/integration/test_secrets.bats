@@ -28,10 +28,10 @@ teardown() { teardown_tmpdir; }
     name="$(yq e '.chisel_clients[] | select(.name == "thermometer-7") | .name' "$LDS_CONFIG")"
     port="$(yq e '.chisel_clients[] | select(.name == "thermometer-7") | .reverse_port' "$LDS_CONFIG")"
     pwd="$(yq e '.chisel_clients[] | select(.name == "thermometer-7") | .password' "$LDS_CONFIG")"
-    [[ "$name" == "thermometer-7" ]]
-    [[ "$port" == "9007" ]]
-    [[ "${#pwd}" -eq 32 ]]
-    [[ "$output" == *"thermometer-7:$pwd"* ]]
+    [[ "$name" == "thermometer-7" ]] || false
+    [[ "$port" == "9007" ]] || false
+    [[ "${#pwd}" -eq 32 ]] || false
+    [[ "$output" == *"thermometer-7:$pwd"* ]] || false
     [[ "$output" == *"R:0.0.0.0:9007:localhost:80"* ]]
 }
 
@@ -51,7 +51,7 @@ teardown() { teardown_tmpdir; }
     pwd="$(yq e '.chisel_clients[] | select(.name == "microscope-1") | .password' "$LDS_CONFIG")"
     run bash "$ROOT/scripts/secrets.sh" show-client microscope-1
     [ "$status" -eq 0 ]
-    [[ "$output" == *"microscope-1:$pwd"* ]]
+    [[ "$output" == *"microscope-1:$pwd"* ]] || false
     [[ "$output" == *"R:0.0.0.0:9001:localhost:80"* ]]
 }
 
@@ -78,8 +78,8 @@ teardown() { teardown_tmpdir; }
     export LDS_GRAFANA_PASSWORD_FILE="$TMPDIR/admin_password"
     run bash -c "echo -e 'g00d-pw\ng00d-pw' | $ROOT/scripts/secrets.sh set-grafana-password"
     [ "$status" -eq 0 ]
-    [[ -f "$LDS_GRAFANA_PASSWORD_FILE" ]]
-    [[ "$(cat "$LDS_GRAFANA_PASSWORD_FILE")" == "g00d-pw" ]]
+    [[ -f "$LDS_GRAFANA_PASSWORD_FILE" ]] || false
+    [[ "$(cat "$LDS_GRAFANA_PASSWORD_FILE")" == "g00d-pw" ]] || false
     perms="$(stat -c '%a' "$LDS_GRAFANA_PASSWORD_FILE" 2>/dev/null || stat -f '%Lp' "$LDS_GRAFANA_PASSWORD_FILE")"
     [[ "$perms" == "600" ]]
 }

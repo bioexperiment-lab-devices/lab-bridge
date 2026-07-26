@@ -279,8 +279,7 @@ patch_caddyfile_tls_internal() {
         cd /srv/lab-bridge && docker compose restart caddy >/dev/null
     '
     # Give caddy a moment to come back up.
-    local i
-    for i in $(seq 1 30); do
+    for _ in $(seq 1 30); do
         if docker exec lds-fake-vps bash -c '
             cd /srv/lab-bridge && docker compose exec -T caddy \
                 wget --no-check-certificate -q -O - "https://127.0.0.1/" >/dev/null 2>&1
@@ -310,9 +309,8 @@ load_authelia_test_image() {
 # Wait for Authelia's /api/health to return 200 inside the fake-VPS network.
 # Returns non-zero on timeout. Call after deploy + patch_caddyfile_tls_internal.
 wait_authelia_ready() {
-    local i
     local deadline=$(( $(date +%s) + 120 ))
-    for i in $(seq 1 60); do
+    for _ in $(seq 1 60); do
         if [[ $(date +%s) -ge $deadline ]]; then
             echo "wait_authelia_ready: timed out after 120s" >&2
             return 1
@@ -484,13 +482,13 @@ fake_vps_up_with_users() {
 # that hasn't resolved yet, manifesting as a flaky 502/connection-error.
 # Returns non-zero on timeout.
 wait_siteapp_ready() {
-    local i
     # Hard wallclock cap: the bats step in pr.yml has a 12-min timeout, but a
     # per-helper cap gives faster diagnostic failure and prevents the job from
     # hanging until cancellation.
     local deadline=$(( $(date +%s) + 120 ))
     # Gate 1: siteapp's own /healthz inside the container.
-    for i in $(seq 1 60); do
+    # `_`, not `i`: the counter is unused — $deadline above is the real bound.
+    for _ in $(seq 1 60); do
         if [[ $(date +%s) -ge $deadline ]]; then
             echo "wait_siteapp_ready: gate 1 timed out after 120s" >&2
             return 1
@@ -507,7 +505,8 @@ wait_siteapp_ready() {
     # Gate 2: Caddy can reach siteapp on a public route. After patch_caddyfile_tls_internal
     # restarts caddy, the caddy→siteapp upstream resolution races test probes; this loop
     # waits until /docs/ and /download/agent both return 200 through HTTPS.
-    for i in $(seq 1 30); do
+    # `_`, not `i`: the counter is unused — $deadline below is the real bound.
+    for _ in $(seq 1 30); do
         if [[ $(date +%s) -ge $deadline ]]; then
             echo "wait_siteapp_ready: gate 2 timed out after 120s" >&2
             return 1

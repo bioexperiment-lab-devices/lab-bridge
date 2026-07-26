@@ -5,7 +5,7 @@ load helpers
 @test "gen_password: produces 32 base64 characters (no padding)" {
     run bash -c "source $ROOT/scripts/lib/crypto.sh; gen_password"
     [ "$status" -eq 0 ]
-    [[ "${#output}" -eq 32 ]]
+    [[ "${#output}" -eq 32 ]] || false
     [[ "$output" =~ ^[A-Za-z0-9+/]+$ ]]
 }
 

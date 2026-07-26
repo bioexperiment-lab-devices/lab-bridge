@@ -91,8 +91,8 @@ teardown() { teardown_tmpdir; }
 @test "ops ps: lists running services" {
     run bash "$ROOT/scripts/ops.sh" ps
     [ "$status" -eq 0 ]
-    [[ "$output" == *"caddy"* ]]
-    [[ "$output" == *"jupyter"* ]]
+    [[ "$output" == *"caddy"* ]] || false
+    [[ "$output" == *"jupyter"* ]] || false
     [[ "$output" == *"chisel"* ]]
 }
 
@@ -120,7 +120,7 @@ teardown() { teardown_tmpdir; }
     run bash "$ROOT/scripts/ops.sh" backup
     [ "$status" -eq 0 ]
     found="$(find "$TMPDIR/backups" -name 'note.txt' | head -1)"
-    [[ -n "$found" ]]
+    [[ -n "$found" ]] || false
     [[ "$(cat "$found")" == "hello" ]]
 }
 
@@ -137,6 +137,6 @@ teardown() { teardown_tmpdir; }
 @test "ops loki-disk: prints loki_data size and configured retention" {
     run bash "$ROOT/scripts/ops.sh" loki-disk
     [ "$status" -eq 0 ]
-    [[ "$output" == *"loki_data"* ]]
+    [[ "$output" == *"loki_data"* ]] || false
     [[ "$output" == *"retention"* ]] || [[ "$output" == *"30"* ]]
 }
