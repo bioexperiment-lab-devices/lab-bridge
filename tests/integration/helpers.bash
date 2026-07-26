@@ -171,6 +171,11 @@ _profile_images() {
     printf '%s\n' caddy:2
     _yq_field '.chisel_image' "$fixture" || return 1
     _yq_field '.authelia_image' "$ROOT/compose/images.yaml" || return 1
+    # redis backs Authelia's session store and authelia depends_on it with
+    # condition: service_healthy, so it sits above the `core` cut-off: a
+    # core-profile bring-up would otherwise stall on an image it never
+    # preloaded and got no skip-guard coverage for.
+    _yq_field '.redis_image' "$fixture" || return 1
     [[ "$profile" == "core" ]] && return 0
     _yq_field '.loki_image' "$fixture" || return 1
     _yq_field '.grafana_image' "$fixture" || return 1

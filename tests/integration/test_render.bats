@@ -136,6 +136,58 @@ EOF
     ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
 }
 
+# Sessions must outlive the authelia container: deploy.sh bounces authelia on
+# every full deploy, and Authelia's default in-memory session provider dropped
+# every session — "keep me signed in" included — on each bounce. Wiring only;
+# the behaviour test is services/authelia/tests/e2e/test_session_persistence.py.
+# Spec: docs/superpowers/specs/2026-07-26-authelia-session-persistence-design.md
+@test "render_compose: emits the redis session store and gates authelia on it" {
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
+        render_compose $ROOT/compose/docker-compose.yml.tmpl $TMPDIR/docker-compose.yml
+        cat $TMPDIR/docker-compose.yml
+    "
+    [ "$status" -eq 0 ]
+    # redis_image lives in images.yaml; derive it so a Renovate bump can't
+    # break this cheap-tier test.
+    local redis_image
+    redis_image="$(yq e '.redis_image' "$LDS_IMAGES_FILE")"
+    # grep, not [[ ]] — a bare [[ ]] failing mid-test does not fail a bats test.
+    grep -q "image: $redis_image" <<< "$output"
+    grep -q -- "--appendonly" <<< "$output"
+    grep -q "./redis_data:/data" <<< "$output"
+    # authelia must wait for a healthy redis: it exits at startup when its
+    # session provider is unreachable.
+    yq e '.services.authelia.depends_on.redis.condition' "$TMPDIR/docker-compose.yml" \
+        | grep -qx 'service_healthy'
+    # Session store stays on labnet — no published port, no password needed.
+    [ "$(yq e '.services.redis.ports // "none"' "$TMPDIR/docker-compose.yml")" = "none" ]
+    [ "$(yq e '.services.redis.networks[0]' "$TMPDIR/docker-compose.yml")" = "labnet" ]
+    ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
+}
+
+@test "render_authelia_config: session state is stored in redis, not process memory" {
+    # valid_config.yaml carries no .authelia.grafana_oidc_secret_hash, and
+    # render_authelia_config hard-fails on an empty one — supply it the same
+    # way the __GRAFANA_OIDC_SECRET_HASH__ test below does.
+    run bash -c "
+        source $ROOT/scripts/lib/common.sh
+        source $ROOT/scripts/lib/config.sh
+        source $ROOT/scripts/lib/render.sh
+        load_config $ROOT/tests/integration/fixtures/valid_config.yaml
+        export AUTHELIA_GRAFANA_OIDC_SECRET_HASH='\$pbkdf2-sha512\$test\$hash'
+        render_authelia_config $ROOT/services/authelia/config/configuration.yml.tmpl $TMPDIR/configuration.yml
+        cat $TMPDIR/configuration.yml
+    "
+    [ "$status" -eq 0 ]
+    [ "$(yq e '.session.redis.host' "$TMPDIR/configuration.yml")" = "redis" ]
+    [ "$(yq e '.session.redis.port' "$TMPDIR/configuration.yml")" = "6379" ]
+    ! grep -qE '__[A-Z][A-Z0-9_]*__' <<< "$output"
+}
+
 @test "render_compose: loki has no published ports (only labnet)" {
     bash -c "
         source $ROOT/scripts/lib/common.sh
@@ -365,6 +417,7 @@ loki_image: lok:1
 grafana_image: gra:1
 studio_image: stu:1
 authelia_image: ghcr.io/example/lab-bridge-authelia:latest
+redis_image: docker.io/library/redis:7.4-alpine
 prometheus_image: prom/prometheus:v3.0.1
 node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
 cadvisor_image: gcr.io/cadvisor/cadvisor:v0.49.1
@@ -421,6 +474,7 @@ loki_image: lok:1
 grafana_image: gra:1
 studio_image: stu:1
 authelia_image: ghcr.io/example/lab-bridge-authelia:latest
+redis_image: docker.io/library/redis:7.4-alpine
 prometheus_image: prom/prometheus:v3.0.1
 node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
 cadvisor_image: gcr.io/cadvisor/cadvisor:v0.49.1
@@ -594,6 +648,7 @@ loki_image: lok:1
 grafana_image: gra:1
 studio_image: stu:1
 authelia_image: ghcr.io/test/authelia:latest
+redis_image: docker.io/library/redis:7.4-alpine
 prometheus_image: prom/prometheus:v3.0.1
 node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
 cadvisor_image: gcr.io/cadvisor/cadvisor:v0.49.1

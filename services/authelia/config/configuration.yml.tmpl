@@ -84,6 +84,18 @@ session:
   expiration: 1h
   inactivity: 5m
   remember_me_duration: 2160h    # 90 days
+  # Sessions live in Redis, not in Authelia's process memory. deploy.sh
+  # restarts authelia on every full deploy (a single-file bind mount pins the
+  # original inode, so a rsynced configuration.yml / users_database.yml stays
+  # invisible until the process restarts) — and with the default in-memory
+  # provider that restart silently destroyed every session, remembered ones
+  # included. Note `expiration` and `inactivity` above apply only to sessions
+  # where the user did NOT tick "keep me signed in": a remembered session
+  # ignores both and lives for remember_me_duration. Verified against 4.38.10;
+  # spec: docs/superpowers/specs/2026-07-26-authelia-session-persistence-design.md
+  redis:
+    host: redis
+    port: 6379
 
 regulation:
   max_retries: 3

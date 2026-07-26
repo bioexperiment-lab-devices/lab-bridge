@@ -62,6 +62,7 @@ _REQUIRED_IMAGES_FIELDS=(
     .grafana_image
     .studio_image
     .authelia_image
+    .redis_image
     .prometheus_image
     .node_exporter_image
     .cadvisor_image
@@ -73,7 +74,7 @@ _REQUIRED_IMAGES_FIELDS=(
 # services. Core services are deliberately absent — the platform cannot
 # run without them.
 _OPTIONAL_SERVICES=(jupyter monitoring studio streamer flasher)
-_CORE_SERVICES=(caddy authelia siteapp chisel)
+_CORE_SERVICES=(caddy authelia siteapp chisel redis)
 _MONITORING_COMPOSE_SERVICES=(grafana loki prometheus node-exporter cadvisor)
 
 _yq() { yq "$@" 2>/dev/null; }
@@ -245,6 +246,7 @@ load_config() {
     export CADDY_IMAGE_REPO      ; CADDY_IMAGE_REPO="$(_yq e '.caddy_image_repo' "$pins_path")"
     export AUTHELIA_IMAGE_REPO   ; AUTHELIA_IMAGE_REPO="$(_yq e '.authelia_image_repo' "$pins_path")"
     export AUTHELIA_IMAGE        ; AUTHELIA_IMAGE="$(_yq e '.authelia_image' "$images_path")"
+    export REDIS_IMAGE           ; REDIS_IMAGE="$(_yq e '.redis_image' "$images_path")"
     export AUTHELIA_GRAFANA_OIDC_SECRET_HASH ; AUTHELIA_GRAFANA_OIDC_SECRET_HASH="$(_yq e '.authelia.grafana_oidc_secret_hash // ""' "$config_path")"
 
     # Optional-service selection. DISABLED_SERVICES carries the raw group

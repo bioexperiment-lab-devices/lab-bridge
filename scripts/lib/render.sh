@@ -83,6 +83,7 @@ render_compose() {
         -e "s|__LAB_BRIDGE_VERSION__|$(_unified_version)|g" \
         -e "s|__CADDY_IMAGE__|${caddy_image}|g" \
         -e "s|__AUTHELIA_IMAGE__|${authelia_image}|g" \
+        -e "s|__REDIS_IMAGE__|${REDIS_IMAGE:?}|g" \
         "$tmpl" \
         > "$out"
     filter_compose "$out"

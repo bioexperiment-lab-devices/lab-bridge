@@ -19,6 +19,13 @@ grafana_image: grafana/grafana:11.3.0
 studio_image: ghcr.io/bioexperiment-lab-devices/experiment-studio:1.5.4
 # Authelia identity provider.
 authelia_image: authelia/authelia:4.38.10
+# Session store for Authelia. Authelia 4.38 ships exactly two session
+# providers — in-memory (default) and Redis — so without this every Authelia
+# restart logs every user out, "keep me signed in" included
+# (spec: 2026-07-26-authelia-session-persistence-design.md).
+# Fully qualified (docker.io/library/…) because Renovate's images.yaml regex
+# matches an owner/name pair; a bare `redis:7.4-alpine` would never be bumped.
+redis_image: docker.io/library/redis:7.4-alpine
 prometheus_image: prom/prometheus:v3.0.1
 node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
 # cadvisor must be >= v0.54.0 to read container stats under Docker's new

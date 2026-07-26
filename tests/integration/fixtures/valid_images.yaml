@@ -7,3 +7,4 @@ authelia_image: ghcr.io/test/lab-bridge-authelia:0.0.0
 prometheus_image: prom/prometheus:v3.0.1
 node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
 cadvisor_image: ghcr.io/google/cadvisor:v0.57.0
+redis_image: docker.io/library/redis:7.4-alpine

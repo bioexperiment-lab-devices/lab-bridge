@@ -23,6 +23,24 @@ services:
       interval: 1s
       timeout: 2s
       retries: 30
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # Mirrors the production session store (compose/docker-compose.yml.tmpl).
+  # test_session_persistence.py restarts *authelia only*, exactly as
+  # scripts/deploy.sh does, and asserts sessions outlive the bounce.
+  redis:
+    image: ${REDIS_TEST_IMAGE:-docker.io/library/redis:7.4-alpine}
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 2s
+      retries: 30
 
 volumes:
   authelia_data:
+  redis_data:

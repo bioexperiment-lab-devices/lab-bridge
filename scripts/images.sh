@@ -33,7 +33,7 @@ REPO_DIR="${LDS_REPO_DIR:-$ROOT}"
 # suffix. Deliberately does NOT include siteapp/flasher/streamer/caddy —
 # those are core, repo-built services pinned via *_image_repo in
 # compose/pins.yaml, not externally-released images this command touches.
-_SERVICES=(jupyter chisel loki grafana studio authelia prometheus node_exporter cadvisor)
+_SERVICES=(jupyter chisel loki grafana studio authelia redis prometheus node_exporter cadvisor)
 
 _known_service() {
     local svc want="$1"
