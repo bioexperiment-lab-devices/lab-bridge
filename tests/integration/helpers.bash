@@ -30,10 +30,30 @@ EOF
 setup_tmpdir() {
     TMPDIR="$(mktemp -d)"
     export TMPDIR
+    # Remember what we created so teardown_tmpdir removes only that. See the
+    # warning there.
+    _LDS_OWNED_TMPDIR="$TMPDIR"
 }
 
 teardown_tmpdir() {
-    [[ -n "${TMPDIR:-}" && -d "$TMPDIR" ]] && rm -rf "$TMPDIR"
+    # Removes only the directory setup_tmpdir created — NOT whatever $TMPDIR
+    # currently points at.
+    #
+    # This used to be `[[ -n "${TMPDIR:-}" && -d "$TMPDIR" ]] && rm -rf
+    # "$TMPDIR"`, which has two faults. bats runs teardown even for SKIPPED
+    # tests, and the heavy suites call `skip` from setup() *before*
+    # setup_tmpdir runs — so on that path $TMPDIR is still the ambient system
+    # temp directory (/tmp, or /var/folders/…/T/ on macOS), and it is a
+    # directory, so the guard passed and the `rm -rf` targeted the whole
+    # system temp dir. Second, as the last statement of the function a bare &&
+    # list makes its own status the function's, so a failed or skipped cleanup
+    # returned 1 and bats reported `not ok … # skip` — a red required check
+    # for a suite that deliberately ran nothing. That is what the ops cell hit
+    # the first time it was rate-limited.
+    if [[ -n "${_LDS_OWNED_TMPDIR:-}" && -d "$_LDS_OWNED_TMPDIR" ]]; then
+        rm -rf "$_LDS_OWNED_TMPDIR"
+    fi
+    unset _LDS_OWNED_TMPDIR
 }
 
 fixture() {
