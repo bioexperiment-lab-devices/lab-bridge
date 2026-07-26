@@ -21,13 +21,13 @@ jobs:
       any: ${{ steps.should-run.outputs.any }}
       shell: ${{ steps.changed.outputs.shell }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: changed
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
-            # dorny/paths-filter@v3 combines a rule's patterns with `some()`
+            # dorny/paths-filter@v4 combines a rule's patterns with `some()`
             # semantics (predicateQuantifier defaults to "some") — there is NO
             # ordered last-match-wins and no negation-as-exclusion. A bare
             # '!compose/images.yaml' entry is NOT an exclusion of
@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: shellcheck
         run: |
           sudo apt-get update
@@ -89,9 +89,9 @@ jobs:
     timeout-minutes: 10
     name: bats (cheap)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: install Task
-        uses: arduino/setup-task@v2
+        uses: arduino/setup-task@v3
         with:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -186,7 +186,7 @@ jobs:
             profile: core
     name: bats (${{ matrix.suite }})
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Every remaining cell builds 4 local service images and side-loads
       # them — plus the multi-GB scipy-notebook image — into the fake-VPS
@@ -206,7 +206,7 @@ jobs:
           swap-storage: true
 
       - name: install Task
-        uses: arduino/setup-task@v2
+        uses: arduino/setup-task@v3
         with:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -223,6 +223,13 @@ jobs:
       - name: bats ${{ matrix.suite }}
         env:
           LDS_SUITE_PROFILE: ${{ matrix.profile }}
+          # On a release-please PR this suite IS the integration gate in front
+          # of the production deploy, so a graceful "couldn't pull the images,
+          # skipping everything" must not report green. Observed on the 0.41.1
+          # release PR: routes-smoke reported success with all 18 of its tests
+          # skipped. Everywhere else the graceful skip stays — an ordinary PR
+          # that hits a Docker Hub rate limit should not hard-fail.
+          LDS_REQUIRE_IMAGES: ${{ startsWith(github.head_ref, 'release-please--') && '1' || '0' }}
         run: bats ${{ matrix.files }}
 
   # Aggregator: the single required check for branch protection. Succeeds

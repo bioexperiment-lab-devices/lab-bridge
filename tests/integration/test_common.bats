@@ -118,3 +118,53 @@ teardown() { teardown_tmpdir; }
     [[ "$output" != *"SWALLOWED_AS_SKIP"* ]] || false
     [[ "$output" != *"REACHED_AFTER_GUARD"* ]]
 }
+
+@test "compose_images_available: LDS_REQUIRE_IMAGES=1 turns an unpullable image into a hard failure" {
+    # On a release-please PR the heavy suite is the integration gate in front
+    # of the production deploy, so "couldn't pull, tested nothing" must be red.
+    # Same swallow-proof shape as the fixture-desync tests above: the guard
+    # call sits inside the very `if ! …; then skip; fi` idiom the suites use,
+    # so a mere `return 1` would be silently absorbed.
+    run bash -c "
+        source $ROOT/tests/integration/helpers.bash
+        _profile_images() { echo 'ghcr.io/example/never-resolves:0.0.0'; }
+        docker() { return 1; }   # both inspect and pull fail
+        export LDS_PULL_RETRY_DELAYS='0'
+        export LDS_REQUIRE_IMAGES=1
+        if ! compose_images_available; then echo SWALLOWED_AS_SKIP; fi
+        echo REACHED_AFTER_GUARD
+    "
+    [ "$status" -ne 0 ] || false
+    [[ "$output" == *"LDS_REQUIRE_IMAGES=1"* ]] || false
+    [[ "$output" != *"SWALLOWED_AS_SKIP"* ]] || false
+    [[ "$output" != *"REACHED_AFTER_GUARD"* ]]
+}
+
+@test "compose_images_available: without LDS_REQUIRE_IMAGES an unpullable image still skips gracefully" {
+    # The default has to stay a graceful skip: an ordinary PR that trips a
+    # Docker Hub anonymous-pull rate limit should not go red.
+    run bash -c "
+        source $ROOT/tests/integration/helpers.bash
+        _profile_images() { echo 'ghcr.io/example/never-resolves:0.0.0'; }
+        docker() { return 1; }
+        export LDS_PULL_RETRY_DELAYS='0'
+        if ! compose_images_available; then echo SWALLOWED_AS_SKIP; fi
+        echo REACHED_AFTER_GUARD
+    "
+    [ "$status" -eq 0 ] || false
+    [[ "$output" == *"SWALLOWED_AS_SKIP"* ]] || false
+    [[ "$output" == *"REACHED_AFTER_GUARD"* ]]
+}
+
+@test "_docker_pull_retry: retries a failing pull before giving up, and stops on success" {
+    # A single transient 429 must not cost the suite its whole run.
+    run bash -c "
+        source $ROOT/tests/integration/helpers.bash
+        attempts=0
+        docker() { attempts=\$((attempts+1)); [ \"\$attempts\" -ge 3 ] && return 0; return 1; }
+        export LDS_PULL_RETRY_DELAYS='0 0 0'
+        _docker_pull_retry img:1 && echo \"PULLED after \$attempts\"
+    "
+    [ "$status" -eq 0 ] || false
+    [[ "$output" == *"PULLED after 3"* ]]
+}
