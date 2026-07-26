@@ -8,14 +8,14 @@ teardown() { teardown_tmpdir; }
 @test "log prints a green tagged line to stderr" {
     run bash -c "source $ROOT/scripts/lib/common.sh; log hello 2>&1 1>/dev/null"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"hello"* ]]
+    [[ "$output" == *"hello"* ]] || false
     [[ "$output" == *"[lab]"* ]]
 }
 
 @test "warn prints a yellow tagged line to stderr" {
     run bash -c "source $ROOT/scripts/lib/common.sh; warn careful 2>&1 1>/dev/null"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"careful"* ]]
+    [[ "$output" == *"careful"* ]] || false
     [[ "$output" == *"[warn]"* ]]
 }
 

@@ -50,6 +50,7 @@ jobs:
               - 'compose/images.yaml'
             shell:
               - 'scripts/**/*.sh'
+              - 'tests/integration/**/*.bash'
 
       - id: should-run
         name: determine which suites should run
@@ -80,7 +81,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck
-          shellcheck -x --severity=warning scripts/*.sh scripts/lib/*.sh
+          # tests/integration/*.bash is in scope too: helpers.bash carries the
+          # fake-VPS bring-up and the image skip-guard, so a quoting slip there
+          # silently degrades every heavy suite. It was unlinted until now.
+          shellcheck -x --severity=warning scripts/*.sh scripts/lib/*.sh tests/integration/*.bash
 
   bats-cheap:
     needs: changes
@@ -113,7 +117,24 @@ jobs:
                tests/integration/test_deploy_stack_only.bats \
                tests/integration/test_service_selection_render.bats \
                tests/integration/test_images_cli.bats \
-               tests/integration/test_deploy_preflight.bats
+               tests/integration/test_deploy_preflight.bats \
+               tests/integration/test_users.bats
+
+      # Guards the gap that left test_users.bats unrun ever since it was
+      # written: every tests/integration/*.bats file must be named somewhere
+      # in this workflow — the cheap list above or the bats-heavy matrix.
+      - name: every bats suite is wired into CI
+        run: |
+          set -euo pipefail
+          missing=()
+          for f in tests/integration/*.bats; do
+            grep -q "$(basename "$f")" .github/workflows/pr-platform.yml || missing+=("$f")
+          done
+          if [ "${#missing[@]}" -ne 0 ]; then
+            echo "::error::bats suites exist that no CI job runs: ${missing[*]}"
+            exit 1
+          fi
+          echo "all $(ls tests/integration/*.bats | wc -l) bats suites are wired into CI"
 
   bats-heavy:
     needs: changes

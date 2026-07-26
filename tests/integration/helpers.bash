@@ -30,10 +30,30 @@ EOF
 setup_tmpdir() {
     TMPDIR="$(mktemp -d)"
     export TMPDIR
+    # Remember what we created so teardown_tmpdir removes only that. See the
+    # warning there.
+    _LDS_OWNED_TMPDIR="$TMPDIR"
 }
 
 teardown_tmpdir() {
-    [[ -n "${TMPDIR:-}" && -d "$TMPDIR" ]] && rm -rf "$TMPDIR"
+    # Removes only the directory setup_tmpdir created — NOT whatever $TMPDIR
+    # currently points at.
+    #
+    # This used to be `[[ -n "${TMPDIR:-}" && -d "$TMPDIR" ]] && rm -rf
+    # "$TMPDIR"`, which has two faults. bats runs teardown even for SKIPPED
+    # tests, and the heavy suites call `skip` from setup() *before*
+    # setup_tmpdir runs — so on that path $TMPDIR is still the ambient system
+    # temp directory (/tmp, or /var/folders/…/T/ on macOS), and it is a
+    # directory, so the guard passed and the `rm -rf` targeted the whole
+    # system temp dir. Second, as the last statement of the function a bare &&
+    # list makes its own status the function's, so a failed or skipped cleanup
+    # returned 1 and bats reported `not ok … # skip` — a red required check
+    # for a suite that deliberately ran nothing. That is what the ops cell hit
+    # the first time it was rate-limited.
+    if [[ -n "${_LDS_OWNED_TMPDIR:-}" && -d "$_LDS_OWNED_TMPDIR" ]]; then
+        rm -rf "$_LDS_OWNED_TMPDIR"
+    fi
+    unset _LDS_OWNED_TMPDIR
 }
 
 fixture() {
@@ -165,6 +185,11 @@ _yq_field() {
 # (preload_fake_vps_images, compose_images_available) always call this with
 # no arguments; the override exists only so tests can point at a
 # deliberately-broken fixture copy without touching the tracked one.
+#
+# SC2120: shellcheck sees no caller passing $1 because the only ones that do
+# live in test_common.bats, a different file. The parameter is deliberate —
+# see the paragraph above.
+# shellcheck disable=SC2120
 _profile_images() {
     local fixture="${1:-$ROOT/tests/integration/fixtures/valid_images.yaml}"
     local profile="${LDS_SUITE_PROFILE:-full}"
@@ -279,8 +304,7 @@ patch_caddyfile_tls_internal() {
         cd /srv/lab-bridge && docker compose restart caddy >/dev/null
     '
     # Give caddy a moment to come back up.
-    local i
-    for i in $(seq 1 30); do
+    for _ in $(seq 1 30); do
         if docker exec lds-fake-vps bash -c '
             cd /srv/lab-bridge && docker compose exec -T caddy \
                 wget --no-check-certificate -q -O - "https://127.0.0.1/" >/dev/null 2>&1
@@ -310,9 +334,8 @@ load_authelia_test_image() {
 # Wait for Authelia's /api/health to return 200 inside the fake-VPS network.
 # Returns non-zero on timeout. Call after deploy + patch_caddyfile_tls_internal.
 wait_authelia_ready() {
-    local i
     local deadline=$(( $(date +%s) + 120 ))
-    for i in $(seq 1 60); do
+    for _ in $(seq 1 60); do
         if [[ $(date +%s) -ge $deadline ]]; then
             echo "wait_authelia_ready: timed out after 120s" >&2
             return 1
@@ -484,13 +507,13 @@ fake_vps_up_with_users() {
 # that hasn't resolved yet, manifesting as a flaky 502/connection-error.
 # Returns non-zero on timeout.
 wait_siteapp_ready() {
-    local i
     # Hard wallclock cap: the bats step in pr.yml has a 12-min timeout, but a
     # per-helper cap gives faster diagnostic failure and prevents the job from
     # hanging until cancellation.
     local deadline=$(( $(date +%s) + 120 ))
     # Gate 1: siteapp's own /healthz inside the container.
-    for i in $(seq 1 60); do
+    # `_`, not `i`: the counter is unused — $deadline above is the real bound.
+    for _ in $(seq 1 60); do
         if [[ $(date +%s) -ge $deadline ]]; then
             echo "wait_siteapp_ready: gate 1 timed out after 120s" >&2
             return 1
@@ -507,7 +530,8 @@ wait_siteapp_ready() {
     # Gate 2: Caddy can reach siteapp on a public route. After patch_caddyfile_tls_internal
     # restarts caddy, the caddy→siteapp upstream resolution races test probes; this loop
     # waits until /docs/ and /download/agent both return 200 through HTTPS.
-    for i in $(seq 1 30); do
+    # `_`, not `i`: the counter is unused — $deadline below is the real bound.
+    for _ in $(seq 1 30); do
         if [[ $(date +%s) -ge $deadline ]]; then
             echo "wait_siteapp_ready: gate 2 timed out after 120s" >&2
             return 1

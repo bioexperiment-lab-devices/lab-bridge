@@ -35,7 +35,7 @@ load helpers
 @test "grafana provisioning: prometheus is the default datasource and loki is not" {
     run yq e '.datasources[0].isDefault' "$ROOT/compose/grafana/provisioning/datasources/prometheus.yaml"
     [ "$status" -eq 0 ]
-    [[ "$output" == "true" ]]
+    [[ "$output" == "true" ]] || false
     run yq e '.datasources[0].isDefault' "$ROOT/compose/grafana/provisioning/datasources/loki.yaml"
     [ "$status" -eq 0 ]
     [[ "$output" == "false" ]]
@@ -48,19 +48,19 @@ load helpers
     # yq v4.45+ which breaks the equality assertions below.
     run bash -c "yq -p json -oy e '.title' '$ROOT/compose/grafana/provisioning/dashboards/client-logs.json' 2>/dev/null"
     [ "$status" -eq 0 ]
-    [[ "$output" == "Lab client logs" ]]
+    [[ "$output" == "Lab client logs" ]] || false
     run bash -c "yq -p json -oy e '.panels | length' '$ROOT/compose/grafana/provisioning/dashboards/client-logs.json' 2>/dev/null"
     [ "$status" -eq 0 ]
-    [[ "$output" == "4" ]]
+    [[ "$output" == "4" ]] || false
     run bash -c "yq -p json -oy e '.panels | map(.title) | join(\",\")' '$ROOT/compose/grafana/provisioning/dashboards/client-logs.json' 2>/dev/null"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Live tail"* ]]
-    [[ "$output" == *"Log volume by client"* ]]
-    [[ "$output" == *"Errors"* ]]
-    [[ "$output" == *"Current versions"* ]]
+    [[ "$output" == *"Live tail"* ]] || false
+    [[ "$output" == *"Log volume by client"* ]] || false
+    [[ "$output" == *"Errors"* ]] || false
+    [[ "$output" == *"Current versions"* ]] || false
     run bash -c "yq -p json -oy e '.templating.list | map(.name) | join(\",\")' '$ROOT/compose/grafana/provisioning/dashboards/client-logs.json' 2>/dev/null"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"client"* ]]
-    [[ "$output" == *"stream"* ]]
+    [[ "$output" == *"client"* ]] || false
+    [[ "$output" == *"stream"* ]] || false
     [[ "$output" == *"version"* ]]
 }

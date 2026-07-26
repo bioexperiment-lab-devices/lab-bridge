@@ -34,7 +34,7 @@ CFG
     write_config '[jupyterlab]'
     run bash -c "source $ROOT/scripts/lib/config.sh; validate_config $TMPDIR/config.yaml"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"jupyterlab"* ]]
+    [[ "$output" == *"jupyterlab"* ]] || false
     [[ "$output" == *"allowed"* ]]
 }
 
@@ -63,7 +63,7 @@ CFG
     write_config '[monitoring, flasher]'
     run bash -c "source $ROOT/scripts/lib/config.sh; load_config $TMPDIR/config.yaml; echo \"[\$DISABLED_SERVICES]\"; echo \"[\$DISABLED_COMPOSE_SERVICES]\""
     [ "$status" -eq 0 ]
-    [[ "$output" == *"[monitoring flasher]"* ]]
+    [[ "$output" == *"[monitoring flasher]"* ]] || false
     [[ "$output" == *"[grafana loki prometheus node-exporter cadvisor flasher]"* ]]
 }
 
@@ -77,8 +77,8 @@ CFG
         service_disabled grafana || echo no-grafana
     "
     [ "$status" -eq 0 ]
-    [[ "$output" == *"yes-monitoring"* ]]
-    [[ "$output" == *"no-jupyter"* ]]
+    [[ "$output" == *"yes-monitoring"* ]] || false
+    [[ "$output" == *"no-jupyter"* ]] || false
     [[ "$output" == *"no-grafana"* ]]
 }
 
@@ -254,10 +254,10 @@ EOF
 
     # The remote command restarts only enabled services.
     run cat "$BATS_TEST_TMPDIR/ssh.log"
-    [[ "$output" == *"docker compose restart"* ]]
+    [[ "$output" == *"docker compose restart"* ]] || false
     restart_line="$(grep -o 'docker compose restart.*' "$BATS_TEST_TMPDIR/ssh.log")"
-    [[ "$restart_line" == *"caddy"* ]]
-    [[ "$restart_line" == *"siteapp"* ]]
+    [[ "$restart_line" == *"caddy"* ]] || false
+    [[ "$restart_line" == *"siteapp"* ]] || false
     # Negated checks use the run + status-1 idiom (test_render.bats:449-450):
     # a bare `[[ ... != ... ]]` or `! grep` can be exempted from bats'
     # errexit-based failure propagation, so it can't reliably fail the test.

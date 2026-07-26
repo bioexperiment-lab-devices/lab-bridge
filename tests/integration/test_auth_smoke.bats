@@ -29,16 +29,16 @@ setup() {
 
 @test "anonymous GET /flash redirects to /login?rd=/flash" {
     run curl -ksSI "https://$FAKE_VPS_HOST/flash"
-    [[ "$output" =~ HTTP/.*\ 302 ]]
+    [[ "$output" =~ HTTP/.*\ 302 ]] || false
     # HTTP/2 headers are lower-case; rd= target is URL-encoded so match flash
     # without a literal slash prefix.
-    [[ "$output" =~ [Ll]ocation:.*/login ]]
+    [[ "$output" =~ [Ll]ocation:.*/login ]] || false
     [[ "$output" =~ flash ]]
 }
 
 @test "anonymous GET /jupyter/ redirects to /login" {
     run curl -ksSI "https://$FAKE_VPS_HOST/jupyter/"
-    [[ "$output" =~ HTTP/.*\ 302 ]]
+    [[ "$output" =~ HTTP/.*\ 302 ]] || false
     [[ "$output" =~ [Ll]ocation:.*/login ]]
 }
 
@@ -48,7 +48,7 @@ setup() {
     # half-broken Authelia React portal (which has no working assets under
     # the /auth/ sub-path).
     run curl -ksSI "https://$FAKE_VPS_HOST/grafana/"
-    [[ "$output" =~ HTTP/.*\ 302 ]]
+    [[ "$output" =~ HTTP/.*\ 302 ]] || false
     [[ "$output" =~ [Ll]ocation:.*/login ]]
 }
 
@@ -83,7 +83,7 @@ setup() {
 @test "OIDC discovery is reachable at /auth/.well-known/openid-configuration" {
     run curl -ksS \
         "https://$FAKE_VPS_HOST/auth/.well-known/openid-configuration"
-    [[ "$output" =~ \"issuer\" ]]
+    [[ "$output" =~ \"issuer\" ]] || false
     [[ "$output" =~ authorization_endpoint ]]
 }
 
@@ -109,7 +109,7 @@ setup() {
         "https://$FAKE_VPS_HOST/api/auth/firstfactor" >/dev/null
     local body
     body="$(curl -ksS -b "$jar" "https://$FAKE_VPS_HOST/flash/")"
-    [[ "$body" =~ 403 ]]
+    [[ "$body" =~ 403 ]] || false
     [[ "$body" =~ [Ff]orbidden ]]
 }
 
@@ -137,7 +137,7 @@ setup() {
         "https://$FAKE_VPS_HOST/api/auth/firstfactor" >/dev/null
     curl -ksS -b "$jar" -c "$jar" "https://$FAKE_VPS_HOST/logout" >/dev/null
     run curl -ksSI -b "$jar" "https://$FAKE_VPS_HOST/grafana/"
-    [[ "$output" =~ HTTP/.*\ 302 ]]
+    [[ "$output" =~ HTTP/.*\ 302 ]] || false
     [[ "$output" =~ [Ll]ocation:.*/login ]]
 }
 
@@ -149,7 +149,7 @@ setup() {
         "https://$FAKE_VPS_HOST/api/auth/firstfactor" >/dev/null
     local body
     body="$(curl -ksS -b "$jar" "https://$FAKE_VPS_HOST/api/auth/whoami")"
-    [[ "$body" =~ \"user\":\ ?\"admin\" ]]
+    [[ "$body" =~ \"user\":\ ?\"admin\" ]] || false
     [[ "$body" =~ \"groups\":.*admins ]]
 }
 
@@ -158,6 +158,6 @@ setup() {
     # points at that file; exercise the task CLI against the same file.
     run task users:list
     [ "$status" -eq 0 ]
-    [[ "$output" =~ admin ]]
+    [[ "$output" =~ admin ]] || false
     [[ "$output" =~ researcher ]]
 }
