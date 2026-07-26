@@ -220,6 +220,13 @@ preload_fake_vps_images() {
 # a permanently silent skip — green CI, heavy suite never actually runs. So
 # that failure mode aborts the whole process instead of returning, and can't
 # be swallowed by an `if ! compose_images_available; then skip; fi` guard.
+#
+# LDS_REQUIRE_IMAGES=1 extends that same reasoning to the rate-limit path.
+# pr-platform.yml sets it on release-please PRs, which are the integration
+# gate in front of the production deploy: there, "couldn't pull anything, so
+# I tested nothing" has to be a red check rather than a green one. Observed
+# on the 0.41.1 release PR, where routes-smoke reported success with all 18
+# of its tests skipped. Mirrors deploy.sh's LDS_REQUIRE_VAULT=1 idiom.
 compose_images_available() {
     local images img
     if ! images="$(_profile_images)"; then
@@ -229,12 +236,34 @@ compose_images_available() {
     while IFS= read -r img; do
         [[ -z "$img" ]] && continue
         if ! docker image inspect "$img" >/dev/null 2>&1; then
-            if ! docker pull "$img" >/dev/null 2>&1; then
+            if ! _docker_pull_retry "$img"; then
+                if [[ "${LDS_REQUIRE_IMAGES:-}" == "1" ]]; then
+                    echo "compose_images_available: LDS_REQUIRE_IMAGES=1 and '$img' could not be pulled. This suite must not report success having tested nothing — failing hard instead of skipping gracefully." >&2
+                    exit 1
+                fi
                 return 1
             fi
         fi
     done <<< "$images"
     return 0
+}
+
+# docker pull with a short backoff. Docker Hub throttles anonymous pulls per
+# IP, and a release PR fires every heavy matrix cell at once — that burst is
+# what trips the limit, and it clears within seconds. Retrying turns most of
+# those transient 429s into a real run instead of a silent skip.
+# LDS_PULL_RETRY_DELAYS exists so tests can drive this without sleeping.
+_docker_pull_retry() {
+    local img="${1:?}" delay
+    for delay in ${LDS_PULL_RETRY_DELAYS-0 5 15}; do
+        if [[ "$delay" != "0" ]]; then
+            sleep "$delay"
+        fi
+        if docker pull "$img" >/dev/null 2>&1; then
+            return 0
+        fi
+    done
+    return 1
 }
 
 # Patch the deployed Caddyfile inside the fake-VPS to use `tls internal`

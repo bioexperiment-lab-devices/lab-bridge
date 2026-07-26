@@ -18,7 +18,7 @@ jobs:
     name: rsync public_docs to VPS
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: install rsync
         run: |
