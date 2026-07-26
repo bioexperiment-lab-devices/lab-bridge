@@ -165,6 +165,11 @@ _yq_field() {
 # (preload_fake_vps_images, compose_images_available) always call this with
 # no arguments; the override exists only so tests can point at a
 # deliberately-broken fixture copy without touching the tracked one.
+#
+# SC2120: shellcheck sees no caller passing $1 because the only ones that do
+# live in test_common.bats, a different file. The parameter is deliberate —
+# see the paragraph above.
+# shellcheck disable=SC2120
 _profile_images() {
     local fixture="${1:-$ROOT/tests/integration/fixtures/valid_images.yaml}"
     local profile="${LDS_SUITE_PROFILE:-full}"

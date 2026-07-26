@@ -109,6 +109,6 @@ _body_through_caddy() {
 
 @test "navbar injection carries the disabled ids" {
     body="$(_body_through_caddy 'https://127.0.0.1/')"
-    [[ "$body" == *'data-disabled="jupyter,grafana,studio,flasher"'* ]] \ || false
+    [[ "$body" == *'data-disabled="jupyter,grafana,studio,flasher"'* ]] \
         || { echo "tag not found; got: $(grep -o 'data-disabled=\"[^\"]*\"' <<< "$body" || echo NONE)"; false; }
 }
