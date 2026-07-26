@@ -16,10 +16,14 @@ from email.utils import parsedate_to_datetime
 import httpx
 import pytest
 
+# /api/auth/whoami is the fixture's one rule that any authenticated user
+# passes. `/` is NOT usable here: it falls through to default_policy: deny,
+# where an authenticated user gets a 403 that looks nothing like a lost
+# session.
 FORWARDED = {
     "X-Forwarded-Host": "test.local",
     "X-Forwarded-Proto": "https",
-    "X-Forwarded-Uri": "/",
+    "X-Forwarded-Uri": "/api/auth/whoami",
     "X-Forwarded-Method": "GET",
 }
 

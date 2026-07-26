@@ -101,7 +101,18 @@ filter_compose() {
     local name
     for name in $DISABLED_COMPOSE_SERVICES; do
         yq -i "del(.services.\"$name\")" "$file"
-        yq -i "with(.services[]; select(has(\"depends_on\")) | .depends_on |= map(select(. != \"$name\")))" "$file"
+        # depends_on comes in both compose forms and they prune differently:
+        # the short form is a sequence of names, the long form a map keyed by
+        # name (authelia uses it for `redis: {condition: service_healthy}`).
+        # Running map() over the long form silently returns a *sequence of the
+        # values*, i.e. `depends_on: [{condition: service_healthy}]`, which
+        # docker compose rejects — so branch on the node's tag.
+        yq -i "
+            with(.services[] | select(.depends_on | tag == \"!!seq\");
+                 .depends_on |= map(select(. != \"$name\")))
+            | with(.services[] | select(.depends_on | tag == \"!!map\");
+                 .depends_on |= with_entries(select(.key != \"$name\")))
+        " "$file"
     done
     # Prune top-level secrets no longer referenced by any remaining service.
     local referenced sname
