@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import time
 from pathlib import Path
 
 import httpx
@@ -35,3 +36,27 @@ def authelia_url() -> str:
 def http(authelia_url: str) -> httpx.Client:
     with httpx.Client(base_url=authelia_url, timeout=10.0) as client:
         yield client
+
+
+@pytest.fixture
+def restart_authelia(authelia_url: str):
+    """Bounce the Authelia container the way `scripts/deploy.sh` does.
+
+    Only the authelia service is restarted — redis keeps running, which is
+    exactly the production deploy shape (deploy.sh restarts caddy, siteapp,
+    chisel and authelia, never the session store).
+    """
+
+    def _restart() -> None:
+        _compose("restart", "authelia")
+        deadline = time.monotonic() + 60
+        while time.monotonic() < deadline:
+            try:
+                if httpx.get(f"{authelia_url}/api/health", timeout=2.0).status_code == 200:
+                    return
+            except httpx.RequestError:
+                pass
+            time.sleep(0.5)
+        raise RuntimeError("authelia did not become healthy again after restart")
+
+    return _restart

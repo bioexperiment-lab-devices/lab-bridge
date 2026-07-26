@@ -132,6 +132,7 @@ loki_image: grafana/loki:3.2.1
 grafana_image: grafana/grafana:11.3.0
 studio_image: ghcr.io/example/experiment-studio:0.3.0
 authelia_image: ghcr.io/example/lab-bridge-authelia:latest
+redis_image: docker.io/library/redis:7.4-alpine
 prometheus_image: prom/prometheus:v3.0.1
 node_exporter_image: quay.io/prometheus/node-exporter:v1.8.2
 cadvisor_image: gcr.io/cadvisor/cadvisor:v0.49.1

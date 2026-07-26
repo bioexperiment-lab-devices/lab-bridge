@@ -48,6 +48,34 @@ services:
       AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET_FILE: /run/secrets/authelia_oidc_hmac_secret
       AUTHELIA_IDENTITY_PROVIDERS_OIDC_ISSUER_PRIVATE_KEY_FILE: /run/secrets/authelia_oidc_jwks_key
     networks: [labnet]
+    # Authelia refuses to start when its session provider is unreachable, and
+    # deploy.sh bounces authelia on every full deploy — so ordering has to be
+    # enforced, not hoped for.
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # Session store for Authelia. Without it Authelia keeps sessions in process
+  # memory and every restart — i.e. every deploy — logs everyone out, "keep me
+  # signed in" included (spec:
+  # docs/superpowers/specs/2026-07-26-authelia-session-persistence-design.md).
+  # Deliberately unpublished: reachable only from labnet, which is why it runs
+  # without a password.
+  redis:
+    image: __REDIS_IMAGE__
+    restart: unless-stopped
+    # appendonly: sessions survive a redis restart / host reboot too, not just
+    # an authelia restart.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ./redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    networks: [labnet]
 
   chisel:
     image: __CHISEL_IMAGE__

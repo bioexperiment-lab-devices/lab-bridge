@@ -159,6 +159,12 @@ main() {
         --exclude='authelia_data/'
         --exclude='studio_data/'
         --exclude='streamer_data/'
+        # redis_data holds the Authelia session store. Without this exclude
+        # rsync --delete wipes it mid-deploy: redis loses its AOF and goes
+        # unhealthy, taking authelia (depends_on: service_healthy) with it,
+        # and every user is logged out — precisely the bug redis was added
+        # to fix.
+        --exclude='redis_data/'
     )
     if [[ "${LDS_SKIP_PUBLIC_DOCS:-0}" == "1" ]]; then
         # siteapp/docs is owned by deploy-public-docs.yml (see the public-docs

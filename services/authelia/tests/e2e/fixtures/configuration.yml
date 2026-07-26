@@ -64,6 +64,12 @@ session:
   expiration: 1h
   inactivity: 5m
   remember_me_duration: 2160h    # 90 days
+  # Keep in step with services/authelia/config/configuration.yml.tmpl —
+  # test_session_persistence.py depends on sessions living outside the
+  # Authelia process.
+  redis:
+    host: redis
+    port: 6379
 
 regulation:
   max_retries: 3

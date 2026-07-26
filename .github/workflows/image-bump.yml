@@ -17,6 +17,7 @@ on:
           - grafana
           - studio
           - authelia
+          - redis
           - prometheus
           - node_exporter
           - cadvisor

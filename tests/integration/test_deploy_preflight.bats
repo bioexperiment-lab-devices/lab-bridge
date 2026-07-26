@@ -77,3 +77,22 @@ teardown() { teardown_tmpdir; }
     [ "$status" -ne 0 ]
     [[ "$output" == *"rotate-agent-upload-token"* ]] || false
 }
+
+# Every host-side data dir bind-mounted by the compose template must be
+# excluded from the deploy rsync. Without the exclude, `rsync -az --delete`
+# removes the directory out from under the running container: redis lost its
+# AOF this way, went unhealthy, and dragged authelia down with it (authelia
+# depends_on redis with condition: service_healthy). Asserted generically so
+# the next service that adds a data volume cannot reintroduce the bug.
+@test "deploy: every compose data volume has a matching rsync --delete exclude" {
+    local dir missing=()
+    while IFS= read -r dir; do
+        grep -q -- "--exclude='$dir/'" "$ROOT/scripts/deploy.sh" || missing+=("$dir")
+    done < <(grep -oE '\./[a-z_]+_(data|config):' "$ROOT/compose/docker-compose.yml.tmpl" \
+             | sed -E 's#^\./##; s#:$##' | sort -u)
+    if [ "${#missing[@]}" -ne 0 ]; then
+        echo "compose bind-mounts these host dirs but deploy.sh does not exclude them"
+        echo "from rsync --delete: ${missing[*]}"
+        false
+    fi
+}

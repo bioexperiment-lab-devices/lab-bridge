@@ -132,13 +132,27 @@ render_full_compose() {
     done
 }
 
-@test "filter_compose: empty disabled list keeps all 13 services and 9 secrets" {
+@test "filter_compose: empty disabled list keeps all 14 services and 9 secrets" {
     write_config ''
     render_full_compose
+    # 14 since redis joined as Authelia's session store. grep, not a bare
+    # [[ ]] — a failing [[ ]] mid-test does not reliably fail a bats test
+    # (this very assertion passed locally at 13 while CI caught it).
     run yq e '.services | length' "$TMPDIR/docker-compose.yml"
-    [[ "$output" == "13" ]]
+    grep -qx '14' <<< "$output"
     run yq e '.secrets | length' "$TMPDIR/docker-compose.yml"
-    [[ "$output" == "9" ]]
+    grep -qx '9' <<< "$output"
+}
+
+# redis is core: it must survive every disabled_services combination, or
+# authelia comes up with no session provider and refuses to start.
+@test "filter_compose: redis is never stripped, whatever is disabled" {
+    write_config '[jupyter, monitoring, studio, streamer, flasher]'
+    render_full_compose
+    run yq e '.services | has("redis")' "$TMPDIR/docker-compose.yml"
+    grep -qx 'true' <<< "$output"
+    run yq e '.services.authelia.depends_on.redis.condition' "$TMPDIR/docker-compose.yml"
+    grep -qx 'service_healthy' <<< "$output"
 }
 
 render_full_caddyfile() {
